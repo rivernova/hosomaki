@@ -3,9 +3,16 @@
   <img src="assets/hosomaki_logo.svg" alt="Hosomaki" width="350"/>
 </p>
 
-> Local AI intelligence layer for Linux.
+> Local intelligence layer for Linux — with and without AI.
 
-Hosomaki reads your system — logs, processes, services — and uses a local AI model to explain what's happening in plain language. No cloud. No telemetry.
+Hosomaki reads your system — logs, processes, services — and helps you understand what's happening in plain language.  
+It works in two modes:
+
+- **AI‑powered mode**: uses a local model (via Ollama) to explain issues, correlate events and summarise system behaviour.  
+- **Insight mode**: a deterministic, AI‑free analysis path based on rules, heuristics, diffs and structured inspection.
+
+No cloud. No telemetry. Your system, your data, your choice.
+
 
 ## Commands
 
@@ -139,7 +146,28 @@ Systemd timer inspection — the modern equivalent of cron analysis.
 **`hosomaki env-check`**  
 Scan `/proc/<pid>/environ` for common misconfigurations (empty secrets, default passwords, exposed tokens). Detection is rule‑based; AI explains the risk and impact.
 
+---
 
+**`hosomaki insight`**  
+Toggle a deterministic, AI‑free analysis mode. When enabled, all commands run without invoking a model: log filtering, correlation, anomaly detection, diffing and heuristics are performed using rule‑based logic only.  
+Useful for servers without local models, restricted environments, or users who prefer predictable, explainable behaviour.  
+Can be activated or deactivated at any time:
+
+hosomaki insight on     # all analysis runs without AI
+hosomaki insight off    # restore AI-powered explanations
+
+---
+
+**Multi‑provider AI support**  
+Hosomaki’s AI layer will become fully pluggable.  
+In addition to the current local‑first Ollama integration, support is planned for:
+
+- **OpenAI** (API key, optional, never sending logs unless explicitly allowed)
+- **Anthropic** (Claude models)
+- **Other local or remote providers** via a unified interface
+
+The goal is to let users choose their preferred backend, switch providers at runtime, or fall back to `hosomaki insight` for deterministic analysis.  
+AI becomes an optional module — not a requirement.
 ---
 
 ## Requirements
