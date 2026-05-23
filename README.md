@@ -72,17 +72,73 @@ If the command fails, hosomaki explains the error automatically. If it succeeds,
 
 These commands are planned and actively being designed.
 
-**`hosomaki doctor`**
+**`hosomaki doctor`**  
 Full system diagnosis with concrete suggested actions. Goes beyond `status` — instead of describing what it sees, it tells you what to actually do about it.
 
-**`hosomaki predict`**
+**`hosomaki predict`**  
 Spots potential failures before they happen by analysing patterns across logs, services, and system behaviour over time. Useful for catching things like slow disk degradation, memory leaks, or services on the edge of crashing.
 
-**`hosomaki audit`**
+**`hosomaki audit`**  
 Surfaces invisible system changes: files modified, services added or removed, permission changes, new processes, package updates. Answers the question "what changed since yesterday?".
 
-**`hosomaki trace <process>`**
+**`hosomaki trace <process>`**  
 Intelligent tracing of a running process — syscalls, resource usage, relevant events — with a plain-language explanation of what it's doing and whether anything looks wrong.
+
+---
+
+**`hosomaki explain --since / --until`**  
+Time‑bounded log analysis (journalctl‑compatible), allowing explanations restricted to a specific time window.
+
+**`hosomaki explain --context`**  
+Pull logs from multiple related services at once (e.g. nginx + php‑fpm + postgres) to understand cascading failures.
+
+**`hosomaki explain --diff`**  
+Compare logs from two boots side by side and explain what changed.
+
+---
+
+**`hosomaki watch <service>`**  
+Real‑time log tailing with noise suppression — only surfaces lines the AI considers noteworthy.
+
+**`hosomaki compare --service <name> --boot -1`**  
+Compare a service’s behaviour between the current boot and the previous one.
+
+**`hosomaki why <exit-code> --service <name>`**  
+Given a nonzero exit code, pull surrounding context and explain the failure chain.
+
+**`hosomaki summarise --since <time>`**  
+Digest of everything that went wrong in a time window, grouped by severity.
+
+---
+
+**`hosomaki history`**  
+Local log of past explanations (stored in `~/.local/share/hosomaki/`), so you can revisit insights without re-running the model.
+
+**`hosomaki alias`**  
+Save long invocations under short names (e.g. `hosomaki alias nginx-errors "explain --service nginx --lines 100"`).
+
+**`--output json`**  
+Structured output across all commands for piping into other tools or scripts.
+
+---
+
+**`hosomaki ports`**  
+List listening ports with process names; AI flags anything unusual or unexpected for the system’s profile.
+
+**`hosomaki crons`**  
+Parse system + user crontabs, explain what each job does, and when it last ran or failed.
+
+**`hosomaki mounts`**  
+Check mount health, detect stale NFS mounts, full disks approaching thresholds, and slow mountpoints.
+
+**`hosomaki timers`**  
+Systemd timer inspection — the modern equivalent of cron analysis.
+
+---
+
+**`hosomaki env-check`**  
+Scan `/proc/<pid>/environ` for common misconfigurations (empty secrets, default passwords, exposed tokens). Detection is rule‑based; AI explains the risk and impact.
+
 
 ---
 
