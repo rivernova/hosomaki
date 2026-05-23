@@ -1,38 +1,38 @@
-# ─── Binary / build output ───────────────────────────────────────────────────
+# binary
 hosomaki
 dist/
 bin/
 
-# ─── Go toolchain ─────────────────────────────────────────────────────────────
+# go toolchain
 vendor/
 *.test
 *.out
 coverage.html
 coverage.txt
 
-# ─── Config local (no subir credenciales ni configs personales) ───────────────
+# config
 .hosomaki.yaml
 *.local.yaml
 config.local.*
 
-# ─── Editor / IDE ─────────────────────────────────────────────────────────────
+# ide
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# ─── OS ───────────────────────────────────────────────────────────────────────
+# os
 .DS_Store
 Thumbs.db
 
-# ─── Releases y empaquetado ───────────────────────────────────────────────────
+# archives
 *.tar.gz
 *.zip
 *.rpm
 *.deb
 
-# ─── Miscelánea ───────────────────────────────────────────────────────────────
+# logs and temp files
 .env
 *.log
 tmp/

@@ -1,0 +1,108 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+package collector
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+type LogOptions struct {
+	Lines int
+}
+
+const (
+	defaultServiceLines = 50
+	defaultBootLines    = 80
+	defaultDmesgLines   = 50
+	defaultFileLines    = 100
+)
+
+func ServiceLogs(service string, opts LogOptions) (string, error) {
+	n := opts.Lines
+	if n <= 0 {
+		n = defaultServiceLines
+	}
+	out := collectShell(fmt.Sprintf(
+		"journalctl -u %s -p err -n %d --no-pager --no-hostname -o short-monotonic 2>/dev/null",
+		shellQuote(service), n,
+	))
+	if out == "" {
+		return "", fmt.Errorf("no error logs found for service %q — is the service name correct?", service)
+	}
+	return out, nil
+}
+
+func BootLogs(bootIndex int, opts LogOptions) (string, error) {
+	n := opts.Lines
+	if n <= 0 {
+		n = defaultBootLines
+	}
+	out := collectShell(fmt.Sprintf(
+		"journalctl -b %d -p err -n %d --no-pager --no-hostname -o short-monotonic 2>/dev/null",
+		bootIndex, n,
+	))
+	if out == "" {
+		return "", fmt.Errorf("no error logs found for boot %d", bootIndex)
+	}
+	return out, nil
+}
+
+func DmesgLogs(opts LogOptions) (string, error) {
+	n := opts.Lines
+	if n <= 0 {
+		n = defaultDmesgLines
+	}
+	out := collectShell(fmt.Sprintf(
+		"dmesg --level=err,warn --notime 2>/dev/null | tail -n %d",
+		n,
+	))
+	if out == "" {
+		return "", fmt.Errorf("no kernel errors or warnings found in dmesg")
+	}
+	return out, nil
+}
+
+func FileLogs(path string, opts LogOptions) (string, error) {
+	n := opts.Lines
+	if n <= 0 {
+		n = defaultFileLines
+	}
+
+	if _, err := os.Stat(path); err != nil {
+		return "", fmt.Errorf("cannot read log file %q: %w", path, err)
+	}
+
+	raw := collectShell(fmt.Sprintf("tail -n %d %s 2>/dev/null", n, shellQuote(path)))
+	if raw == "" {
+		return "", fmt.Errorf("log file %q is empty or unreadable", path)
+	}
+
+	filtered := filterErrorLines(raw)
+	if filtered != "" {
+		return filtered, nil
+	}
+	return raw, nil
+}
+
+func filterErrorLines(text string) string {
+	keywords := []string{"error", "err", "warn", "fatal", "crit", "fail", "panic", "exception"}
+	var kept []string
+	for _, line := range strings.Split(text, "\n") {
+		lower := strings.ToLower(line)
+		for _, kw := range keywords {
+			if strings.Contains(lower, kw) {
+				kept = append(kept, line)
+				break
+			}
+		}
+	}
+	return strings.Join(kept, "\n")
+}
+
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
+}

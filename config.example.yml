@@ -4,8 +4,9 @@
 ai:
   provider: ollama                   # currently the only supported provider
   endpoint: http://localhost:11434   # Ollama default
-  model: gpt-oss                     # any model you have pulled locally
+  model: llama3                      # any model you have pulled: llama3, mistral, codellama…
+  timeout: 120s                      # increase for slow hardware or large models
 
 output:
   color: true
-  language: en                       # language for AI responses (en, es, fr, de, ...)
+  language: en                       # language for AI responses (en, es, fr, de, …)

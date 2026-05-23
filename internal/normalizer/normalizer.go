@@ -7,20 +7,30 @@ package normalizer
 import (
 	"fmt"
 	"strings"
-
-	"github.com/rivernova/hosomaki/internal/collector"
+	"time"
 )
 
-// ForStatus converts a SystemSnapshot into a structured text payload
-// suitable for sending to the AI as context.
-func ForStatus(s *collector.SystemSnapshot) string {
+type StatusInput struct {
+	CollectedAt    time.Time
+	Uptime         string
+	Memory         string
+	Disk           string
+	FailedServices string
+	RecentErrors   string
+	TopProcesses   string
+}
+
+const maxTopProcessLines = 10
+
+func ForStatus(s StatusInput) string {
 	var b strings.Builder
 
 	section := func(title, content string) {
-		if strings.TrimSpace(content) == "" {
+		content = strings.TrimSpace(content)
+		if content == "" {
 			content = "(no data)"
 		}
-		fmt.Fprintf(&b, "=== %s ===\n%s\n\n", title, strings.TrimSpace(content))
+		fmt.Fprintf(&b, "=== %s ===\n%s\n\n", title, content)
 	}
 
 	section("Collected at", s.CollectedAt.Format("2006-01-02 15:04:05"))
@@ -29,13 +39,15 @@ func ForStatus(s *collector.SystemSnapshot) string {
 	section("Disk", s.Disk)
 	section("Failed services", s.FailedServices)
 	section("Recent errors (journalctl)", s.RecentErrors)
-	section("Top processes by CPU", limitLines(s.TopProcesses, 10))
+	section("Top processes by CPU", limitLines(s.TopProcesses, maxTopProcessLines))
 
 	return b.String()
 }
 
-// limitLines returns at most n lines from a multi-line string.
 func limitLines(s string, n int) string {
+	if s == "" {
+		return s
+	}
 	lines := strings.Split(s, "\n")
 	if len(lines) <= n {
 		return s

@@ -8,11 +8,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/viper"
 )
 
-// C is the global config, available after Init() is called.
+const DefaultTimeout = 120 * time.Second
+
 var C Config
 
 type Config struct {
@@ -21,9 +23,10 @@ type Config struct {
 }
 
 type AIConfig struct {
-	Provider string `mapstructure:"provider"`
-	Endpoint string `mapstructure:"endpoint"`
-	Model    string `mapstructure:"model"`
+	Provider string        `mapstructure:"provider"`
+	Endpoint string        `mapstructure:"endpoint"`
+	Model    string        `mapstructure:"model"`
+	Timeout  time.Duration `mapstructure:"timeout"`
 }
 
 type OutputConfig struct {
@@ -31,15 +34,14 @@ type OutputConfig struct {
 	Language string `mapstructure:"language"`
 }
 
-// Init loads config from file and environment. Called by cobra.OnInitialize.
 func Init() {
 	viper.SetDefault("ai.provider", "ollama")
 	viper.SetDefault("ai.endpoint", "http://localhost:11434")
 	viper.SetDefault("ai.model", "llama3")
+	viper.SetDefault("ai.timeout", DefaultTimeout)
 	viper.SetDefault("output.color", true)
 	viper.SetDefault("output.language", "en")
 
-	// Config file locations, in order of preference
 	if cfgFile := viper.GetString("config"); cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
@@ -52,7 +54,7 @@ func Init() {
 		viper.SetConfigType("yaml")
 	}
 
-	// Allow env overrides: HOSOMAKI_AI_MODEL, HOSOMAKI_AI_ENDPOINT, etc.
+	// allow env overrides
 	viper.SetEnvPrefix("HOSOMAKI")
 	viper.AutomaticEnv()
 
@@ -60,7 +62,6 @@ func Init() {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			fmt.Fprintln(os.Stderr, "config error:", err)
 		}
-		// No config file found — defaults apply, that's fine.
 	}
 
 	if err := viper.Unmarshal(&C); err != nil {
