@@ -168,6 +168,7 @@ In addition to the current local‑first Ollama integration, support is planned 
 
 The goal is to let users choose their preferred backend, switch providers at runtime, or fall back to `hosomaki insight` for deterministic analysis.  
 AI becomes an optional module — not a requirement.
+
 ---
 
 ## Requirements
