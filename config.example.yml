@@ -1,0 +1,11 @@
+# Hosomaki configuration
+# Copy this file to ~/.config/hosomaki/config.yaml and edit as needed.
+
+ai:
+  provider: ollama                   # currently the only supported provider
+  endpoint: http://localhost:11434   # Ollama default
+  model: gpt-oss                     # any model you have pulled locally
+
+output:
+  color: true
+  language: en                       # language for AI responses (en, es, fr, de, ...)
