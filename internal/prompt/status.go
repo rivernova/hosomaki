@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package normalizer
+package prompt
 
 import (
 	"fmt"
@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+const maxTopProcessLines = 10
+
+// StatusInput carries the raw system snapshot fields.
+// It mirrors collector.SystemSnapshot but lives here to avoid an import cycle
+// and to make clear that this type exists for prompt-building purposes.
 type StatusInput struct {
 	CollectedAt    time.Time
 	Uptime         string
@@ -20,9 +25,27 @@ type StatusInput struct {
 	TopProcesses   string
 }
 
-const maxTopProcessLines = 10
+// Status builds a prompt that asks the model to summarise system health.
+// When brief is true the model is asked for a single sentence.
+func Status(s StatusInput, brief bool) string {
+	style := "Write a clear, concise paragraph (5–8 sentences) summarising system health. Highlight any anomalies or points of attention."
+	if brief {
+		style = "Summarise system health in a single sentence. Mention the most critical issue if any."
+	}
 
-func ForStatus(s StatusInput) string {
+	return fmt.Sprintf(`You are a Linux system expert. Here is a snapshot of the current system state.
+
+%s
+
+Rules: plain text only, no markdown, no bullet points.
+
+System snapshot:
+%s`, style, formatSnapshot(s))
+}
+
+// formatSnapshot serialises a StatusInput into the structured text block
+// that forms the "System snapshot" section of the status prompt.
+func formatSnapshot(s StatusInput) string {
 	var b strings.Builder
 
 	section := func(title, content string) {
