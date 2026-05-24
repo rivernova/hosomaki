@@ -5,6 +5,7 @@
 package config
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -23,7 +24,6 @@ func TestSetDefaults(t *testing.T) {
 		{"AI provider default", "ai.provider", "ollama"},
 		{"AI endpoint default", "ai.endpoint", "http://localhost:11434"},
 		{"AI model default", "ai.model", "llama3"},
-		{"AI timeout default", "ai.timeout", DefaultTimeout},
 		{"Output color default", "output.color", true},
 		{"Output language default", "output.language", "en"},
 	}
@@ -36,6 +36,14 @@ func TestSetDefaults(t *testing.T) {
 			}
 		})
 	}
+
+	// Duration needs to be checked via GetDuration, not Get
+	t.Run("AI timeout default", func(t *testing.T) {
+		got := viper.GetDuration("ai.timeout")
+		if got != DefaultTimeout {
+			t.Errorf("setDefaults() ai.timeout = %v, want %v", got, DefaultTimeout)
+		}
+	})
 }
 
 func TestDefaultTimeout(t *testing.T) {
@@ -46,44 +54,40 @@ func TestDefaultTimeout(t *testing.T) {
 }
 
 func TestInitWithDefaults(t *testing.T) {
-	viper.Reset()
-	setDefaults()
-
 	cfg, err := Init("")
 	if err != nil {
-		t.Errorf("Init() with no config file returned error: %v", err)
-		return
+		t.Fatalf("Init() with no config file returned error: %v", err)
 	}
-
 	if cfg.AI.Provider != "ollama" {
-		t.Errorf("Init() AI.Provider = %v, want %v", cfg.AI.Provider, "ollama")
+		t.Errorf("Init() AI.Provider = %v, want ollama", cfg.AI.Provider)
 	}
 	if cfg.AI.Timeout != DefaultTimeout {
 		t.Errorf("Init() AI.Timeout = %v, want %v", cfg.AI.Timeout, DefaultTimeout)
 	}
-	if cfg.Output.Color != true {
-		t.Errorf("Init() Output.Color = %v, want %v", cfg.Output.Color, true)
+	if !cfg.Output.Color {
+		t.Errorf("Init() Output.Color = false, want true")
 	}
 }
 
-func TestConfigStruct(t *testing.T) {
-	cfg := Config{
-		AI: AIConfig{
-			Provider: "test-provider",
-			Endpoint: "http://test:11434",
-			Model:    "test-model",
-			Timeout:  60 * time.Second,
-		},
-		Output: OutputConfig{
-			Color:    false,
-			Language: "cs",
-		},
+func TestInitWithConfigFile(t *testing.T) {
+	// Write a minimal config to a temp file and verify Init() parses it correctly
+	tmp := t.TempDir() + "/config.yaml"
+	content := []byte("ai:\n  model: mistral\n  timeout: 60s\noutput:\n  language: es\n")
+	if err := os.WriteFile(tmp, content, 0o644); err != nil {
+		t.Fatalf("failed to write temp config: %v", err)
 	}
 
-	if cfg.AI.Provider != "test-provider" {
-		t.Errorf("Config struct AI.Provider = %v, want %v", cfg.AI.Provider, "test-provider")
+	cfg, err := Init(tmp)
+	if err != nil {
+		t.Fatalf("Init() with config file returned error: %v", err)
 	}
-	if cfg.Output.Language != "cs" {
-		t.Errorf("Config struct Output.Language = %v, want %v", cfg.Output.Language, "cs")
+	if cfg.AI.Model != "mistral" {
+		t.Errorf("Init() AI.Model = %v, want mistral", cfg.AI.Model)
+	}
+	if cfg.AI.Timeout != 60*time.Second {
+		t.Errorf("Init() AI.Timeout = %v, want 60s", cfg.AI.Timeout)
+	}
+	if cfg.Output.Language != "es" {
+		t.Errorf("Init() Output.Language = %v, want es", cfg.Output.Language)
 	}
 }
