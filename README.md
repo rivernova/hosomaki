@@ -81,7 +81,7 @@ If the command fails, hosomaki explains the error automatically.
 These are planned features.
 
 **`hosomaki doctor`**  
-Full system diagnosis with concrete suggested actions. Instead of describing what it sees like `status` does, it tells you what to actually do about it.
+Full system diagnosis with concrete suggested actions. Instead of just describing what it sees like `status` does, it tells you what to actually do about it.
 
 **`hosomaki predict`**  
 Spots potential failures before they happen by analysing patterns across logs, services, and system behaviour over time.
