@@ -166,6 +166,21 @@ The storage backend follows the same provider pattern as the AI layer: a pgvecto
 
 ---
 
+**Daemon mode — continuous monitoring and instant insights**  
+Hosomaki will include an optional background service that continuously monitors logs, services, resource usage, and system events.  
+The CLI will communicate with this daemon to provide instant explanations, predictions, and real‑time insights without needing to re-scan the system each time.
+
+This is not a user-facing command — it runs as a systemd service (`hosomakid.service`) and powers features like:
+- Real-time anomaly detection  
+- Proactive warnings  
+- Continuous predictions  
+- Behavioural drift analysis  
+- Instant `status` and `doctor` responses  
+
+Like the rest of Hosomaki, the daemon is completely local, opt-in, and respects both AI-powered and deterministic `insight` modes.
+
+---
+
 **`hosomaki ports`**  
 List listening ports with process names; AI flags anything unusual or unexpected for the system's profile.
 
