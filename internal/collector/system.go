@@ -21,32 +21,28 @@ type SystemSnapshot struct {
 	TopProcesses   string
 }
 
-type commandResult struct {
-	output string
-	err    error
-}
-
 func Snapshot() (*SystemSnapshot, error) {
 	s := &SystemSnapshot{
 		CollectedAt:    time.Now(),
-		Uptime:         collect("uptime", "-p"),
-		Memory:         collect("free", "-h"),
-		Disk:           collectShell("df -h --output=source,size,used,avail,pcent,target -x tmpfs -x devtmpfs"),
-		FailedServices: collect("systemctl", "--failed", "--no-legend", "--no-pager"),
-		RecentErrors:   collectShell("journalctl -p err -n 20 --no-pager --no-hostname -o short-monotonic 2>/dev/null"),
-		TopProcesses:   collect("ps", "aux", "--sort=-%cpu", "--no-headers"),
+		Uptime:         run("uptime", "-p"),
+		Memory:         run("free", "-h"),
+		Disk:           runShell("df -h --output=source,size,used,avail,pcent,target -x tmpfs -x devtmpfs"),
+		FailedServices: run("systemctl", "--failed", "--no-legend", "--no-pager"),
+		RecentErrors:   runShell("journalctl -p err -n 20 --no-pager --no-hostname -o short-monotonic 2>/dev/null"),
+		TopProcesses:   run("ps", "aux", "--sort=-%cpu", "--no-headers"),
 	}
 	return s, nil
 }
 
-func collect(name string, args ...string) string {
+func run(name string, args ...string) string {
 	out, err := exec.Command(name, args...).Output()
 	if err != nil {
 		return fmt.Sprintf("(command failed: %s)", err)
 	}
 	return strings.TrimSpace(string(out))
 }
-func collectShell(cmd string) string {
+
+func runShell(cmd string) string {
 	out, err := exec.Command("sh", "-c", cmd).Output()
 	if err != nil {
 		return fmt.Sprintf("(command failed: %s)", err)

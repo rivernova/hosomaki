@@ -26,7 +26,7 @@ func ServiceLogs(service string, opts LogOptions) (string, error) {
 	if n <= 0 {
 		n = defaultServiceLines
 	}
-	out := collectShell(fmt.Sprintf(
+	out := runShell(fmt.Sprintf(
 		"journalctl -u %s -p err -n %d --no-pager --no-hostname -o short-monotonic 2>/dev/null",
 		shellQuote(service), n,
 	))
@@ -41,7 +41,7 @@ func BootLogs(bootIndex int, opts LogOptions) (string, error) {
 	if n <= 0 {
 		n = defaultBootLines
 	}
-	out := collectShell(fmt.Sprintf(
+	out := runShell(fmt.Sprintf(
 		"journalctl -b %d -p err -n %d --no-pager --no-hostname -o short-monotonic 2>/dev/null",
 		bootIndex, n,
 	))
@@ -56,7 +56,7 @@ func DmesgLogs(opts LogOptions) (string, error) {
 	if n <= 0 {
 		n = defaultDmesgLines
 	}
-	out := collectShell(fmt.Sprintf(
+	out := runShell(fmt.Sprintf(
 		"dmesg --level=err,warn --notime 2>/dev/null | tail -n %d",
 		n,
 	))
@@ -76,13 +76,12 @@ func FileLogs(path string, opts LogOptions) (string, error) {
 		return "", fmt.Errorf("cannot read log file %q: %w", path, err)
 	}
 
-	raw := collectShell(fmt.Sprintf("tail -n %d %s 2>/dev/null", n, shellQuote(path)))
+	raw := runShell(fmt.Sprintf("tail -n %d %s 2>/dev/null", n, shellQuote(path)))
 	if raw == "" {
 		return "", fmt.Errorf("log file %q is empty or unreadable", path)
 	}
 
-	filtered := filterErrorLines(raw)
-	if filtered != "" {
+	if filtered := filterErrorLines(raw); filtered != "" {
 		return filtered, nil
 	}
 	return raw, nil

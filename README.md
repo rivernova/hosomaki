@@ -75,6 +75,26 @@ If the command fails, hosomaki explains the error automatically. If it succeeds,
 
 ---
 
+### `completion` — shell autocompletion
+
+Generate and install a shell completion script so your shell can tab-complete `hosomaki` subcommands and flags.
+
+Example installation commands:
+
+```bash
+# Bash
+hosomaki completion bash >> ~/.bash_completion.d/hosomaki
+source ~/.bash_completion.d/hosomaki
+
+# Zsh
+hosomaki completion zsh > ~/.zsh/completions/_hosomaki
+fpath=(~/.zsh/completions $fpath)
+autoload -U compinit && compinit
+
+# Fish
+hosomaki completion fish > ~/.config/fish/completions/hosomaki.fish
+```
+
 ### Coming soon
 
 These commands are planned and actively being designed.

@@ -15,8 +15,6 @@ import (
 
 const DefaultTimeout = 120 * time.Second
 
-var C Config
-
 type Config struct {
 	AI     AIConfig     `mapstructure:"ai"`
 	Output OutputConfig `mapstructure:"output"`
@@ -34,19 +32,15 @@ type OutputConfig struct {
 	Language string `mapstructure:"language"`
 }
 
-func Init() {
-	viper.SetDefault("ai.provider", "ollama")
-	viper.SetDefault("ai.endpoint", "http://localhost:11434")
-	viper.SetDefault("ai.model", "llama3")
-	viper.SetDefault("ai.timeout", DefaultTimeout)
-	viper.SetDefault("output.color", true)
-	viper.SetDefault("output.language", "en")
+func Init(cfgFile string) (Config, error) {
+	viper.Reset()
 
-	if cfgFile := viper.GetString("config"); cfgFile != "" {
+	setDefaults()
+
+	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
-		home, err := os.UserHomeDir()
-		if err == nil {
+		if home, err := os.UserHomeDir(); err == nil {
 			viper.AddConfigPath(filepath.Join(home, ".config", "hosomaki"))
 			viper.AddConfigPath(home)
 		}
@@ -54,17 +48,32 @@ func Init() {
 		viper.SetConfigType("yaml")
 	}
 
-	// allow env overrides
 	viper.SetEnvPrefix("HOSOMAKI")
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			fmt.Fprintln(os.Stderr, "config error:", err)
+			return Config{}, fmt.Errorf("config: read: %w", err)
 		}
 	}
 
-	if err := viper.Unmarshal(&C); err != nil {
-		fmt.Fprintln(os.Stderr, "config parse error:", err)
+	var cfg Config
+	if err := viper.Unmarshal(&cfg); err != nil {
+		return Config{}, fmt.Errorf("config: parse: %w", err)
 	}
+
+	if cfg.AI.Timeout == 0 {
+		cfg.AI.Timeout = DefaultTimeout
+	}
+
+	return cfg, nil
+}
+
+func setDefaults() {
+	viper.SetDefault("ai.provider", "ollama")
+	viper.SetDefault("ai.endpoint", "http://localhost:11434")
+	viper.SetDefault("ai.model", "llama3")
+	viper.SetDefault("ai.timeout", DefaultTimeout)
+	viper.SetDefault("output.color", true)
+	viper.SetDefault("output.language", "en")
 }
