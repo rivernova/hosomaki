@@ -19,9 +19,9 @@ No cloud. No telemetry. Your system, your data, your choice.
 
 ## Commands
 
-### `explain` to understand what's going on
+### `explain`
 
- It adapts to whatever you throw at it.
+ To understand what's going on. It adapts to whatever you throw at it.
 
 ```bash
 # Pipe any log output directly
@@ -47,16 +47,16 @@ hosomaki explain --file /var/log/syslog
 hosomaki explain "kernel: OOM killer activated on process nginx"
 ```
 
-### `status` for a quick health snapshot
+### `status`
 
-Collects data and summarises everything.
+Quick health snapshot. Collects data and summarises everything.
 
 ```bash
 hosomaki status           # paragraph summary
 hosomaki status --brief   # single sentence
 ```
 
-### `shell-integration` — automatic explanations when commands fail
+### `shell-integration`
 
 Installs a small wrapper so any command prefixed with explain will be analysed if it fails.
 
