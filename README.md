@@ -8,10 +8,10 @@
 
 > Local intelligence layer for Linux — with and without AI.
 
-Hosomaki reads your system — logs, processes, services — and helps you understand what's happening in plain language.  
+Hosomaki reads your system and helps you understand what's happening in plain language.  
 It works in two modes:
 
-- **AI‑powered mode**: uses a local model (via Ollama) to explain issues, correlate events and summarise system behaviour.  
+- **AI mode**: uses a local model to explain issues, correlate events and summarise system behaviour.  
 - **Insight mode**: a deterministic, AI‑free analysis path based on rules, heuristics, diffs and structured inspection.
 
 No cloud. No telemetry. Your system, your data, your choice.
@@ -19,46 +19,46 @@ No cloud. No telemetry. Your system, your data, your choice.
 
 ## Commands
 
-### `explain` — understand what's going on
+### `explain` to understand what's going on
 
-The most flexible command. Several ways to use it, no copy-pasting required:
+ It adapts to whatever you throw at it.
 
 ```bash
 # Pipe any log output directly
 journalctl -p err -n 20 | hosomaki explain
 dmesg | tail -50         | hosomaki explain
 
-# By systemd service — hosomaki fetches the logs for you
+# By systemd service. hosomaki will fetch the logs
 hosomaki explain --service nginx
 hosomaki explain --service postgresql --lines 100
 
-# Errors from the last boot (useful after a crash)
+# Errors from the last boot. This one is useful after a crash
 hosomaki explain --boot
 hosomaki explain --boot -1        # the boot before that
 
-# Kernel messages (OOM, hardware errors, driver issues)
+# Kernel messages
 hosomaki explain --dmesg
 
 # Any log file
 hosomaki explain --file /var/log/nginx/error.log
 hosomaki explain --file /var/log/syslog
 
-# Quick one-liner
+# Quick line with copy-paste
 hosomaki explain "kernel: OOM killer activated on process nginx"
 ```
 
-### `status` — system health at a glance
+### `status` for a quick health snapshot
 
-Collects a snapshot of uptime, memory, disk, failed services and recent errors, then asks the AI to summarise what's going on.
+Collects data and summarises everything.
 
 ```bash
 hosomaki status           # paragraph summary
 hosomaki status --brief   # single sentence
 ```
 
-### `shell-integration` — explain failures automatically
+### `shell-integration` — automatic explanations when commands fail
 
-Installs a shell function that wraps any command and explains it if it fails:
+Installs a small wrapper so any command prefixed with explain will be analysed if it fails.
 
 ```bash
 hosomaki shell-integration --shell bash >> ~/.bashrc && source ~/.bashrc
@@ -74,53 +74,31 @@ explain make build
 explain docker compose up
 ```
 
-If the command fails, hosomaki explains the error automatically. If it succeeds, output passes through unchanged.
-
----
-
-### `completion` — shell autocompletion
-
-Generate and install a shell completion script so your shell can tab-complete `hosomaki` subcommands and flags.
-
-Example installation commands:
-
-```bash
-# Bash
-hosomaki completion bash >> ~/.bash_completion.d/hosomaki
-source ~/.bash_completion.d/hosomaki
-
-# Zsh
-hosomaki completion zsh > ~/.zsh/completions/_hosomaki
-fpath=(~/.zsh/completions $fpath)
-autoload -U compinit && compinit
-
-# Fish
-hosomaki completion fish > ~/.config/fish/completions/hosomaki.fish
-```
+If the command fails, hosomaki explains the error automatically.
 
 ### Coming soon
 
-These commands are planned and actively being designed.
+These are planned features.
 
 **`hosomaki doctor`**  
-Full system diagnosis with concrete suggested actions. Goes beyond `status` — instead of describing what it sees, it tells you what to actually do about it.
+Full system diagnosis with concrete suggested actions. Instead of describing what it sees like `status` does, it tells you what to actually do about it.
 
 **`hosomaki predict`**  
-Spots potential failures before they happen by analysing patterns across logs, services, and system behaviour over time. Useful for catching things like slow disk degradation, memory leaks, or services on the edge of crashing. When the memory layer is enabled, predictions are grounded in this system's own history — not generic heuristics.
+Spots potential failures before they happen by analysing patterns across logs, services, and system behaviour over time.
 
 **`hosomaki audit`**  
-Surfaces invisible system changes: files modified, services added or removed, permission changes, new processes, package updates. Answers the question "what changed since yesterday?". With the memory layer enabled, audit can also detect behavioural drift — shifts in system patterns even when no individual file or service has visibly changed.
+Surfaces invisible system changes like files modified, services added or removed, permission changes, new processes, package updates.
 
 **`hosomaki trace <process>`**  
-Intelligent tracing of a running process — syscalls, resource usage, relevant events — with a plain-language explanation of what it's doing and whether anything looks wrong.
+Intelligent tracing of a running process like syscalls, resource usage, relevant events, with a plain-language explanation of what it's doing and whether anything looks wrong.
 
 ---
 
 **`hosomaki explain --since / --until`**  
-Time‑bounded log analysis (journalctl‑compatible), allowing explanations restricted to a specific time window.
+Explanations restricted to a specific time window.
 
 **`hosomaki explain --context`**  
-Pull logs from multiple related services at once (e.g. nginx + php‑fpm + postgres) to understand cascading failures.
+Pull logs from multiple related services at once, for example nginx + alloy + prometheus, to understand cascading failures.
 
 **`hosomaki explain --diff`**  
 Compare logs from two boots side by side and explain what changed.
@@ -128,7 +106,7 @@ Compare logs from two boots side by side and explain what changed.
 ---
 
 **`hosomaki watch <service>`**  
-Real‑time log tailing with noise suppression — only surfaces lines the AI considers noteworthy.
+Real‑time log tailing.
 
 **`hosomaki compare --service <name> --boot -1`**  
 Compare a service's behaviour between the current boot and the previous one.
@@ -137,52 +115,48 @@ Compare a service's behaviour between the current boot and the previous one.
 Given a nonzero exit code, pull surrounding context and explain the failure chain.
 
 **`hosomaki summarise --since <time>`**  
-Digest of everything that went wrong in a time window, grouped by severity.
+Digest of everything that went wrong in a time window, grouped by severity levels.
 
 ---
 
 **`hosomaki history`**  
-Local log of past explanations (stored in `~/.local/share/hosomaki/`), so you can revisit insights without re-running the model. When the memory layer is enabled, history becomes semantically searchable — find past incidents by meaning, not just by date or exact keyword.
+Local log of past explanations, so the user can revisit insights without re-running the model and saving some time. This can be in `~/.local/share/hosomaki/`.
 
 **`hosomaki alias`**  
-Save long invocations under short names (e.g. `hosomaki alias nginx-errors "explain --service nginx --lines 100"`).
+Save long invocations under short names, for example `hosomaki alias nginx-errors "explain --service nginx --lines 100"`. This is telling hosomaki: “Create a new mini‑command called *nginx-errors* that internally runs `hosomaki explain --service nginx --lines 100`.”
 
 **`--output json`**  
-Structured output across all commands for piping into other tools or scripts.
+Instead of explaining things in plain language, it returns clean JSON object that the user can pipe into another tool.
 
 ---
 
-**Memory layer — semantic search and long-term context (pgvector + RAG)**  
-Hosomaki will optionally persist system snapshots, log explanations, and error patterns in a local vector database. This is what makes `predict`, `history`, and recurring-error detection genuinely useful over time rather than stateless one-shot queries.
+**Memory layer for semantic search and long-term context (RAG)**  
+Hosomaki will optionally persist system snapshots, log explanations, and error patterns in a local vector database.
 
 When enabled, the memory layer powers:
 
-- `hosomaki history` — semantic search over past explanations. `hosomaki history "OOM nginx"` surfaces all previous incidents involving memory pressure on nginx, even if the original logs used different wording.
-- `hosomaki predict` — the current system state is compared against historical snapshots. If similar past states were followed by a failure, hosomaki warns you before it happens, grounded in this machine's own behaviour.
-- `hosomaki explain` — when the same error pattern has appeared before, the model receives the previous explanation and whether the suggested fix worked, producing progressively better answers for recurring issues.
-- `hosomaki audit` — behavioural drift detection across snapshots over time, not just file-level diffs.
+- `hosomaki history` —> semantic search over past explanations. `hosomaki history "OOM nginx"` surfaces all previous incidents involving memory pressure on nginx, even if the original logs used different wording.
+- `hosomaki predict` —> the current system state is compared against historical snapshots. If similar past states were followed by a failure, hosomaki warns you before it happens.
+- `hosomaki explain` —> when the same error pattern has appeared before, the model receives the previous explanation and whether the suggested fix worked, producing progressively better answers for recurring issues.
+- `hosomaki audit` —> behavioural drift detection across snapshots over time.
 
-The storage backend follows the same provider pattern as the AI layer: a pgvector implementation for those who want it, and a lightweight local fallback using SQLite with embeddings generated by Ollama's `/api/embeddings` endpoint — no external dependencies required. The memory layer is opt-in and can be disabled entirely. No data leaves the machine.
+Storage: **pgvector** implementation for those who want it, and a lightweight local fallback using SQLite with embeddings generated by Ollama's `/api/embeddings` endpoint. The memory layer is opt-in and can be disabled entirely.
 
 ---
 
-**Daemon mode — continuous monitoring and instant insights**  
+**Daemon mode for continuous monitoring and instant insights**  
 Hosomaki will include an optional background service that continuously monitors logs, services, resource usage, and system events.  
-The CLI will communicate with this daemon to provide instant explanations, predictions, and real‑time insights without needing to re-scan the system each time.
 
-This is not a user-facing command — it runs as a systemd service (`hosomakid.service`) and powers features like:
+This is not a user-facing command:
 - Real-time anomaly detection  
 - Proactive warnings  
 - Continuous predictions  
-- Behavioural drift analysis  
 - Instant `status` and `doctor` responses  
-
-Like the rest of Hosomaki, the daemon is completely local, opt-in, and respects both AI-powered and deterministic `insight` modes.
 
 ---
 
 **`hosomaki ports`**  
-List listening ports with process names; AI flags anything unusual or unexpected for the system's profile.
+List listening ports with process names. It will flag anything unusual or unexpected.
 
 **`hosomaki crons`**  
 Parse system + user crontabs, explain what each job does, and when it last ran or failed.
@@ -191,35 +165,33 @@ Parse system + user crontabs, explain what each job does, and when it last ran o
 Check mount health, detect stale NFS mounts, full disks approaching thresholds, and slow mountpoints.
 
 **`hosomaki timers`**  
-Systemd timer inspection — the modern equivalent of cron analysis.
+Systemd timer inspection. This would be the modern equivalent of cron analysis.
 
 ---
 
 **`hosomaki env-check`**  
-Scan `/proc/<pid>/environ` for common misconfigurations (empty secrets, default passwords, exposed tokens). Detection is rule‑based; AI explains the risk and impact.
+Scan `/proc/<pid>/environ` for common misconfigurations.
 
 ---
 
 **`hosomaki insight`**  
-Toggle a deterministic, AI‑free analysis mode. When enabled, all commands run without invoking a model: log filtering, correlation, anomaly detection, diffing and heuristics are performed using rule‑based logic only.  
-Useful for servers without local models, restricted environments, or users who prefer predictable, explainable behaviour.  
+Toggle a deterministic, AI‑free analysis mode. When enabled, all commands run without invoking a model. This will perform log filtering, correlation, anomaly detection, diffing and heuristics using rule‑based logic only.  
+This one is useful for servers without local models.  
 Can be activated or deactivated at any time:
 
-hosomaki insight on     # all analysis runs without AI
-hosomaki insight off    # restore AI-powered explanations
+hosomaki insight on     # without AI
+hosomaki insight off    # with AI
 
 ---
 
 **Multi‑provider AI support**  
-Hosomaki's AI layer will become fully pluggable.  
-In addition to the current local‑first Ollama integration, support is planned for:
+Hosomaki's AI layer will become fully pluggable:
 
 - **OpenAI** (API key, optional, never sending logs unless explicitly allowed)
 - **Anthropic** (Claude models)
 - **Other local or remote providers** via a unified interface
 
-The goal is to let users choose their preferred backend, switch providers at runtime, or fall back to `hosomaki insight` for deterministic analysis.  
-AI becomes an optional module — not a requirement.
+Fallback to `hosomaki insight`.
 
 ---
 
@@ -227,7 +199,7 @@ AI becomes an optional module — not a requirement.
 
 - Linux (systemd-based distro recommended)
 - Go 1.22+
-- [Ollama](https://ollama.com) running locally with a model pulled (e.g. `ollama pull llama3`)
+- [Ollama](https://ollama.com) running locally with a model pulled (for example I use `ollama pull llama3`)
 
 ## Installation
 
@@ -252,7 +224,7 @@ output:
   language: en
 ```
 
-All values can also be set via environment variables:
+All values can also be set via `.env`:
 
 ```bash
 HOSOMAKI_AI_MODEL=mistral hosomaki status
