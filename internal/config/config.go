@@ -15,13 +15,11 @@ import (
 
 const DefaultTimeout = 120 * time.Second
 
-// Config is the top-level configuration structure for hosomaki.
 type Config struct {
 	AI     AIConfig     `mapstructure:"ai"`
 	Output OutputConfig `mapstructure:"output"`
 }
 
-// AIConfig holds provider-level settings.
 type AIConfig struct {
 	Provider string        `mapstructure:"provider"`
 	Endpoint string        `mapstructure:"endpoint"`
@@ -29,19 +27,12 @@ type AIConfig struct {
 	Timeout  time.Duration `mapstructure:"timeout"`
 }
 
-// OutputConfig holds presentation settings.
 type OutputConfig struct {
 	Color    bool   `mapstructure:"color"`
 	Language string `mapstructure:"language"`
 }
 
-// Init loads configuration from file and environment variables.
-// It returns the populated Config and any error encountered.
-// Callers decide whether a config error is fatal — Init does not print to
-// stderr or call os.Exit, keeping it testable and composable.
 func Init(cfgFile string) (Config, error) {
-	// Reset ensures a clean slate on every call — important for tests
-	// that call Init() more than once, since viper is a global singleton.
 	viper.Reset()
 
 	setDefaults()
@@ -62,10 +53,8 @@ func Init(cfgFile string) (Config, error) {
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			// A file was found but could not be read — that is a real error.
 			return Config{}, fmt.Errorf("config: read: %w", err)
 		}
-		// No config file found — defaults and env vars apply, which is fine.
 	}
 
 	var cfg Config
@@ -73,7 +62,6 @@ func Init(cfgFile string) (Config, error) {
 		return Config{}, fmt.Errorf("config: parse: %w", err)
 	}
 
-	// Apply the sentinel: if timeout was not set, use the default.
 	if cfg.AI.Timeout == 0 {
 		cfg.AI.Timeout = DefaultTimeout
 	}

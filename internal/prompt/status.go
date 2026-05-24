@@ -12,9 +12,6 @@ import (
 
 const maxTopProcessLines = 10
 
-// StatusInput carries the raw system snapshot fields.
-// It mirrors collector.SystemSnapshot but lives here to avoid an import cycle
-// and to make clear that this type exists for prompt-building purposes.
 type StatusInput struct {
 	CollectedAt    time.Time
 	Uptime         string
@@ -25,8 +22,6 @@ type StatusInput struct {
 	TopProcesses   string
 }
 
-// Status builds a prompt that asks the model to summarise system health.
-// When brief is true the model is asked for a single sentence.
 func Status(s StatusInput, brief bool) string {
 	style := "Write a clear, concise paragraph (5–8 sentences) summarising system health. Highlight any anomalies or points of attention."
 	if brief {
@@ -43,8 +38,6 @@ System snapshot:
 %s`, style, formatSnapshot(s))
 }
 
-// formatSnapshot serialises a StatusInput into the structured text block
-// that forms the "System snapshot" section of the status prompt.
 func formatSnapshot(s StatusInput) string {
 	var b strings.Builder
 

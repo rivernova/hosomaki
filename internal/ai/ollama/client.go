@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// Package ollama implements the ai.Provider interface for local Ollama models.
 package ollama
 
 import (
@@ -15,17 +14,12 @@ import (
 	"time"
 )
 
-// Client sends prompts to a local Ollama instance.
-// It implements ai.Provider.
 type Client struct {
 	endpoint   string
 	model      string
 	httpClient *http.Client
 }
 
-// New returns a Client configured with the given endpoint, model and timeout.
-// All three values are required; callers (typically cmd/) read them from config
-// and pass them in explicitly — no global state is read here.
 func New(endpoint, model string, timeout time.Duration) *Client {
 	return &Client{
 		endpoint:   endpoint,
@@ -34,7 +28,6 @@ func New(endpoint, model string, timeout time.Duration) *Client {
 	}
 }
 
-// Generate implements ai.Provider.
 func (c *Client) Generate(_ context.Context, prompt string) (string, error) {
 	body, err := json.Marshal(request{
 		Model:  c.model,
@@ -72,14 +65,12 @@ func (c *Client) Generate(_ context.Context, prompt string) (string, error) {
 	return result.Response, nil
 }
 
-// request is the JSON body sent to /api/generate.
 type request struct {
 	Model  string `json:"model"`
 	Prompt string `json:"prompt"`
 	Stream bool   `json:"stream"`
 }
 
-// response is the JSON body returned by /api/generate.
 type response struct {
 	Response string `json:"response"`
 	Error    string `json:"error,omitempty"`

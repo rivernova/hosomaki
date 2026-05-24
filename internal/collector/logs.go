@@ -10,7 +10,6 @@ import (
 	"strings"
 )
 
-// LogOptions controls how many lines a log collector fetches.
 type LogOptions struct {
 	Lines int
 }
@@ -22,7 +21,6 @@ const (
 	defaultFileLines    = 100
 )
 
-// ServiceLogs returns recent error-level journal entries for a systemd service.
 func ServiceLogs(service string, opts LogOptions) (string, error) {
 	n := opts.Lines
 	if n <= 0 {
@@ -38,8 +36,6 @@ func ServiceLogs(service string, opts LogOptions) (string, error) {
 	return out, nil
 }
 
-// BootLogs returns error-level journal entries from the given boot index.
-// Index 0 is the current boot; -1 is the previous one.
 func BootLogs(bootIndex int, opts LogOptions) (string, error) {
 	n := opts.Lines
 	if n <= 0 {
@@ -55,7 +51,6 @@ func BootLogs(bootIndex int, opts LogOptions) (string, error) {
 	return out, nil
 }
 
-// DmesgLogs returns recent kernel error and warning messages.
 func DmesgLogs(opts LogOptions) (string, error) {
 	n := opts.Lines
 	if n <= 0 {
@@ -71,8 +66,6 @@ func DmesgLogs(opts LogOptions) (string, error) {
 	return out, nil
 }
 
-// FileLogs reads the tail of a log file, returning only lines that look like
-// errors. If no error-like lines are found it returns the raw tail instead.
 func FileLogs(path string, opts LogOptions) (string, error) {
 	n := opts.Lines
 	if n <= 0 {
@@ -94,7 +87,6 @@ func FileLogs(path string, opts LogOptions) (string, error) {
 	return raw, nil
 }
 
-// filterErrorLines returns only lines that contain common error keywords.
 func filterErrorLines(text string) string {
 	keywords := []string{"error", "err", "warn", "fatal", "crit", "fail", "panic", "exception"}
 	var kept []string
@@ -110,8 +102,6 @@ func filterErrorLines(text string) string {
 	return strings.Join(kept, "\n")
 }
 
-// shellQuote wraps a string in single quotes, escaping any existing single
-// quotes. Use this before interpolating user input into shell commands.
 func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }

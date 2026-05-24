@@ -2,9 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// Package collector gathers raw system data via OS commands.
-// It has no knowledge of AI, prompts, or presentation — it only
-// runs commands and returns their output as strings.
 package collector
 
 import (
@@ -14,8 +11,6 @@ import (
 	"time"
 )
 
-// SystemSnapshot holds the raw output of every system command
-// collected at a single point in time.
 type SystemSnapshot struct {
 	CollectedAt    time.Time
 	Uptime         string
@@ -26,9 +21,6 @@ type SystemSnapshot struct {
 	TopProcesses   string
 }
 
-// Snapshot collects a point-in-time view of the system.
-// Commands are run sequentially; a failing command records its error
-// message as the field value so the caller always gets a complete struct.
 func Snapshot() (*SystemSnapshot, error) {
 	s := &SystemSnapshot{
 		CollectedAt:    time.Now(),
@@ -42,8 +34,6 @@ func Snapshot() (*SystemSnapshot, error) {
 	return s, nil
 }
 
-// run executes a command and returns its trimmed stdout.
-// On error it returns a human-readable description of the failure.
 func run(name string, args ...string) string {
 	out, err := exec.Command(name, args...).Output()
 	if err != nil {
@@ -52,7 +42,6 @@ func run(name string, args ...string) string {
 	return strings.TrimSpace(string(out))
 }
 
-// runShell executes a shell command string via sh -c.
 func runShell(cmd string) string {
 	out, err := exec.Command("sh", "-c", cmd).Output()
 	if err != nil {
