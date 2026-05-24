@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+// this file contains logic for constructing the prompt sent to the AI provider for status summaries
+
 const maxTopProcessLines = 10
 
 type StatusInput struct {

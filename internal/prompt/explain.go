@@ -6,6 +6,8 @@ package prompt
 
 import "fmt"
 
+// this file contains logic for constructing the prompt sent to the AI provider for explanations
+
 func Explain(input string) string {
 	return fmt.Sprintf(`You are a Linux system expert. A user has piped log output or an error message to you.
 

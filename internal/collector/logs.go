@@ -7,8 +7,12 @@ package collector
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"strconv"
 	"strings"
 )
+
+// this file contains all log collection logic
 
 type LogOptions struct {
 	Lines int
@@ -22,65 +26,53 @@ const (
 )
 
 func ServiceLogs(service string, opts LogOptions) (string, error) {
-	n := opts.Lines
-	if n <= 0 {
-		n = defaultServiceLines
-	}
-	out := runShell(fmt.Sprintf(
-		"journalctl -u %s -p err -n %d --no-pager --no-hostname -o short-monotonic 2>/dev/null",
-		shellQuote(service), n,
-	))
-	if out == "" {
+	n := lines(opts.Lines, defaultServiceLines)
+	args := append(
+		[]string{"-u", service, "-n", strconv.Itoa(n)},
+		append(journalctl.errorLevel, journalctl.format...)...,
+	)
+	out, err := exec.Command(binJournalctl, args...).Output()
+	if err != nil || strings.TrimSpace(string(out)) == "" {
 		return "", fmt.Errorf("no error logs found for service %q — is the service name correct?", service)
 	}
-	return out, nil
+	return strings.TrimSpace(string(out)), nil
 }
 
 func BootLogs(bootIndex int, opts LogOptions) (string, error) {
-	n := opts.Lines
-	if n <= 0 {
-		n = defaultBootLines
-	}
-	out := runShell(fmt.Sprintf(
-		"journalctl -b %d -p err -n %d --no-pager --no-hostname -o short-monotonic 2>/dev/null",
-		bootIndex, n,
-	))
-	if out == "" {
+	n := lines(opts.Lines, defaultBootLines)
+	args := append(
+		[]string{"-b", strconv.Itoa(bootIndex), "-n", strconv.Itoa(n)},
+		append(journalctl.errorLevel, journalctl.format...)...,
+	)
+	out, err := exec.Command(binJournalctl, args...).Output()
+	if err != nil || strings.TrimSpace(string(out)) == "" {
 		return "", fmt.Errorf("no error logs found for boot %d", bootIndex)
 	}
-	return out, nil
+	return strings.TrimSpace(string(out)), nil
 }
 
 func DmesgLogs(opts LogOptions) (string, error) {
-	n := opts.Lines
-	if n <= 0 {
-		n = defaultDmesgLines
-	}
-	out := runShell(fmt.Sprintf(
-		"dmesg --level=err,warn --notime 2>/dev/null | tail -n %d",
-		n,
-	))
-	if out == "" {
+	n := lines(opts.Lines, defaultDmesgLines)
+	val, collErr := runShell(fmt.Sprintf(dmesgShell, n))
+	if collErr != "" || val == "" {
 		return "", fmt.Errorf("no kernel errors or warnings found in dmesg")
 	}
-	return out, nil
+	return val, nil
 }
 
 func FileLogs(path string, opts LogOptions) (string, error) {
-	n := opts.Lines
-	if n <= 0 {
-		n = defaultFileLines
-	}
+	n := lines(opts.Lines, defaultFileLines)
 
 	if _, err := os.Stat(path); err != nil {
 		return "", fmt.Errorf("cannot read log file %q: %w", path, err)
 	}
 
-	raw := runShell(fmt.Sprintf("tail -n %d %s 2>/dev/null", n, shellQuote(path)))
-	if raw == "" {
+	out, err := exec.Command(binTail, "-n", strconv.Itoa(n), path).Output()
+	if err != nil || strings.TrimSpace(string(out)) == "" {
 		return "", fmt.Errorf("log file %q is empty or unreadable", path)
 	}
 
+	raw := strings.TrimSpace(string(out))
 	if filtered := filterErrorLines(raw); filtered != "" {
 		return filtered, nil
 	}
@@ -102,6 +94,9 @@ func filterErrorLines(text string) string {
 	return strings.Join(kept, "\n")
 }
 
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
+func lines(n, defaultN int) int {
+	if n > 0 {
+		return n
+	}
+	return defaultN
 }

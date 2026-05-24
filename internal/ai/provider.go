@@ -6,6 +6,8 @@ package ai
 
 import "context"
 
+// this file contains the definition of the AI provider interface, which abstracts over different AI backends
+
 type Provider interface {
 	Generate(ctx context.Context, prompt string) (string, error)
 }

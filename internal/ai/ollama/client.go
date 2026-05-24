@@ -28,7 +28,7 @@ func New(endpoint, model string, timeout time.Duration) *Client {
 	}
 }
 
-func (c *Client) Generate(_ context.Context, prompt string) (string, error) {
+func (c *Client) Generate(ctx context.Context, prompt string) (string, error) {
 	body, err := json.Marshal(request{
 		Model:  c.model,
 		Prompt: prompt,
@@ -39,7 +39,13 @@ func (c *Client) Generate(_ context.Context, prompt string) (string, error) {
 	}
 
 	url := c.endpoint + "/api/generate"
-	resp, err := c.httpClient.Post(url, "application/json", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("ollama: build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("ollama: could not reach %s — is Ollama running? (ollama serve): %w", c.endpoint, err)
 	}
@@ -65,12 +71,14 @@ func (c *Client) Generate(_ context.Context, prompt string) (string, error) {
 	return result.Response, nil
 }
 
+// request is the JSON body sent to /api/generate.
 type request struct {
 	Model  string `json:"model"`
 	Prompt string `json:"prompt"`
 	Stream bool   `json:"stream"`
 }
 
+// response is the JSON body returned by /api/generate.
 type response struct {
 	Response string `json:"response"`
 	Error    string `json:"error,omitempty"`
