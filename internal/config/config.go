@@ -40,6 +40,10 @@ type OutputConfig struct {
 // Callers decide whether a config error is fatal — Init does not print to
 // stderr or call os.Exit, keeping it testable and composable.
 func Init(cfgFile string) (Config, error) {
+	// Reset ensures a clean slate on every call — important for tests
+	// that call Init() more than once, since viper is a global singleton.
+	viper.Reset()
+
 	setDefaults()
 
 	if cfgFile != "" {
