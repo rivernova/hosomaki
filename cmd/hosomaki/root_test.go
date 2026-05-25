@@ -13,15 +13,26 @@ import (
 func TestExecuteExposesVersionFlag(t *testing.T) {
 	var out bytes.Buffer
 
+	provider = nil
+	version = ""
+	rootCmd.Version = ""
 	rootCmd.SetOut(&out)
 	rootCmd.SetArgs([]string{"--version"})
-	defer rootCmd.SetOut(nil)
-	defer rootCmd.SetArgs(nil)
+	t.Cleanup(func() {
+		rootCmd.SetOut(nil)
+		rootCmd.SetArgs(nil)
+		rootCmd.Version = ""
+		version = ""
+		provider = nil
+	})
 
 	Execute("test-version")
 
 	got := out.String()
 	if !strings.Contains(got, "test-version") {
 		t.Fatalf("expected version output to contain %q, got %q", "test-version", got)
+	}
+	if provider != nil {
+		t.Fatal("expected --version to skip provider initialization")
 	}
 }
