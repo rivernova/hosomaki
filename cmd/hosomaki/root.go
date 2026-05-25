@@ -25,6 +25,7 @@ var provider ai.Provider
 
 func Execute(v string) {
 	version = v
+	rootCmd.Version = version
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
