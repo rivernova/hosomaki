@@ -128,6 +128,13 @@ func resolveInput(p resolveParams) (string, error) {
 	case p.file != "":
 		return collector.FileLogs(p.file, p.opts)
 
+	case len(p.args) > 0:
+		input := strings.TrimSpace(strings.Join(p.args, " "))
+		if input == "" {
+			return "", fmt.Errorf("message was empty — provide a non-empty message")
+		}
+		return input, nil
+
 	case isStdinPiped():
 		raw, err := io.ReadAll(os.Stdin)
 		if err != nil {
@@ -138,9 +145,6 @@ func resolveInput(p resolveParams) (string, error) {
 			return "", fmt.Errorf("stdin was empty — pipe some log output or provide a message as argument")
 		}
 		return input, nil
-
-	case len(p.args) > 0:
-		return strings.TrimSpace(strings.Join(p.args, " ")), nil
 
 	default:
 		return "", fmt.Errorf(
