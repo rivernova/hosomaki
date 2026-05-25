@@ -199,9 +199,46 @@ Fallback to `hosomaki insight`.
 
 - Linux (systemd-based distro recommended)
 - Go 1.22+
-- [Ollama](https://ollama.com) running locally with a model pulled (for example I use `ollama pull llama3`)
+- [Ollama](https://ollama.com) running locally with a model pulled
 
 ## Installation
+
+### Install Ollama
+
+**Native (recommended):**
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+On most distros this registers a systemd service that starts automatically.
+If it isn't running yet:
+
+```bash
+ollama serve
+```
+
+**Docker:**
+
+```bash
+docker run -d -p 11434:11434 --name ollama ollama/ollama
+```
+
+### Pull a model
+
+```bash
+ollama pull llama3
+```
+
+Any model works.
+
+If using Docker:
+
+```bash
+docker exec -it ollama ollama pull llama3
+```
+
+### Install Hosomaki
 
 ```bash
 git clone https://github.com/rivernova/hosomaki.git
