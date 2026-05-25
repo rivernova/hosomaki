@@ -201,6 +201,12 @@ Fallback to `hosomaki insight`.
 - Go 1.22+
 - [Ollama](https://ollama.com) running locally with a model pulled
 
+> Ollama is currently the only supported provider. Support for OpenAI, Anthropic,
+> and any OpenAI-compatible endpoint (LM Studio, llama.cpp, etc.) is planned.
+> An opt-in cloud analysis path is also planned, logs are scrubbed locally before
+> anything leaves the machine. `hosomaki insight` will work with no provider at all.
+> `hosomaki insight` will work with no provider at all.
+
 ## Installation
 
 ### Install Ollama
