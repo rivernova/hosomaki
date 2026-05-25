@@ -5,12 +5,14 @@
 package ollama
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -28,11 +30,17 @@ func New(endpoint, model string, timeout time.Duration) *Client {
 	}
 }
 
+// Generate streams the response token by token, calling onFirstToken once
+// before the first token is printed. This lets the caller stop a spinner.
 func (c *Client) Generate(ctx context.Context, prompt string) (string, error) {
+	return c.GenerateStream(ctx, prompt, nil, nil)
+}
+
+func (c *Client) GenerateStream(ctx context.Context, prompt string, onFirstToken func(), w io.Writer) (string, error) {
 	body, err := json.Marshal(request{
 		Model:  c.model,
 		Prompt: prompt,
-		Stream: false,
+		Stream: true,
 	})
 	if err != nil {
 		return "", fmt.Errorf("ollama: marshal request: %w", err)
@@ -51,35 +59,63 @@ func (c *Client) Generate(ctx context.Context, prompt string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	raw, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("ollama: read response: %w", err)
-	}
-
 	if resp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(resp.Body)
 		return "", fmt.Errorf("ollama: HTTP %d: %s", resp.StatusCode, string(raw))
 	}
 
-	var result response
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return "", fmt.Errorf("ollama: parse response: %w", err)
-	}
-	if result.Error != "" {
-		return "", fmt.Errorf("ollama: %s", result.Error)
+	var (
+		full      strings.Builder
+		firstSeen bool
+	)
+
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+
+		var chunk response
+		if err := json.Unmarshal(line, &chunk); err != nil {
+			return "", fmt.Errorf("ollama: parse chunk: %w", err)
+		}
+		if chunk.Error != "" {
+			return "", fmt.Errorf("ollama: %s", chunk.Error)
+		}
+
+		if !firstSeen && chunk.Response != "" {
+			firstSeen = true
+			if onFirstToken != nil {
+				onFirstToken()
+			}
+		}
+
+		if w != nil {
+			fmt.Fprint(w, chunk.Response)
+		}
+		full.WriteString(chunk.Response)
+
+		if chunk.Done {
+			break
+		}
 	}
 
-	return result.Response, nil
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("ollama: read stream: %w", err)
+	}
+
+	return full.String(), nil
 }
 
-// request is the JSON body sent to /api/generate.
 type request struct {
 	Model  string `json:"model"`
 	Prompt string `json:"prompt"`
 	Stream bool   `json:"stream"`
 }
 
-// response is the JSON body returned by /api/generate.
 type response struct {
 	Response string `json:"response"`
+	Done     bool   `json:"done"`
 	Error    string `json:"error,omitempty"`
 }

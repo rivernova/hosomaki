@@ -13,6 +13,7 @@ import (
 
 	"github.com/rivernova/hosomaki/internal/collector"
 	"github.com/rivernova/hosomaki/internal/prompt"
+	"github.com/rivernova/hosomaki/internal/spinner"
 	"github.com/spf13/cobra"
 )
 
@@ -66,12 +67,17 @@ With flags, it collects the logs for you — no copy-pasting needed:
 			}
 
 			p := prompt.Explain(input)
-			result, err := provider.Generate(context.Background(), p)
+
+			spin := spinner.Start("thinking…")
+			_, err = provider.GenerateStream(context.Background(), p,
+				func() { spin.Stop() },
+				os.Stdout,
+			)
 			if err != nil {
+				spin.Stop() // stop on error
 				return err
 			}
-
-			fmt.Println(result)
+			fmt.Println()
 			return nil
 		},
 	}

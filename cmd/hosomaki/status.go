@@ -7,9 +7,11 @@ package hosomaki
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/rivernova/hosomaki/internal/collector"
 	"github.com/rivernova/hosomaki/internal/prompt"
+	"github.com/rivernova/hosomaki/internal/spinner"
 	"github.com/spf13/cobra"
 )
 
@@ -45,12 +47,16 @@ recent errors) and asks the AI to summarise what's going on.
 				TopProcesses:   snap.TopProcesses,
 			}, brief)
 
-			result, err := provider.Generate(context.Background(), p)
+			spin := spinner.Start("thinking…")
+			_, err = provider.GenerateStream(context.Background(), p,
+				func() { spin.Stop() },
+				os.Stdout,
+			)
 			if err != nil {
+				spin.Stop()
 				return err
 			}
-
-			fmt.Println(result)
+			fmt.Println()
 			return nil
 		},
 	}
