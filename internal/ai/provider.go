@@ -4,10 +4,14 @@
 
 package ai
 
-import "context"
+import (
+	"context"
+	"io"
+)
 
 // this file contains the definition of the AI provider interface, which abstracts over different AI backends
 
 type Provider interface {
 	Generate(ctx context.Context, prompt string) (string, error)
+	GenerateStream(ctx context.Context, prompt string, onFirstToken func(), w io.Writer) (string, error)
 }
