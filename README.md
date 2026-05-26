@@ -76,12 +76,20 @@ explain docker compose up
 
 If the command fails, hosomaki explains the error automatically.
 
+### `doctor`
+
+Full system diagnosis with concrete suggested actions. Unlike `status`, which only
+describes what it sees. If a suggested action is potentially disruptive or irreversible, the output says so
+explicitly before describing it. Never modifies the system itself.
+
+```bash
+hosomaki doctor           # full diagnosis with actions
+hosomaki doctor --brief   # single sentence
+```
+
 ### Coming soon
 
 These are planned features.
-
-**`hosomaki doctor`**  
-Full system diagnosis with concrete suggested actions. Instead of just describing what it sees like `status` does, it tells you what to actually do about it.
 
 **`hosomaki predict`**  
 Spots potential failures before they happen by analysing patterns across logs, services, and system behaviour over time.
@@ -123,7 +131,7 @@ Digest of everything that went wrong in a time window, grouped by severity level
 Local log of past explanations, so the user can revisit insights without re-running the model and saving some time. This can be in `~/.local/share/hosomaki/`.
 
 **`hosomaki alias`**  
-Save long invocations under short names, for example `hosomaki alias nginx-errors "explain --service nginx --lines 100"`. This is telling hosomaki: “Create a new mini‑command called *nginx-errors* that internally runs `hosomaki explain --service nginx --lines 100`.”
+Save long invocations under short names, for example `hosomaki alias nginx-errors "explain --service nginx --lines 100"`. This is telling hosomaki: "Create a new mini‑command called *nginx-errors* that internally runs `hosomaki explain --service nginx --lines 100`."
 
 **`--output json`**  
 Instead of explaining things in plain language, it returns clean JSON object that the user can pipe into another tool.
