@@ -267,13 +267,6 @@ output:
   language: en
 ```
 
-All values can also be set via `.env`:
-
-```bash
-HOSOMAKI_AI_MODEL=mistral hosomaki status
-HOSOMAKI_AI_ENDPOINT=http://192.168.1.10:11434 hosomaki explain --service nginx
-```
-
 ## Status
 
 Early development. See [CONTRIBUTING.md](CONTRIBUTING.md) if you want to help.
