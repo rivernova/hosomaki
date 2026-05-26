@@ -66,8 +66,9 @@ func isNegativeInt(s string) bool {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "hosomaki",
-	Short: "Local intelligence layer for Linux",
+	Use:          "hosomaki",
+	SilenceUsage: true,
+	Short:        "Local intelligence layer for Linux",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Init(cfgFile)
 		if err != nil {
