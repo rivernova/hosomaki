@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/rivernova/hosomaki/internal/collector"
@@ -22,7 +23,7 @@ import (
 func newExplainCmd() *cobra.Command {
 	var (
 		service string
-		boot    int
+		bootStr string
 		dmesg   bool
 		file    string
 		lines   int
@@ -56,7 +57,7 @@ With flags, it collects the logs for you — no copy-pasting needed:
 			input, err := resolveInput(resolveParams{
 				args:        args,
 				service:     service,
-				boot:        boot,
+				boot:        bootStr,
 				bootChanged: bootChanged,
 				dmesg:       dmesg,
 				file:        file,
@@ -83,7 +84,7 @@ With flags, it collects the logs for you — no copy-pasting needed:
 	}
 
 	cmd.Flags().StringVarP(&service, "service", "s", "", "explain recent errors for a systemd service (e.g. nginx, sshd)")
-	cmd.Flags().IntVar(&boot, "boot", 0, "explain errors from a specific boot (0=current, -1=previous, …)")
+	cmd.Flags().StringVar(&bootStr, "boot", "0", "explain errors from a specific boot (0=current, -1=previous, …)")
 	cmd.Flags().BoolVar(&dmesg, "dmesg", false, "explain kernel errors and warnings from dmesg")
 	cmd.Flags().StringVarP(&file, "file", "f", "", "explain errors from a log file")
 	cmd.Flags().IntVarP(&lines, "lines", "n", 0, "number of log lines to read (default varies by source)")
@@ -95,7 +96,7 @@ With flags, it collects the logs for you — no copy-pasting needed:
 type resolveParams struct {
 	args        []string
 	service     string
-	boot        int
+	boot        string
 	bootChanged bool
 	dmesg       bool
 	file        string
@@ -126,7 +127,11 @@ func resolveInput(p resolveParams) (string, error) {
 		return collector.ServiceLogs(p.service, p.opts)
 
 	case p.bootChanged:
-		return collector.BootLogs(p.boot, p.opts)
+		bootIndex, err := strconv.Atoi(p.boot)
+		if err != nil {
+			return "", fmt.Errorf("invalid boot index %q: must be an integer", p.boot)
+		}
+		return collector.BootLogs(bootIndex, p.opts)
 
 	case p.dmesg:
 		return collector.DmesgLogs(p.opts)

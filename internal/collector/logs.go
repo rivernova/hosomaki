@@ -21,41 +21,61 @@ type LogOptions struct {
 const (
 	defaultServiceLines = 50
 	defaultBootLines    = 80
-	defaultDmesgLines   = 50
+	defaultDmesgLines   = 60
 	defaultFileLines    = 100
 )
 
 func ServiceLogs(service string, opts LogOptions) (string, error) {
 	n := lines(opts.Lines, defaultServiceLines)
-	args := append(
-		[]string{"-u", service, "-n", strconv.Itoa(n)},
-		append(journalctl.errorLevel, journalctl.format...)...,
-	)
+
+	args := []string{"-u", service, "-n", strconv.Itoa(n)}
+	args = append(args, journalctl.errorLevel...)
+	args = append(args, journalctl.format...)
 	out, err := exec.Command(binJournalctl, args...).Output()
+	if err == nil && strings.TrimSpace(string(out)) != "" {
+		return strings.TrimSpace(string(out)), nil
+	}
+
+	args = []string{"-u", service, "-n", strconv.Itoa(n)}
+	args = append(args, journalctl.format...)
+	out, err = exec.Command(binJournalctl, args...).Output()
 	if err != nil || strings.TrimSpace(string(out)) == "" {
-		return "", fmt.Errorf("no error logs found for service %q — is the service name correct?", service)
+		return "", fmt.Errorf("no logs found for service %q — is the service name correct and has it run recently?", service)
 	}
 	return strings.TrimSpace(string(out)), nil
 }
 
 func BootLogs(bootIndex int, opts LogOptions) (string, error) {
 	n := lines(opts.Lines, defaultBootLines)
-	args := append(
-		[]string{"-b", strconv.Itoa(bootIndex), "-n", strconv.Itoa(n)},
-		append(journalctl.errorLevel, journalctl.format...)...,
-	)
+
+	args := []string{"-b", strconv.Itoa(bootIndex), "-n", strconv.Itoa(n)}
+	args = append(args, journalctl.errorLevel...)
+	args = append(args, journalctl.format...)
 	out, err := exec.Command(binJournalctl, args...).Output()
+	if err == nil && strings.TrimSpace(string(out)) != "" {
+		return strings.TrimSpace(string(out)), nil
+	}
+
+	args = []string{"-b", strconv.Itoa(bootIndex), "-n", strconv.Itoa(n)}
+	args = append(args, journalctl.format...)
+	out, err = exec.Command(binJournalctl, args...).Output()
 	if err != nil || strings.TrimSpace(string(out)) == "" {
-		return "", fmt.Errorf("no error logs found for boot %d", bootIndex)
+		return "", fmt.Errorf("no logs found for boot %d — the boot index may be out of range", bootIndex)
 	}
 	return strings.TrimSpace(string(out)), nil
 }
 
 func DmesgLogs(opts LogOptions) (string, error) {
 	n := lines(opts.Lines, defaultDmesgLines)
+
 	val, collErr := runShell(fmt.Sprintf(dmesgShell, n))
+	if collErr == "" && val != "" {
+		return val, nil
+	}
+
+	val, collErr = runShell(fmt.Sprintf("dmesg --notime 2>/dev/null | tail -n %d", n))
 	if collErr != "" || val == "" {
-		return "", fmt.Errorf("no kernel errors or warnings found in dmesg")
+		return "", fmt.Errorf("dmesg returned no output — the kernel ring buffer may be empty or inaccessible")
 	}
 	return val, nil
 }
@@ -73,6 +93,7 @@ func FileLogs(path string, opts LogOptions) (string, error) {
 	}
 
 	raw := strings.TrimSpace(string(out))
+
 	if filtered := filterErrorLines(raw); filtered != "" {
 		return filtered, nil
 	}
@@ -80,7 +101,11 @@ func FileLogs(path string, opts LogOptions) (string, error) {
 }
 
 func filterErrorLines(text string) string {
-	keywords := []string{"error", "err", "warn", "fatal", "crit", "fail", "panic", "exception"}
+	keywords := []string{
+		"error", "err", "warn", "fatal", "crit",
+		"fail", "panic", "exception", "denied", "refused",
+		"timeout", "traceback", "segfault", "oom",
+	}
 	var kept []string
 	for _, line := range strings.Split(text, "\n") {
 		lower := strings.ToLower(line)
