@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// this file contains logic for constructing the prompt sent to the AI provider for status summaries
+// this file contains logic for constructing the prompt for the "status" command
 
 const maxTopProcessLines = 10
 
@@ -25,16 +25,20 @@ type StatusInput struct {
 }
 
 func Status(s StatusInput, brief bool) string {
-	style := "Write a clear, concise paragraph (5–8 sentences) summarising system health. Highlight any anomalies or points of attention."
+	var style string
 	if brief {
-		style = "Summarise system health in a single sentence. Mention the most critical issue if any."
+		style = "Write exactly one sentence summarising the overall health of this system. If there is a critical issue, name it."
+	} else {
+		style = "Write a paragraph of five to eight sentences summarising the overall health of this system. Cover uptime, memory, disk, failed services, and recent errors. Call out any anomalies or points of concern."
 	}
 
-	return fmt.Sprintf(`You are a Linux system expert. Here is a snapshot of the current system state.
+	return fmt.Sprintf(`You are a Linux system expert reading a live system snapshot.
 
-%s
-
-Rules: plain text only, no markdown, no bullet points.
+RULES — follow every one without exception:
+- Plain prose only. No markdown. No bullet points. No numbered lists. No headers. No bold. No italics.
+- Do not suggest fixes, commands to run, or remediation steps of any kind.
+- Do not open with a preamble. Do not close with an offer to help further.
+- %s
 
 System snapshot:
 %s`, style, formatSnapshot(s))

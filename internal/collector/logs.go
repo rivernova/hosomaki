@@ -25,6 +25,43 @@ const (
 	defaultFileLines    = 100
 )
 
+func isJournalContent(out string) bool {
+	trimmed := strings.TrimSpace(out)
+	if trimmed == "" {
+		return false
+	}
+
+	sentinels := []string{
+		"-- No entries --",
+		"-- no entries --",
+		"No journal files were found.",
+	}
+	for _, s := range sentinels {
+		if strings.Contains(trimmed, s) && !looksLikeLogLine(trimmed) {
+			return false
+		}
+	}
+	return true
+}
+
+func looksLikeLogLine(text string) bool {
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(line)
+		if len(line) == 0 {
+			continue
+		}
+
+		if strings.HasPrefix(line, "[") {
+			return true
+		}
+
+		if strings.Contains(line, "]:") {
+			return true
+		}
+	}
+	return false
+}
+
 func ServiceLogs(service string, opts LogOptions) (string, error) {
 	n := lines(opts.Lines, defaultServiceLines)
 
@@ -32,14 +69,14 @@ func ServiceLogs(service string, opts LogOptions) (string, error) {
 	args = append(args, journalctl.errorLevel...)
 	args = append(args, journalctl.format...)
 	out, err := exec.Command(binJournalctl, args...).Output()
-	if err == nil && strings.TrimSpace(string(out)) != "" {
+	if err == nil && isJournalContent(string(out)) {
 		return strings.TrimSpace(string(out)), nil
 	}
 
 	args = []string{"-u", service, "-n", strconv.Itoa(n)}
 	args = append(args, journalctl.format...)
 	out, err = exec.Command(binJournalctl, args...).Output()
-	if err != nil || strings.TrimSpace(string(out)) == "" {
+	if err != nil || !isJournalContent(string(out)) {
 		return "", fmt.Errorf("no logs found for service %q — is the service name correct and has it run recently?", service)
 	}
 	return strings.TrimSpace(string(out)), nil
@@ -52,14 +89,14 @@ func BootLogs(bootIndex int, opts LogOptions) (string, error) {
 	args = append(args, journalctl.errorLevel...)
 	args = append(args, journalctl.format...)
 	out, err := exec.Command(binJournalctl, args...).Output()
-	if err == nil && strings.TrimSpace(string(out)) != "" {
+	if err == nil && isJournalContent(string(out)) {
 		return strings.TrimSpace(string(out)), nil
 	}
 
 	args = []string{"-b", strconv.Itoa(bootIndex), "-n", strconv.Itoa(n)}
 	args = append(args, journalctl.format...)
 	out, err = exec.Command(binJournalctl, args...).Output()
-	if err != nil || strings.TrimSpace(string(out)) == "" {
+	if err != nil || !isJournalContent(string(out)) {
 		return "", fmt.Errorf("no logs found for boot %d — the boot index may be out of range", bootIndex)
 	}
 	return strings.TrimSpace(string(out)), nil
@@ -68,14 +105,30 @@ func BootLogs(bootIndex int, opts LogOptions) (string, error) {
 func DmesgLogs(opts LogOptions) (string, error) {
 	n := lines(opts.Lines, defaultDmesgLines)
 
+	raw, _ := runShell("dmesg 2>&1 | head -n 3")
+	if strings.Contains(strings.ToLower(raw), "operation not permitted") ||
+		strings.Contains(strings.ToLower(raw), "permission denied") {
+		return "", fmt.Errorf(
+			"dmesg is restricted on this system (kernel.dmesg_restrict=1)\n" +
+				"Run with elevated privileges: sudo hosomaki explain --dmesg",
+		)
+	}
+
 	val, collErr := runShell(fmt.Sprintf(dmesgShell, n))
 	if collErr == "" && val != "" {
 		return val, nil
 	}
 
-	val, collErr = runShell(fmt.Sprintf("dmesg --notime 2>/dev/null | tail -n %d", n))
+	val, collErr = runShell(fmt.Sprintf(
+		"dmesg 2>/dev/null | grep -iE '(error|err|warn|fail|panic|oops|segfault|oom|crit|bug)' | tail -n %d", n,
+	))
+	if collErr == "" && val != "" {
+		return val, nil
+	}
+
+	val, collErr = runShell(fmt.Sprintf("dmesg 2>/dev/null | tail -n %d", n))
 	if collErr != "" || val == "" {
-		return "", fmt.Errorf("dmesg returned no output — the kernel ring buffer may be empty or inaccessible")
+		return "", fmt.Errorf("dmesg produced no output — the kernel ring buffer may be empty")
 	}
 	return val, nil
 }
