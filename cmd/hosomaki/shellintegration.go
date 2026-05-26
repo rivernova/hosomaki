@@ -27,7 +27,7 @@ explain() {
   if [ $code -ne 0 ]; then
     echo "$out"
     echo
-    echo "$out" | hosomaki explain
+    echo "$out" | hosomaki explain --cmd "$*"
   else
     echo "$out"
   fi
@@ -46,7 +46,7 @@ explain() {
   if [[ $code -ne 0 ]]; then
     echo "$out"
     echo
-    echo "$out" | hosomaki explain
+    echo "$out" | hosomaki explain --cmd "$*"
   else
     echo "$out"
   fi
@@ -64,7 +64,7 @@ function explain
   if test $code -ne 0
     echo $out
     echo
-    echo $out | hosomaki explain
+    echo $out | hosomaki explain --cmd (string join ' ' $argv)
   else
     echo $out
   end
@@ -126,7 +126,6 @@ Then use it:
 	return cmd
 }
 
-// returns the name of the current shell by inspecting $SHELL
 func detectShell() string {
 	base := filepath.Base(os.Getenv("SHELL"))
 	if _, ok := shellSnippets[base]; ok {

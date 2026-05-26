@@ -4,10 +4,19 @@
 
 package prompt
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // this file contains logic for constructing the prompt for the "explain" command
-func Explain(input string) string {
+
+func Explain(input, cmd string) string {
+	var cmdContext string
+	if c := strings.TrimSpace(cmd); c != "" {
+		cmdContext = fmt.Sprintf("\nThe output below was produced by running: %s\n", c)
+	}
+
 	return fmt.Sprintf(`You are a Linux system expert. You will be given log output or an error message.
 
 RULES — follow every one without exception:
@@ -17,7 +26,7 @@ RULES — follow every one without exception:
 - Write between two and four sentences. Never exceed five sentences under any circumstances.
 - If multiple distinct errors are present, address each one within the same paragraph.
 - State what is happening and why. Focus on root cause and system behaviour.
-
-Input:
-%s`, input)
+- If a command is provided, use it to inform your understanding of the context.
+%sInput:
+%s`, cmdContext, input)
 }

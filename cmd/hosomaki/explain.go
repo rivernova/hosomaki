@@ -27,6 +27,7 @@ func newExplainCmd() *cobra.Command {
 		dmesg   bool
 		file    string
 		lines   int
+		cmd_    string
 	)
 
 	cmd := &cobra.Command{
@@ -45,7 +46,11 @@ With flags, it collects the logs for you — no copy-pasting needed:
   hosomaki explain --boot
   hosomaki explain --boot -1
   hosomaki explain --dmesg
-  hosomaki explain --file /var/log/nginx/error.log`,
+  hosomaki explain --file /var/log/nginx/error.log
+
+The --cmd flag provides the originating command as context (set automatically
+by the shell integration):
+  echo "$out" | hosomaki explain --cmd "docker compose up"`,
 
 		Args: cobra.ArbitraryArgs,
 
@@ -67,7 +72,7 @@ With flags, it collects the logs for you — no copy-pasting needed:
 				return err
 			}
 
-			p := prompt.Explain(input)
+			p := prompt.Explain(input, cmd_)
 
 			spin := spinner.Start("thinking…")
 			_, err = provider.GenerateStream(context.Background(), p,
@@ -75,7 +80,7 @@ With flags, it collects the logs for you — no copy-pasting needed:
 				os.Stdout,
 			)
 			if err != nil {
-				spin.Stop() // stop on error
+				spin.Stop()
 				return err
 			}
 			fmt.Println()
@@ -88,6 +93,7 @@ With flags, it collects the logs for you — no copy-pasting needed:
 	cmd.Flags().BoolVar(&dmesg, "dmesg", false, "explain kernel errors and warnings from dmesg")
 	cmd.Flags().StringVarP(&file, "file", "f", "", "explain errors from a log file")
 	cmd.Flags().IntVarP(&lines, "lines", "n", 0, "number of log lines to read (default varies by source)")
+	cmd.Flags().StringVar(&cmd_, "cmd", "", "the command that produced this output (set automatically by shell integration)")
 	cmd.Flags().Lookup("boot").NoOptDefVal = "0"
 
 	return cmd
