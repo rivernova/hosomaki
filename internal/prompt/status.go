@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/rivernova/hosomaki/internal/collector"
 )
 
 // this file contains logic for constructing the prompt for the "status" command
@@ -16,6 +18,7 @@ const maxTopProcessLines = 10
 
 type StatusInput struct {
 	CollectedAt    time.Time
+	Environment    collector.Environment
 	Uptime         string
 	Memory         string
 	Disk           string
@@ -34,14 +37,14 @@ func Status(s StatusInput, brief bool) string {
 
 	return fmt.Sprintf(`You are a Linux system expert reading a live system snapshot.
 
-RULES — follow every one without exception:
+%sRULES — follow every one without exception:
 - Plain prose only. No markdown. No bullet points. No numbered lists. No headers. No bold. No italics.
 - Do not suggest fixes, commands to run, or remediation steps of any kind.
 - Do not open with a preamble. Do not close with an offer to help further.
 - %s
 
 System snapshot:
-%s`, style, formatSnapshot(s))
+%s`, EnvironmentSection(s.Environment), style, formatSnapshot(s))
 }
 
 func formatSnapshot(s StatusInput) string {
