@@ -39,6 +39,7 @@ recent errors) and asks the AI to summarise what's going on.
 
 			p := prompt.Status(prompt.StatusInput{
 				CollectedAt:    snap.CollectedAt,
+				Environment:    snap.Environment,
 				Uptime:         snap.Uptime,
 				Memory:         snap.Memory,
 				Disk:           snap.Disk,

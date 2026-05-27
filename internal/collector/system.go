@@ -15,6 +15,7 @@ import (
 
 type SystemSnapshot struct {
 	CollectedAt    time.Time
+	Environment    Environment
 	Uptime         string
 	Memory         string
 	Disk           string
@@ -25,7 +26,10 @@ type SystemSnapshot struct {
 }
 
 func Snapshot() (*SystemSnapshot, error) {
-	s := &SystemSnapshot{CollectedAt: time.Now()}
+	s := &SystemSnapshot{
+		CollectedAt: time.Now(),
+		Environment: Env(),
+	}
 
 	set := func(dest *string, val, collectionErr string) {
 		*dest = val

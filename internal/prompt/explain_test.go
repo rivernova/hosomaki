@@ -7,10 +7,12 @@ package prompt
 import (
 	"strings"
 	"testing"
+
+	"github.com/rivernova/hosomaki/internal/collector"
 )
 
 func TestExplainWithoutCmd(t *testing.T) {
-	p := Explain("some error output", "")
+	p := Explain("some error output", "", collector.Environment{})
 	if strings.Contains(p, "produced by running") {
 		t.Error("Explain() with empty cmd should not include command context line")
 	}
@@ -20,7 +22,7 @@ func TestExplainWithoutCmd(t *testing.T) {
 }
 
 func TestExplainWithCmd(t *testing.T) {
-	p := Explain("no configuration file provided: not found", "docker compose up")
+	p := Explain("no configuration file provided: not found", "docker compose up", collector.Environment{})
 	if !strings.Contains(p, "docker compose up") {
 		t.Error("Explain() with cmd should include the command")
 	}
@@ -33,8 +35,33 @@ func TestExplainWithCmd(t *testing.T) {
 }
 
 func TestExplainCmdWhitespaceOnlyIgnored(t *testing.T) {
-	p := Explain("some error", "   ")
+	p := Explain("some error", "   ", collector.Environment{})
 	if strings.Contains(p, "produced by running") {
 		t.Error("Explain() with whitespace-only cmd should not include command context line")
+	}
+}
+
+func TestExplainIncludesEnvironmentContext(t *testing.T) {
+	env := collector.Environment{
+		DistroID:         "fedora",
+		DistroPrettyName: "Fedora Linux 40",
+		PackageManager:   "dnf",
+		InitSystem:       "systemd",
+	}
+	p := Explain("some error", "", env)
+
+	for _, want := range []string{"Fedora Linux 40", "dnf", "systemd"} {
+		if !strings.Contains(p, want) {
+			t.Errorf("Explain() should include environment field %q, got prompt:\n%s", want, p)
+		}
+	}
+}
+
+func TestExplainInstructsModelToUseEnvironment(t *testing.T) {
+	p := Explain("some error", "", collector.Environment{DistroID: "arch"})
+	// The explain prompt must reference the host environment when
+	// instructing the model — otherwise the section is decorative.
+	if !strings.Contains(p, "host environment") {
+		t.Error("Explain() should instruct the model to use the host environment")
 	}
 }

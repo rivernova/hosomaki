@@ -46,6 +46,7 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 
 			p := prompt.Doctor(prompt.DoctorInput{
 				CollectedAt:    snap.CollectedAt,
+				Environment:    snap.Environment,
 				Uptime:         snap.Uptime,
 				Memory:         snap.Memory,
 				Disk:           snap.Disk,

@@ -8,12 +8,15 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/rivernova/hosomaki/internal/collector"
 )
 
 // this file contains logic for constructing the prompt for the "doctor" command
 
 type DoctorInput struct {
 	CollectedAt    time.Time
+	Environment    collector.Environment
 	Uptime         string
 	Memory         string
 	Disk           string
@@ -44,16 +47,18 @@ If nothing is wrong, write a single short paragraph confirming the system is hea
 
 	return fmt.Sprintf(`You are a Linux system expert performing a full diagnostic of a live system.
 
-RULES — follow every one without exception:
+%sRULES — follow every one without exception:
 - Plain prose only. No markdown. No bullet points. No numbered lists. No headers. No bold. No italics.
 - Unlike a status report, you MUST suggest concrete next steps for every problem you find.
 - Suggested actions must be specific: name the exact command to run, the file to edit, or the configuration key to change.
+- Every command you suggest MUST be correct for the host environment described above (distribution, package manager, init system).
+- If SELinux is enforcing or AppArmor is enabled on the host, factor that in when explaining permission-related errors.
 - If an action could cause data loss, downtime, or is otherwise risky, explicitly state that it is potentially disruptive before describing it.
 - Do not open with a preamble. Do not close with an offer to help further.
 - %s
 
 System snapshot:
-%s`, style, formatDoctorSnapshot(d))
+%s`, EnvironmentSection(d.Environment), style, formatDoctorSnapshot(d))
 }
 
 func formatDoctorSnapshot(d DoctorInput) string {

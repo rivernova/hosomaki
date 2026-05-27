@@ -72,7 +72,9 @@ by the shell integration):
 				return err
 			}
 
-			p := prompt.Explain(input, cmd_)
+			env := collector.Env()
+
+			p := prompt.Explain(input, cmd_, env)
 
 			spin := spinner.Start("thinking…")
 			_, err = provider.GenerateStream(context.Background(), p,
