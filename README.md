@@ -86,7 +86,7 @@ explain docker compose up
 
 ## Coming soon
 
-See [ROADMAP.md](ROADMAP.md) for the full plan.
+See the [Roadmap](https://github.com/rivernova/hosomaki/wiki) for the full plan.
 
 ---
 
