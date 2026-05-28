@@ -3,7 +3,7 @@
 **Your Linux system has a story to tell. Hosomaki is the moment it finally finds its voice.**
 
 <p align="center">
-  <img src="assets/hosomaki_logo.svg" alt="Hosomaki" width="350"/>
+  <img src="assets/hosomaki_logo.png" alt="Hosomaki"/>
 </p>
 
 > Local intelligence layer for Linux.

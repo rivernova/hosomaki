@@ -30,8 +30,6 @@ func New(endpoint, model string, timeout time.Duration) *Client {
 	}
 }
 
-// Generate streams the response token by token, calling onFirstToken once
-// before the first token is printed. This lets the caller stop a spinner.
 func (c *Client) Generate(ctx context.Context, prompt string) (string, error) {
 	return c.GenerateStream(ctx, prompt, nil, nil)
 }
