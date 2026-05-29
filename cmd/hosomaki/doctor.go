@@ -20,7 +20,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// this file contains the "doctor" command logic
+// this file contains the "doctor" command logic.
+
 func newDoctorCmd() *cobra.Command {
 	var (
 		brief     bool
@@ -75,7 +76,9 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 				doc.Raw = "AI analysis unavailable: " + genErr.Error()
 			}
 
-			currentUI().FinaliseDoctor(present.DoctorReport(report, doc, brief))
+			finalRep := present.DoctorReport(report, doc, brief)
+			currentUI().FinaliseDoctor(finalRep)
+
 			return nil
 		},
 	}

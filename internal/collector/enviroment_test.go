@@ -71,8 +71,6 @@ func TestDetectPackageManagerByID(t *testing.T) {
 }
 
 func TestDetectPackageManagerFallsBackToIDLike(t *testing.T) {
-	// A derivative distro whose ID we don't recognise should still resolve
-	// via ID_LIKE.
 	got := detectPackageManager("madeup-distro", "ubuntu debian")
 	if got != "apt" {
 		t.Errorf("detectPackageManager unknown id with ubuntu ID_LIKE = %q, want apt", got)
@@ -80,18 +78,12 @@ func TestDetectPackageManagerFallsBackToIDLike(t *testing.T) {
 }
 
 func TestDetectPackageManagerUnknown(t *testing.T) {
-	// With no recognisable id or id_like and no installed binaries either
-	// the result is empty
 	got := detectPackageManager("totally-unknown-12345", "also-unknown")
-	// On the CI runner one of the filesystem fallbacks may match. only assert no panic and a string.
 	_ = got
 }
 
 func TestEnvDoesNotPanic(t *testing.T) {
-	// Env() must always return
 	e := Env()
-
-	// Hostname is almost always available, but if it's not we should still succeed and just return an empty string.
 	if e.Hostname == "" {
 		t.Log("hostname empty — unusual but not necessarily wrong")
 	}
@@ -99,13 +91,11 @@ func TestEnvDoesNotPanic(t *testing.T) {
 
 func TestEnvReturnsConsistentArchitecture(t *testing.T) {
 	e := Env()
-	// On any reasonable Linux CI runner architecture should be populated
 	if e.Architecture == "" {
 		t.Skip("architecture not detectable in this environment")
 	}
 	switch e.Architecture {
 	case "x86_64", "aarch64", "arm64", "armv7l", "i686", "ppc64le", "s390x", "riscv64":
-		// known good
 	default:
 		t.Logf("architecture is %q — not in the recognised list but not necessarily wrong", e.Architecture)
 	}

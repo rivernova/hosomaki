@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/rivernova/hosomaki/internal/collector"
+	"github.com/rivernova/hosomaki/internal/insight"
 	"github.com/rivernova/hosomaki/internal/output"
 	"github.com/rivernova/hosomaki/internal/present"
 	"github.com/rivernova/hosomaki/internal/prompt"
@@ -22,7 +23,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// this file contains the "explain" command
+// this file contains the "explain" command.
+
 func newExplainCmd() *cobra.Command {
 	var (
 		service   string
@@ -62,7 +64,7 @@ by the shell integration):
 			opts := collector.LogOptions{Lines: lines}
 			bootChanged := cmd.Flags().Changed("boot")
 
-			input, err := resolveInput(resolveParams{
+			params := resolveParams{
 				args:        args,
 				service:     service,
 				boot:        bootStr,
@@ -70,41 +72,55 @@ by the shell integration):
 				dmesg:       dmesg,
 				file:        file,
 				opts:        opts,
-			})
+			}
+
+			inputText, err := resolveInput(params)
 			if err != nil {
+				if isNoInputError(err) {
+					renderExplainHelp()
+					return nil
+				}
 				return err
 			}
 
+			inputInfo := buildInputInfo(params, inputText)
+
 			env := collector.Env()
-			p := prompt.Explain(input, cmd_, env, appCfg.Output.Language)
+			p := prompt.Explain(inputText, cmd_, env, appCfg.Output.Language)
 
 			if outputFmt == "json" {
-				return explainJSON(input, cmd_, p)
+				return explainJSON(inputText, cmd_, p)
 			}
 
-			rep := render.ExplainReport{
-				Title:   "hosomaki explain",
-				Context: present.ContextLine(cmd_),
+			initialRep := render.ExplainReport{
+				Title:     "hosomaki explain",
+				InputInfo: inputInfo,
+				Context:   present.ContextLine(cmd_),
 			}
 			processLines := []string{
-				"analysing behaviour…",
+				"analysing behavior…",
 				"correlating logs…",
+				"detecting patterns…",
 			}
+			_ = currentUI().RenderExplainStream(initialRep, processLines)
 
-			streamW := currentUI().RenderExplainStream(rep, processLines)
-
+			var aiBuf bytes.Buffer
 			spin := spinner.Start("thinking…")
-			raw, genErr := provider.GenerateStream(context.Background(), p, func() {
+			_, genErr := provider.GenerateStream(context.Background(), p, func() {
 				spin.Stop()
-			}, streamW)
+			}, &aiBuf)
 			spin.Stop()
 
-			currentUI().StreamEnd()
-			currentUI().Done()
+			rawAI := strings.TrimSpace(aiBuf.String())
 
-			if genErr != nil && strings.TrimSpace(raw) == "" {
-				return genErr
+			doc := insight.ParseDoctor(rawAI)
+			if genErr != nil && doc.Raw == "" && len(doc.Issues) == 0 {
+				doc.Raw = "AI analysis unavailable: " + genErr.Error()
 			}
+
+			finalRep := present.ExplainReportFromIssues(inputInfo, cmd_, doc.Issues, doc.Raw)
+			currentUI().FinaliseExplain(finalRep)
+
 			return nil
 		},
 	}
@@ -119,6 +135,31 @@ by the shell integration):
 	cmd.Flags().Lookup("boot").NoOptDefVal = "0"
 
 	return cmd
+}
+
+// buildInputInfo derives an InputInfo from the resolved params and the actual input text.
+func buildInputInfo(p resolveParams, inputText string) render.InputInfo {
+	switch {
+	case p.service != "":
+		return render.InputInfo{Origin: "service", Detail: p.service, Lines: countLines(inputText)}
+	case p.bootChanged:
+		return render.InputInfo{Origin: "boot", Detail: "boot " + p.boot, Lines: countLines(inputText)}
+	case p.dmesg:
+		return render.InputInfo{Origin: "dmesg", Lines: countLines(inputText)}
+	case p.file != "":
+		return render.InputInfo{Origin: "file", Detail: p.file, Lines: countLines(inputText)}
+	case len(p.args) > 0:
+		return render.InputInfo{Origin: "text", Lines: countLines(inputText)}
+	default:
+		return render.InputInfo{Origin: "pipe", Lines: countLines(inputText)}
+	}
+}
+
+func countLines(s string) int {
+	if s == "" {
+		return 0
+	}
+	return len(strings.Split(strings.TrimRight(s, "\n"), "\n"))
 }
 
 func explainJSON(input, command, p string) error {
@@ -138,6 +179,51 @@ func explainJSON(input, command, p string) error {
 	}
 	_, writeErr := os.Stdout.Write(out.Bytes())
 	return writeErr
+}
+
+func renderExplainHelp() {
+	u := currentUI()
+	u.Title("hosomaki explain")
+	u.Blank()
+	u.Detail("", "understands what's going on — adapts to whatever you throw at it")
+
+	u.Section("pipe any log output")
+	u.Blank()
+	u.Process("journalctl -p err -n 20 | hosomaki explain")
+	u.Process("dmesg | tail -50         | hosomaki explain")
+
+	u.Section("by systemd service")
+	u.Blank()
+	u.Process("hosomaki explain --service nginx")
+	u.Process("hosomaki explain --service postgresql --lines 100")
+
+	u.Section("by boot")
+	u.Blank()
+	u.Process("hosomaki explain --boot")
+	u.Process("hosomaki explain --boot -1")
+
+	u.Section("kernel messages")
+	u.Blank()
+	u.Process("hosomaki explain --dmesg")
+
+	u.Section("log file")
+	u.Blank()
+	u.Process("hosomaki explain --file /var/log/nginx/error.log")
+	u.Process("hosomaki explain --file /var/log/syslog")
+
+	u.Section("quick message")
+	u.Blank()
+	u.Process(`hosomaki explain "kernel: OOM killer activated on process nginx"`)
+
+	u.Done()
+}
+
+func isNoInputError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return len(msg) >= 16 && msg[:16] == "no input provided"
 }
 
 type resolveParams struct {

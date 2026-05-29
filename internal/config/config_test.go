@@ -37,7 +37,6 @@ func TestSetDefaults(t *testing.T) {
 		})
 	}
 
-	// Duration needs to be checked via GetDuration, not Get
 	t.Run("AI timeout default", func(t *testing.T) {
 		got := viper.GetDuration("ai.timeout")
 		if got != DefaultTimeout {
@@ -70,7 +69,6 @@ func TestInitWithDefaults(t *testing.T) {
 }
 
 func TestInitWithConfigFile(t *testing.T) {
-	// Write a minimal config to a temp file and verify Init() parses it correctly
 	tmp := t.TempDir() + "/config.yaml"
 	content := []byte("ai:\n  model: mistral\n  timeout: 60s\noutput:\n  language: es\n")
 	if err := os.WriteFile(tmp, content, 0o644); err != nil {

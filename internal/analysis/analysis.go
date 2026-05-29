@@ -10,8 +10,7 @@ import (
 	"strings"
 )
 
-// this file contains the core analysis logic that turns raw input into a structured report of metrics and findings
-
+// this file contains the core analysis logic that turns raw input strings into structured reports of metrics and findings
 type Level int
 
 const (

@@ -12,14 +12,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// this file contains the implementation of the "shell-integration" command
+// this file contains the shell-integration command, which provides users with a convenient way to set up automatic explanation
 
 var shellSnippets = map[string]snippet{
 	"bash": {
 		rcFile: "~/.bashrc",
 		code: `# hosomaki shell integration
-# Wraps a command so that on failure its output is explained automatically.
-# Usage: explain <command> [args...]
 explain() {
   local out
   out=$("$@" 2>&1)
@@ -37,8 +35,6 @@ explain() {
 	"zsh": {
 		rcFile: "~/.zshrc",
 		code: `# hosomaki shell integration
-# Wraps a command so that on failure its output is explained automatically.
-# Usage: explain <command> [args...]
 explain() {
   local out
   out=$("$@" 2>&1)
@@ -56,8 +52,6 @@ explain() {
 	"fish": {
 		rcFile: "~/.config/fish/config.fish",
 		code: `# hosomaki shell integration
-# Wraps a command so that on failure its output is explained automatically.
-# Usage: explain <command> [args...]
 function explain
   set out (command $argv 2>&1)
   set code $status
@@ -83,17 +77,16 @@ func newShellIntegrationCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "shell-integration",
-		Short: "Print shell integration snippet for automatic error explanation",
-		Long: `Prints a shell function that wraps commands and explains failures automatically.
+		Short: "Install shell wrapper for automatic error explanation",
+		Long: `Installs a small shell wrapper. Any command prefixed with explain
+will be analysed automatically if it fails.
 
-Supported shells: bash, zsh, fish
-
-Add the snippet to your shell config:
   hosomaki shell-integration --shell bash >> ~/.bashrc && source ~/.bashrc
   hosomaki shell-integration --shell zsh  >> ~/.zshrc  && source ~/.zshrc
   hosomaki shell-integration --shell fish >> ~/.config/fish/config.fish
 
-Then use it:
+Then just prefix any command with explain:
+
   explain sudo systemctl start nginx
   explain make build
   explain docker compose up`,
@@ -113,11 +106,33 @@ Then use it:
 				)
 			}
 
-			fmt.Println(s.code)
+			if !stdoutIsTerminal() {
+				fmt.Println(s.code)
+				return nil
+			}
 
-			fmt.Fprintf(os.Stderr, "\n# Add to %s with:\n", s.rcFile)
-			fmt.Fprintf(os.Stderr, "#   hosomaki shell-integration --shell %s >> %s\n", shell, s.rcFile)
+			ui := currentUI()
+			ui.Title("hosomaki shell-integration")
 
+			ui.Section("what it does")
+			ui.Blank()
+			ui.Detail("", "wraps any command with explain to auto-analyse failures")
+			ui.Detail("", "on failure: runs the command, shows output, then asks hosomaki to explain it")
+
+			ui.Section("install")
+			ui.Blank()
+			ui.Metric("shell", shell, 0)
+			ui.Metric("config", s.rcFile, 0)
+			ui.Blank()
+			ui.Process(fmt.Sprintf("hosomaki shell-integration --shell %s >> %s && source %s", shell, s.rcFile, s.rcFile))
+
+			ui.Section("usage")
+			ui.Blank()
+			ui.Process("explain sudo systemctl start nginx")
+			ui.Process("explain make build")
+			ui.Process("explain docker compose up")
+
+			ui.Done()
 			return nil
 		},
 	}
@@ -132,4 +147,12 @@ func detectShell() string {
 		return base
 	}
 	return "bash"
+}
+
+func stdoutIsTerminal() bool {
+	fi, err := os.Stdout.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
 }

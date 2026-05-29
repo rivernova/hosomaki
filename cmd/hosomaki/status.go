@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// this file contains the "status" command logic
+// this file contains the "status" command logic.
 
 func newStatusCmd() *cobra.Command {
 	var (
@@ -58,20 +58,28 @@ recent errors) and asks the AI to summarise what's going on.
 				return statusJSON(report, p)
 			}
 
-			partial := present.StatusReport(report, insight.Status{})
-			streamW := currentUI().RenderStatusStream(partial)
+			partial := present.StatusReport(report, insight.Status{}, brief)
+			_ = currentUI().RenderStatusStream(partial)
 
+			var aiBuf bytes.Buffer
 			spin := spinner.Start("thinking…")
-			raw, genErr := provider.GenerateStream(context.Background(), p, func() {
+			_, genErr := provider.GenerateStream(context.Background(), p, func() {
 				spin.Stop()
-			}, streamW)
+			}, &aiBuf)
 			spin.Stop()
 
-			currentUI().FinaliseStatus()
+			rawAI := strings.TrimSpace(aiBuf.String())
 
-			if genErr != nil && strings.TrimSpace(raw) == "" {
-				return genErr
+			st := insight.ParseStatus(rawAI)
+			if genErr != nil && st.Raw == "" && len(st.Observations) == 0 {
+				st.Raw = "AI summary unavailable: " + genErr.Error()
 			}
+
+			issues := insight.ParseDoctor(rawAI).Issues
+
+			finalRep := present.StatusReportWithAI(report, issues, st, brief)
+			currentUI().FinaliseStatus(finalRep)
+
 			return nil
 		},
 	}

@@ -11,8 +11,6 @@ import (
 	"time"
 )
 
-// this file contains logic for collecting a general snapshot of the system state
-
 type SystemSnapshot struct {
 	CollectedAt    time.Time
 	Environment    Environment

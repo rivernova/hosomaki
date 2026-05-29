@@ -13,6 +13,7 @@ import (
 )
 
 // this file contains logic for turning structured insights into JSON output
+
 type DoctorJSON struct {
 	Healthy  bool          `json:"healthy"`
 	Summary  string        `json:"summary"`
