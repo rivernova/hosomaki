@@ -222,6 +222,21 @@ func (r *Renderer) Command(cmd string, disruptive bool) {
 	}
 }
 
+func (r *Renderer) ShellLine(line string) {
+	trimmed := strings.TrimSpace(line)
+	var coloured string
+	switch {
+	case trimmed == "":
+		r.Blank()
+		return
+	case strings.HasPrefix(trimmed, "#"):
+		coloured = indent(1) + r.paint(r.pal.Dim, line)
+	default:
+		coloured = indent(1) + r.paint(r.pal.Accent, line)
+	}
+	r.line(coloured)
+}
+
 func (r *Renderer) SummaryLine(text string, st Status) {
 	r.line(indent(1) + r.paint(r.statusColor(st), text))
 }
@@ -413,11 +428,4 @@ func clamp(v, lo, hi int) int {
 		return hi
 	}
 	return v
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

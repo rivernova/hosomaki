@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// this file contains the "explain" command
+// this file contains the "explain" command.
 
 func newExplainCmd() *cobra.Command {
 	var (
@@ -76,6 +76,10 @@ by the shell integration):
 
 			inputText, err := resolveInput(params)
 			if err != nil {
+				if isNoInputError(err) {
+					renderExplainHelp()
+					return nil
+				}
 				return err
 			}
 
@@ -94,7 +98,7 @@ by the shell integration):
 				Context:   present.ContextLine(cmd_),
 			}
 			processLines := []string{
-				"analizing behavior…",
+				"analysing behavior…",
 				"correlating logs…",
 				"detecting patterns…",
 			}
@@ -133,6 +137,7 @@ by the shell integration):
 	return cmd
 }
 
+// buildInputInfo derives an InputInfo from the resolved params and the actual input text.
 func buildInputInfo(p resolveParams, inputText string) render.InputInfo {
 	switch {
 	case p.service != "":
@@ -174,6 +179,51 @@ func explainJSON(input, command, p string) error {
 	}
 	_, writeErr := os.Stdout.Write(out.Bytes())
 	return writeErr
+}
+
+func renderExplainHelp() {
+	u := currentUI()
+	u.Title("hosomaki explain")
+	u.Blank()
+	u.Detail("", "understands what's going on — adapts to whatever you throw at it")
+
+	u.Section("pipe any log output")
+	u.Blank()
+	u.Process("journalctl -p err -n 20 | hosomaki explain")
+	u.Process("dmesg | tail -50         | hosomaki explain")
+
+	u.Section("by systemd service")
+	u.Blank()
+	u.Process("hosomaki explain --service nginx")
+	u.Process("hosomaki explain --service postgresql --lines 100")
+
+	u.Section("by boot")
+	u.Blank()
+	u.Process("hosomaki explain --boot")
+	u.Process("hosomaki explain --boot -1")
+
+	u.Section("kernel messages")
+	u.Blank()
+	u.Process("hosomaki explain --dmesg")
+
+	u.Section("log file")
+	u.Blank()
+	u.Process("hosomaki explain --file /var/log/nginx/error.log")
+	u.Process("hosomaki explain --file /var/log/syslog")
+
+	u.Section("quick message")
+	u.Blank()
+	u.Process(`hosomaki explain "kernel: OOM killer activated on process nginx"`)
+
+	u.Done()
+}
+
+func isNoInputError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return len(msg) >= 16 && msg[:16] == "no input provided"
 }
 
 type resolveParams struct {

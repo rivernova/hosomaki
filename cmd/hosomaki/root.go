@@ -16,8 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// this file contains the root command and shared setup logic for hosomaki
-
 var (
 	cfgFile string
 	version string
@@ -58,6 +56,48 @@ func Execute(v string) {
 	}
 }
 
+func renderHelp(v string) {
+	u := currentUI()
+	u.Title("hosomaki  " + v)
+	u.Blank()
+	u.Detail("", "local intelligence layer for Linux — powered by a local AI model via Ollama")
+
+	u.Section("explain")
+	u.Blank()
+	u.Detail("", "understands what's going on — adapts to whatever you throw at it")
+	u.Blank()
+	u.Process("journalctl -p err -n 20 | hosomaki explain")
+	u.Process("hosomaki explain --service nginx")
+	u.Process("hosomaki explain --boot -1")
+	u.Process("hosomaki explain --dmesg")
+	u.Process("hosomaki explain --file /var/log/nginx/error.log")
+	u.Process(`hosomaki explain "kernel: OOM killer activated"`)
+
+	u.Section("status")
+	u.Blank()
+	u.Detail("", "quick health snapshot — uptime, memory, disk, failed services, recent errors")
+	u.Blank()
+	u.Process("hosomaki status")
+	u.Process("hosomaki status --brief")
+
+	u.Section("doctor")
+	u.Blank()
+	u.Detail("", "full diagnosis with concrete suggested actions — never modifies the system")
+	u.Blank()
+	u.Process("hosomaki doctor")
+	u.Process("hosomaki doctor --brief")
+
+	u.Section("shell-integration")
+	u.Blank()
+	u.Detail("", "prefix any command with explain to auto-analyse failures")
+	u.Blank()
+	u.Process("hosomaki shell-integration --shell bash >> ~/.bashrc && source ~/.bashrc")
+	u.Process("hosomaki shell-integration --shell zsh  >> ~/.zshrc  && source ~/.zshrc")
+	u.Process("hosomaki shell-integration --shell fish >> ~/.config/fish/config.fish")
+
+	u.Done()
+}
+
 func normaliseNegativeIntFlag(args []string, flag string) []string {
 	out := make([]string, 0, len(args))
 	skip := false
@@ -93,6 +133,9 @@ var rootCmd = &cobra.Command{
 	Short:         "Local intelligence layer for Linux",
 	SilenceUsage:  true,
 	SilenceErrors: true,
+	Run: func(cmd *cobra.Command, args []string) {
+		renderHelp(version)
+	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Init(cfgFile)
 		if err != nil {

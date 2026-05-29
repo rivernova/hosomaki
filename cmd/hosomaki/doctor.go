@@ -67,7 +67,7 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 			pre := present.DoctorReport(report, insight.Doctor{}, brief)
 			_ = currentUI().RenderDoctorStream(pre)
 
-			spin := spinner.Start("analysing...")
+			spin := spinner.Start("analysing…")
 			raw, genErr := provider.Generate(context.Background(), p)
 			spin.Stop()
 
@@ -90,7 +90,7 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 }
 
 func doctorJSON(report analysis.Report, p string) error {
-	spin := spinner.Start("analizando…")
+	spin := spinner.Start("analysing…")
 	raw, err := provider.Generate(context.Background(), p)
 	spin.Stop()
 

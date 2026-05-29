@@ -72,7 +72,7 @@ recent errors) and asks the AI to summarise what's going on.
 
 			st := insight.ParseStatus(rawAI)
 			if genErr != nil && st.Raw == "" && len(st.Observations) == 0 {
-				st.Raw = "AI analysis unavailable: " + genErr.Error()
+				st.Raw = "AI summary unavailable: " + genErr.Error()
 			}
 
 			issues := insight.ParseDoctor(rawAI).Issues
