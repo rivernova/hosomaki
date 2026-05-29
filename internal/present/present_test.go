@@ -115,7 +115,7 @@ func TestDoctorReportMapsIssues(t *testing.T) {
 		t.Fatalf("expected 3 detail rows, got %d", len(iss.Details))
 	}
 	if iss.Details[0].Key != "detected pattern" || iss.Details[1].Key != "probable cause" {
-		t.Error("structured details mislabelled")
+		t.Errorf("structured details mislabelled: %q / %q", iss.Details[0].Key, iss.Details[1].Key)
 	}
 	if len(iss.Actions) != 1 || !iss.Actions[0].Disruptive {
 		t.Error("action mapping lost the disruptive flag")
@@ -148,8 +148,8 @@ func TestDoctorReportRawFallback(t *testing.T) {
 
 func TestDoctorSummaryHealthy(t *testing.T) {
 	out := DoctorReport(analysis.Report{}, insight.Doctor{}, false)
-	if len(out.Summary) != 1 || out.Summary[0].Text != "system healthy" {
-		t.Error("expected 'system healthy' summary for clean report")
+	if len(out.Summary) != 1 || out.Summary[0].Text != "healthy system" {
+		t.Errorf("expected 'healthy system' summary for clean report, got %v", out.Summary)
 	}
 }
 
@@ -161,7 +161,7 @@ func TestStatusReportStructure(t *testing.T) {
 	ai := insight.Status{
 		Observations: []insight.Observation{{Level: "warn", Text: "1 service with warnings"}},
 	}
-	out := StatusReport(rep, ai)
+	out := StatusReport(rep, ai, false)
 
 	if out.Title != "hosomaki status" {
 		t.Errorf("unexpected title: %q", out.Title)
@@ -181,8 +181,7 @@ func TestStatusReportStructure(t *testing.T) {
 }
 
 func TestStatusReportFallbackSummary(t *testing.T) {
-	// No AI observations → fall back to deterministic counts.
-	out := StatusReport(analysis.Report{FailedCount: 2}, insight.Status{})
+	out := StatusReport(analysis.Report{FailedCount: 2}, insight.Status{}, false)
 	if len(out.Summary) == 0 {
 		t.Error("fallback summary should always be non-empty")
 	}

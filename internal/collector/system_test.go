@@ -54,7 +54,6 @@ func TestRunEmptyOutput(t *testing.T) {
 	if errMsg != "" {
 		t.Fatalf("run() returned unexpected error: %v", errMsg)
 	}
-	// echo with an empty string argument still exits 0 and returns an empty line
 	if result != "" {
 		t.Errorf("run() with empty arg = %v, want empty string", result)
 	}

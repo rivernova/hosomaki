@@ -20,7 +20,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// this file contains the "doctor" command logic
+// this file contains the "doctor" command logic.
+
 func newDoctorCmd() *cobra.Command {
 	var (
 		brief     bool
@@ -66,7 +67,7 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 			pre := present.DoctorReport(report, insight.Doctor{}, brief)
 			_ = currentUI().RenderDoctorStream(pre)
 
-			spin := spinner.Start("analysing…")
+			spin := spinner.Start("analysing...")
 			raw, genErr := provider.Generate(context.Background(), p)
 			spin.Stop()
 
@@ -75,7 +76,9 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 				doc.Raw = "AI analysis unavailable: " + genErr.Error()
 			}
 
-			currentUI().FinaliseDoctor(present.DoctorReport(report, doc, brief))
+			finalRep := present.DoctorReport(report, doc, brief)
+			currentUI().FinaliseDoctor(finalRep)
+
 			return nil
 		},
 	}
@@ -87,7 +90,7 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 }
 
 func doctorJSON(report analysis.Report, p string) error {
-	spin := spinner.Start("analysing…")
+	spin := spinner.Start("analizando…")
 	raw, err := provider.Generate(context.Background(), p)
 	spin.Stop()
 

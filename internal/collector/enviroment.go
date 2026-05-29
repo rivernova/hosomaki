@@ -11,26 +11,21 @@ import (
 	"strings"
 )
 
-// this file contains environment detection logic
 type Environment struct {
-	// Distro
 	DistroID         string
 	DistroLike       string
 	DistroVersion    string
 	DistroPrettyName string
 
-	// Kernel & arch
 	Kernel       string
 	KernelFull   string
 	Architecture string
 
-	// Userspace
 	InitSystem     string
 	PackageManager string
 	Shell          string
 	Hostname       string
 
-	// Security / isolation
 	SELinux        string
 	AppArmor       string
 	Virtualisation string

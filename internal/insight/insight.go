@@ -5,103 +5,260 @@
 package insight
 
 import (
-	"encoding/json"
 	"strings"
 )
 
-// this file contains logic for parsing and normalising insights output into structured data
+// this file contains logic for parsing and normalising raw AI insights
 
 type Action struct {
-	Description string `json:"description"`
-	Command     string `json:"command"`
-	Disruptive  bool   `json:"disruptive"`
+	Description string
+	Command     string
+	Disruptive  bool
 }
 
 type Issue struct {
-	Subject  string   `json:"subject"`
-	Severity string   `json:"severity"`
-	Pattern  string   `json:"pattern"`
-	Cause    string   `json:"cause"`
-	Details  []string `json:"details"`
-	Actions  []Action `json:"actions"`
+	Subject  string
+	Pattern  string
+	Cause    string
+	Severity string
+	Details  []string
+	Actions  []Action
 }
 
 type Doctor struct {
-	Healthy bool    `json:"healthy"`
-	Summary string  `json:"summary"`
-	Issues  []Issue `json:"issues"`
-	Raw     string  `json:"-"`
+	Healthy bool
+	Summary string
+	Issues  []Issue
+	Raw     string
 }
 
 type Observation struct {
-	Level string `json:"level"`
-	Text  string `json:"text"`
+	Level string
+	Text  string
 }
 
 type Status struct {
-	Healthy      bool          `json:"healthy"`
-	Summary      string        `json:"summary"`
-	Observations []Observation `json:"observations"`
+	Healthy      bool
+	Summary      string
+	Observations []Observation
+	Raw          string
+}
 
-	Raw string `json:"-"`
+var placeholderWords = []string{
+	"pattern",
+	"component",
+	"suggestion",
+}
+
+var envMetadataSubjects = []string{
+	"distro", "kernel", "architecture", "arch", "hostname",
+	"shell", "selinux", "apparmor", "virtualisation", "virtualization",
+	"init", "package-manager", "packagemanager",
+}
+
+var componentKeywords = []string{
+	"dbus", "pam", "sudo", "gdm", "polkit", "kernel", "r8169",
+	"bluetooth", "bluetoothd", "firewall", "firewalld", "networkmanager",
+	"systemd", "journald", "sshd", "nginx", "apache", "postgresql",
+	"mysql", "docker", "podman", "selinux", "apparmor", "acpi",
+	"snapd", "flatpak", "dnf", "apt", "pacman", "grub", "udev",
+	"spd5118", "thermal", "cpu", "memory", "oom", "disk",
+}
+
+func isPlaceholderValue(s string) bool {
+	lower := strings.ToLower(strings.TrimSpace(s))
+	for _, p := range placeholderWords {
+		if lower == p {
+			return true
+		}
+	}
+	if strings.HasPrefix(lower, "cause:") {
+		return true
+	}
+	return false
+}
+
+func isEnvMetadataSubject(subject string) bool {
+	lower := strings.ToLower(strings.TrimSpace(subject))
+	for _, m := range envMetadataSubjects {
+		if lower == m {
+			return true
+		}
+	}
+	return false
+}
+
+func extractFromProse(raw string) []Issue {
+	seen := map[string]bool{}
+	var issues []Issue
+
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		line = strings.ReplaceAll(line, "**", "")
+		line = strings.ReplaceAll(line, "`", "")
+		lower := strings.ToLower(line)
+
+		for _, kw := range componentKeywords {
+			if !strings.Contains(lower, kw) {
+				continue
+			}
+			if seen[kw] {
+				continue
+			}
+			desc := strings.TrimSpace(line)
+			if len(desc) < 15 {
+				continue
+			}
+			seen[kw] = true
+			issues = append(issues, Issue{
+				Subject: kw,
+				Pattern: desc,
+			})
+			break
+		}
+	}
+	return issues
 }
 
 func ParseDoctor(raw string) Doctor {
-	clean := cleanText(raw)
-	obj, found := extractJSON(clean)
-	if found {
-		var d Doctor
-		if err := json.Unmarshal([]byte(obj), &d); err == nil {
-			d.normalize()
-			if len(d.Issues) > 0 || strings.TrimSpace(d.Summary) != "" {
-				return d
-			}
-		}
+	clean := strings.TrimSpace(raw)
+	issues := parseInsightLines(clean)
+	if len(issues) == 0 {
+		issues = extractFromProse(clean)
 	}
-	return Doctor{Raw: clean}
+	if len(issues) == 0 {
+		return Doctor{Raw: clean}
+	}
+	return Doctor{Healthy: false, Issues: issues}
 }
 
 func ParseStatus(raw string) Status {
-	clean := cleanText(raw)
-	obj, found := extractJSON(clean)
-	if found {
-		var s Status
-		if err := json.Unmarshal([]byte(obj), &s); err == nil {
-			s.normalize()
-			if strings.TrimSpace(s.Summary) != "" || len(s.Observations) > 0 {
-				return s
-			}
-		}
+	clean := strings.TrimSpace(raw)
+	issues := parseInsightLines(clean)
+	if len(issues) == 0 {
+		return Status{Raw: clean, Summary: clean}
 	}
-	return Status{Raw: clean, Summary: clean}
+	var obs []Observation
+	for _, iss := range issues {
+		text := iss.Pattern
+		if iss.Cause != "" {
+			text += " — " + iss.Cause
+		}
+		obs = append(obs, Observation{Level: "info", Text: "[" + iss.Subject + "] " + text})
+	}
+	return Status{Healthy: false, Observations: obs}
 }
 
-func (d *Doctor) normalize() {
-	d.Summary = strings.TrimSpace(d.Summary)
-	kept := d.Issues[:0]
-	for _, iss := range d.Issues {
-		iss.Subject = strings.TrimSpace(iss.Subject)
-		iss.Pattern = strings.TrimSpace(iss.Pattern)
-		iss.Cause = strings.TrimSpace(iss.Cause)
-		iss.Severity = NormalizeSeverity(iss.Severity)
-		if iss.Subject == "" && iss.Cause == "" && iss.Pattern == "" &&
-			len(iss.Details) == 0 && len(iss.Actions) == 0 {
+func stripMarkdown(s string) string {
+	s = strings.ReplaceAll(s, "**", "")
+	s = strings.ReplaceAll(s, "__", "")
+	s = strings.ReplaceAll(s, "`", "")
+	for _, pfx := range []string{"- ", "* ", "+ "} {
+		s = strings.TrimPrefix(s, pfx)
+	}
+	return strings.TrimSpace(s)
+}
+
+func isMarkdownLine(line string) bool {
+	if strings.HasPrefix(line, "#") {
+		return true
+	}
+	if strings.HasPrefix(line, "```") {
+		return true
+	}
+	if strings.HasPrefix(line, "---") || strings.HasPrefix(line, "===") || strings.HasPrefix(line, "***") {
+		return true
+	}
+	if strings.HasPrefix(line, "{") || strings.HasPrefix(line, "[") {
+		return true
+	}
+	if (strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") || strings.HasPrefix(line, "+ ")) &&
+		!strings.Contains(line, ";") {
+		return true
+	}
+	return false
+}
+
+func parseInsightLines(raw string) []Issue {
+	var issues []Issue
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
 			continue
 		}
-		if iss.Subject == "" {
-			iss.Subject = "issue"
+		if isMarkdownLine(line) {
+			continue
 		}
-		kept = append(kept, iss)
+
+		line = strings.ReplaceAll(line, "**", "")
+		line = strings.ReplaceAll(line, "__", "")
+		line = strings.TrimSpace(line)
+
+		colonIdx := strings.Index(line, ":")
+		if colonIdx <= 0 {
+			continue
+		}
+
+		component := stripMarkdown(line[:colonIdx])
+		rest := strings.TrimSpace(line[colonIdx+1:])
+
+		if !strings.Contains(rest, ";") {
+			continue
+		}
+
+		if strings.Contains(component, " ") || len(component) == 0 || len(component) > 60 {
+			continue
+		}
+
+		if isEnvMetadataSubject(component) {
+			continue
+		}
+
+		parts := splitSemicolon(rest)
+		iss := Issue{Subject: component}
+
+		if len(parts) >= 1 {
+			iss.Pattern = stripMarkdown(parts[0])
+		}
+		if len(parts) >= 2 {
+			iss.Cause = stripMarkdown(parts[1])
+		}
+		if len(parts) >= 3 {
+			suggestion := stripMarkdown(parts[2])
+			if suggestion != "" {
+				iss.Actions = []Action{{Description: suggestion}}
+			}
+		}
+
+		if isPlaceholderValue(iss.Pattern) || isPlaceholderValue(iss.Cause) {
+			continue
+		}
+
+		if iss.Subject != "" && iss.Pattern != "" {
+			issues = append(issues, iss)
+		}
 	}
-	d.Issues = kept
+	return issues
 }
 
-func (s *Status) normalize() {
-	s.Summary = strings.TrimSpace(s.Summary)
-	for i := range s.Observations {
-		s.Observations[i].Level = NormalizeSeverity(s.Observations[i].Level)
-		s.Observations[i].Text = strings.TrimSpace(s.Observations[i].Text)
+func splitSemicolon(s string) []string {
+	var parts []string
+	var cur strings.Builder
+	for _, r := range s {
+		if r == ';' {
+			parts = append(parts, cur.String())
+			cur.Reset()
+		} else {
+			cur.WriteRune(r)
+		}
 	}
+	if cur.Len() > 0 {
+		parts = append(parts, cur.String())
+	}
+	return parts
 }
 
 func NormalizeSeverity(s string) string {
@@ -117,25 +274,4 @@ func NormalizeSeverity(s string) string {
 	default:
 		return "info"
 	}
-}
-
-func cleanText(raw string) string {
-	s := strings.TrimSpace(raw)
-	if !strings.HasPrefix(s, "```") {
-		return s
-	}
-	if nl := strings.IndexByte(s, '\n'); nl >= 0 {
-		s = s[nl+1:]
-	}
-	s = strings.TrimSuffix(strings.TrimRight(s, "\n"), "```")
-	return strings.TrimSpace(s)
-}
-
-func extractJSON(s string) (string, bool) {
-	start := strings.IndexByte(s, '{')
-	end := strings.LastIndexByte(s, '}')
-	if start < 0 || end <= start {
-		return "", false
-	}
-	return s[start : end+1], true
 }

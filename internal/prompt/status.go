@@ -6,32 +6,31 @@ package prompt
 
 import "fmt"
 
-// this file contains the status prompt template for "status" command
+// this file contains the prompt template for the "status" command.
 
-const statusBase = `You are the status engine inside hosomaki, a Linux CLI tool.
-Give a short, calm read on how the system is doing right now.
+const statusBase = `You are a Linux sysadmin expert. Give a brief health summary of the system described below.
 
-Return ONLY a single JSON object. No prose around it, no markdown, no code
-fences. It must match this schema exactly:
+RESPONSE FORMAT — STRICT:
+One line per observation about system health, exactly like this real example:
+memory: usage at 29 percent; well within normal range
+disk: root partition at 45 percent; adequate free space
+journal: 20 error entries found; investigate with journalctl -p err -n 20
+services: all systemd services healthy; no action needed
 
-{
-  "healthy": true,
-  "summary": "",
-  "observations": [
-    { "text": "", "level": "info" }
-  ]
-}
+The two fields separated by a semicolon are:
+1. what system area this is about (memory, disk, journal, services, cpu — NOT environment metadata like distro, kernel version, architecture, hostname, shell, selinux, virtualisation)
+2. what the current state is and whether it needs attention
 
-Field rules:
-- healthy: true when nothing needs attention.
-- summary: one or two sentences on the overall state.
-- observations: short standalone notes worth surfacing; each has a text field
-  and a level of "ok", "info", "warn" or "crit". Use an empty array when there
-  is nothing to add.
+REPORT ONLY these health domains: memory, disk, cpu, journal, services, network, temperature
+DO NOT report: distro name, kernel version, architecture, hostname, shell, selinux status, virtualisation type — these are context, not health observations.
 
-CRITICAL — every text value is RAW TEXT ONLY. No colours, icons, indentation,
-separators, markdown, ANSI escapes or layout of any kind. hosomaki formats the
-output; formatting here breaks it.
+If the system is healthy: system: all metrics within normal range; no action needed
+
+FORBIDDEN — your response must NEVER contain:
+- The words "pattern", "cause", "component", "suggestion" as field values
+- Asterisks, backticks, bold, italic, bullet points, numbered lists
+- Environment metadata (distro, kernel, arch, hostname, shell) as observations
+- Any text that is not a valid observation line
 %s%s
 System data:
 
@@ -49,7 +48,7 @@ func Status(in StatusInput) string {
 
 	brief := ""
 	if in.Brief {
-		brief = "\nBe brief: a single summary sentence and an empty observations array.\n"
+		brief = "\nReturn at most one line summarising the overall state.\n"
 	}
 
 	return fmt.Sprintf(statusBase, lang, brief, formatSnapshot(in.Snapshot))

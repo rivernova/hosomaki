@@ -6,6 +6,7 @@ package present
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/rivernova/hosomaki/internal/analysis"
 	"github.com/rivernova/hosomaki/internal/collector"
@@ -13,8 +14,8 @@ import (
 	"github.com/rivernova/hosomaki/internal/render"
 )
 
-// this file contains the logic for turning analysis reports and insights into "view models" that the renderer can turn into terminal output
-
+// this file contains the logic for turning analysis reports and parsed insights
+// into view models that the renderer transforms into terminal output
 func AnalysisInput(s *collector.SystemSnapshot) analysis.Input {
 	if s == nil {
 		return analysis.Input{}
@@ -47,40 +48,76 @@ func DoctorReport(rep analysis.Report, ai insight.Doctor, brief bool) render.Doc
 		Findings:     toFindings(rep),
 		ProcessLines: doctorProcessLines(),
 		RawInsight:   ai.Raw,
+		Brief:        brief,
 	}
+
 	for _, iss := range ai.Issues {
 		out.Issues = append(out.Issues, toIssue(iss))
 	}
+
 	out.Summary = doctorSummary(rep, ai)
+
 	if brief {
 		out.ProcessLines = nil
 	}
 	return out
 }
 
-func StatusReport(rep analysis.Report, ai insight.Status) render.StatusReport {
+func StatusReport(rep analysis.Report, ai insight.Status, brief bool) render.StatusReport {
 	return render.StatusReport{
 		Title:    "hosomaki status",
 		Metrics:  toMetrics(rep),
 		Services: toFindings(rep),
 		Summary:  statusSummary(rep, ai),
+		Brief:    brief,
 	}
 }
 
-func ExplainReport(command string, ai insight.Doctor) render.ExplainReport {
-	rep := render.ExplainReport{
-		Title:   "hosomaki explain",
-		Context: ContextLine(command),
+func StatusReportWithAI(rep analysis.Report, issues []insight.Issue, ai insight.Status, brief bool) render.StatusReport {
+	sr := StatusReport(rep, ai, brief)
+	sr.Summary = statusSummaryWithIssues(rep, issues)
+	sr.RawAI = ai.Raw
+	sr.BriefText = buildBriefText(issues, ai.Raw)
+	for _, iss := range issues {
+		sr.Issues = append(sr.Issues, toIssue(iss))
 	}
-	if len(ai.Issues) > 0 {
-		for _, iss := range ai.Issues {
-			rep.Issues = append(rep.Issues, toIssue(iss))
+	return sr
+}
+
+func buildBriefText(issues []insight.Issue, rawAI string) string {
+	if len(issues) == 0 {
+		if rawAI != "" {
+			lines := strings.SplitN(strings.TrimSpace(rawAI), "\n", 2)
+			return lines[0]
 		}
-	} else {
-		rep.RawText = ai.Raw
-		if rep.RawText == "" {
-			rep.RawText = ai.Summary
-		}
+		return "system operating normally"
+	}
+	iss := issues[0]
+	line := iss.Subject
+	if iss.Pattern != "" {
+		line += ": " + iss.Pattern
+	}
+	if iss.Cause != "" {
+		line += " — " + iss.Cause
+	}
+	if len(iss.Actions) > 0 && iss.Actions[0].Description != "" {
+		line += " → " + iss.Actions[0].Description
+	}
+	if len(issues) > 1 {
+		line += fmt.Sprintf(" (+%d more)", len(issues)-1)
+	}
+	return line
+}
+
+func ExplainReportFromIssues(inputInfo render.InputInfo, command string, issues []insight.Issue, raw string) render.ExplainReport {
+	rep := render.ExplainReport{
+		Title:     "hosomaki explain",
+		InputInfo: inputInfo,
+		Context:   ContextLine(command),
+		RawText:   raw,
+	}
+	for _, iss := range issues {
+		rep.Issues = append(rep.Issues, toIssue(iss))
 	}
 	return rep
 }
@@ -167,6 +204,7 @@ func doctorProcessLines() []string {
 
 func doctorSummary(rep analysis.Report, ai insight.Doctor) []render.SummaryItem {
 	var items []render.SummaryItem
+
 	if rep.FailedCount > 0 {
 		items = append(items, render.SummaryItem{
 			Text:   plural(rep.FailedCount, "service degraded", "services degraded"),
@@ -190,7 +228,7 @@ func doctorSummary(rep analysis.Report, ai insight.Doctor) []render.SummaryItem 
 		})
 	}
 	if len(items) == 0 {
-		items = append(items, render.SummaryItem{Text: "system healthy", Status: render.OK})
+		items = append(items, render.SummaryItem{Text: "healthy system", Status: render.OK})
 	}
 	return items
 }
@@ -212,6 +250,16 @@ func statusSummary(rep analysis.Report, ai insight.Status) []render.SummaryItem 
 		return items
 	}
 
+	return statusFallbackSummary(rep)
+}
+
+func statusSummaryWithIssues(rep analysis.Report, issues []insight.Issue) []render.SummaryItem {
+	if len(issues) == 0 {
+		return statusFallbackSummary(rep)
+	}
+
+	var items []render.SummaryItem
+
 	if rep.FailedCount > 0 {
 		items = append(items, render.SummaryItem{
 			Text:   plural(rep.FailedCount, "service with warnings", "services with warnings"),
@@ -219,10 +267,37 @@ func statusSummary(rep analysis.Report, ai insight.Status) []render.SummaryItem 
 		})
 	}
 	critCount := countCritFindings(rep)
+	if critCount > 0 {
+		items = append(items, render.SummaryItem{
+			Text:   plural(critCount, "service failing", "services failing"),
+			Status: render.Crit,
+		})
+	}
 	items = append(items, render.SummaryItem{
-		Text:   fmt.Sprintf("%d critical failures", critCount),
-		Status: critStatus(critCount),
+		Text:   plural(len(issues), "detected pattern", "detected patterns"),
+		Status: render.Info,
 	})
+	return items
+}
+
+func statusFallbackSummary(rep analysis.Report) []render.SummaryItem {
+	var items []render.SummaryItem
+	if rep.FailedCount > 0 {
+		items = append(items, render.SummaryItem{
+			Text:   plural(rep.FailedCount, "service with warnings", "services with warnings"),
+			Status: render.Warn,
+		})
+	}
+	critCount := countCritFindings(rep)
+	if critCount > 0 {
+		items = append(items, render.SummaryItem{
+			Text:   plural(critCount, "service failing", "services failing"),
+			Status: render.Crit,
+		})
+	}
+	if len(items) == 0 {
+		items = append(items, render.SummaryItem{Text: "0 services failing", Status: render.OK})
+	}
 	return items
 }
 
@@ -236,16 +311,32 @@ func countCritFindings(rep analysis.Report) int {
 	return n
 }
 
-func critStatus(n int) render.Status {
-	if n > 0 {
-		return render.Crit
-	}
-	return render.OK
-}
-
 func plural(n int, one, many string) string {
 	if n == 1 {
 		return fmt.Sprintf("%d %s", n, one)
 	}
 	return fmt.Sprintf("%d %s", n, many)
 }
+
+func ExplainReport(command string, ai insight.Doctor) render.ExplainReport {
+	rep := render.ExplainReport{
+		Title:   "hosomaki explain",
+		Context: ContextLine(command),
+	}
+	if len(ai.Issues) > 0 {
+		for _, iss := range ai.Issues {
+			rep.Issues = append(rep.Issues, toIssue(iss))
+		}
+	} else {
+		rep.RawText = ai.Raw
+		if rep.RawText == "" {
+			rep.RawText = ai.Summary
+		}
+	}
+	return rep
+}
+
+func Rstatus(l analysis.Level) render.Status { return rstatus(l) }
+func SevStatus(sev string) render.Status     { return sevStatus(sev) }
+
+func Plural(n int, one, many string) string { return plural(n, one, many) }

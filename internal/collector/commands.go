@@ -4,7 +4,8 @@
 
 package collector
 
-// all commands are defined here and referenced by name
+// this file contains all the commands used to collect the system snapshot data
+
 const (
 	binUptime     = "uptime"
 	binFree       = "free"
@@ -16,14 +17,12 @@ const (
 	binTail       = "tail"
 )
 
-// variable parts (line counts, service names, boot indices) are handled
-// at call sites in logs.go using these as the stable base
 var snapshot = struct {
 	uptimeArgs         []string
 	memoryArgs         []string
-	diskShell          string // needs shell: multiple --output flags and -x exclusions
+	diskShell          string
 	failedServicesArgs []string
-	recentErrorsShell  string // needs shell: 2>/dev/null redirection
+	recentErrorsShell  string
 	topProcessesArgs   []string
 }{
 	uptimeArgs:         []string{"-p"},
@@ -34,7 +33,6 @@ var snapshot = struct {
 	topProcessesArgs:   []string{"aux", "--sort=-%cpu", "--no-headers"},
 }
 
-// variable flags (-u, -b, -n) are appended at call sites
 var journalctl = struct {
 	errorLevel []string
 	format     []string

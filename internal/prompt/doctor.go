@@ -6,50 +6,28 @@ package prompt
 
 import "fmt"
 
-// this file contains the prompt template for the "doctor" command
+// this file contains the prompt template for the "doctor" command.
 
-const doctorBase = `You are the diagnostic engine inside hosomaki, a Linux CLI tool.
-Analyse the system data below and report what a careful sysadmin would.
+const doctorBase = `You are a Linux sysadmin expert. Diagnose the system described below.
 
-Return ONLY a single JSON object. No prose before or after it, no markdown, no
-code fences. The JSON must match this schema exactly:
+RESPONSE FORMAT — STRICT:
+One line per problem, exactly like this real example:
+r8169: firmware failed to load at boot; r8169 module missing firmware file; sudo dnf install linux-firmware && sudo dracut -f
+kernel: ACPI could not resolve symbol _SB.LPCB.EC0; outdated BIOS DSDT table; update BIOS from manufacturer website
+sudo: authentication failed for user rivernova; wrong password or PAM misconfiguration; check /etc/pam.d/sudo and run passwd username
 
-{
-  "healthy": false,
-  "summary": "",
-  "issues": [
-    {
-      "subject": "",
-      "severity": "warn",
-      "pattern": "",
-      "cause": "",
-      "details": [],
-      "actions": [
-        { "description": "", "command": "", "disruptive": false }
-      ]
-    }
-  ]
-}
+The three fields separated by semicolons are:
+1. what component has the problem (a real name like kernel, nginx, r8169 — NOT the word "component")
+2. what symptom was observed in plain words (NOT the word "pattern")
+3. what to do about it (a concrete action or command — NOT the word "suggestion" or "cause: something")
 
-Field rules:
-- healthy: true only when nothing needs attention.
-- summary: one or two sentences stating the overall verdict.
-- issues: one object per DISTINCT problem; empty array when healthy.
-- subject: the unit, device or component the issue concerns.
-- severity: one of "crit", "warn", "info".
-- pattern: the observed symptom, stated plainly.
-- cause: the most probable underlying cause.
-- details: extra plain-text observations; omit or leave empty if none.
-- actions: concrete remediation steps with an optional command and
-  disruptive=true when the command can cause downtime, data loss or a reboot.
+If the system is healthy: system: all services and resources are healthy; no issues detected; no action needed
 
-CRITICAL — every text value is RAW TEXT ONLY. Do NOT add colours, indentation,
-separators, icons, bullet characters, markdown, ANSI escapes or any layout.
-hosomaki formats everything itself; formatting here corrupts the output.
-
-Commands must be correct for THIS host: honour the package manager, init system
-and security modules shown in the host environment below, and never invent units
-or paths that the data does not support.
+FORBIDDEN — your response must NEVER contain:
+- The words "component", "pattern", "cause", "suggestion" as field values
+- Asterisks, backticks, bold, italic, bullet points, numbered lists
+- More than one line per distinct issue
+- Any text that is not a valid problem line
 %s%s%s
 System data:
 
@@ -62,8 +40,7 @@ func Doctor(in DoctorInput) string {
 
 	mac := ""
 	if in.Snapshot.Environment.SELinux != "" || in.Snapshot.Environment.AppArmor != "" {
-		mac = "\nA mandatory-access-control system is active; account for SELinux or " +
-			"AppArmor when proposing fixes.\n"
+		mac = "\nMAC system active (SELinux or AppArmor) — account for it in suggestions.\n"
 	}
 
 	lang := ""
@@ -73,8 +50,7 @@ func Doctor(in DoctorInput) string {
 
 	brief := ""
 	if in.Brief {
-		brief = "\nBe brief: a single concise summary sentence per issue. Include only " +
-			"issues that genuinely need action; omit minor observations.\n"
+		brief = "\nOnly include issues that genuinely need action. Skip minor observations.\n"
 	}
 
 	return fmt.Sprintf(doctorBase, mac, lang, brief, formatSnapshot(in.Snapshot))

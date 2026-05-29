@@ -25,12 +25,59 @@ const (
 	defaultFileLines    = 100
 )
 
+type execResult struct {
+	stdout string
+	stderr string
+	err    error
+}
+
+func runCmd(name string, args ...string) execResult {
+	cmd := exec.Command(name, args...)
+	var outBuf, errBuf strings.Builder
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	err := cmd.Run()
+	return execResult{
+		stdout: strings.TrimSpace(outBuf.String()),
+		stderr: strings.TrimSpace(errBuf.String()),
+		err:    err,
+	}
+}
+
+func isPermissionError(stderr string) bool {
+	lower := strings.ToLower(stderr)
+	markers := []string{
+		"permission denied",
+		"operation not permitted",
+		"access denied",
+		"not authorized",
+		"failed to open",
+		"failed to access",
+		"unauthorized",
+		"polkit",
+	}
+	for _, m := range markers {
+		if strings.Contains(lower, m) {
+			return true
+		}
+	}
+	return false
+}
+
+func permissionErr(source string) error {
+	return fmt.Errorf(
+		"permission denied reading %s\n"+
+			"journalctl restricts access to logs for other users or boot sessions.\n"+
+			"Run with elevated privileges: sudo hosomaki explain %s",
+		source, source,
+	)
+}
+
 func isJournalContent(out string) bool {
 	trimmed := strings.TrimSpace(out)
 	if trimmed == "" {
 		return false
 	}
-
 	sentinels := []string{
 		"-- No entries --",
 		"-- no entries --",
@@ -50,11 +97,9 @@ func looksLikeLogLine(text string) bool {
 		if len(line) == 0 {
 			continue
 		}
-
 		if strings.HasPrefix(line, "[") {
 			return true
 		}
-
 		if strings.Contains(line, "]:") {
 			return true
 		}
@@ -68,18 +113,24 @@ func ServiceLogs(service string, opts LogOptions) (string, error) {
 	args := []string{"-u", service, "-n", strconv.Itoa(n)}
 	args = append(args, journalctl.errorLevel...)
 	args = append(args, journalctl.format...)
-	out, err := exec.Command(binJournalctl, args...).Output()
-	if err == nil && isJournalContent(string(out)) {
-		return strings.TrimSpace(string(out)), nil
+	res := runCmd(binJournalctl, args...)
+	if isPermissionError(res.stderr) {
+		return "", permissionErr("--service " + service)
+	}
+	if res.err == nil && isJournalContent(res.stdout) {
+		return res.stdout, nil
 	}
 
 	args = []string{"-u", service, "-n", strconv.Itoa(n)}
 	args = append(args, journalctl.format...)
-	out, err = exec.Command(binJournalctl, args...).Output()
-	if err != nil || !isJournalContent(string(out)) {
+	res = runCmd(binJournalctl, args...)
+	if isPermissionError(res.stderr) {
+		return "", permissionErr("--service " + service)
+	}
+	if res.err != nil || !isJournalContent(res.stdout) {
 		return "", fmt.Errorf("no logs found for service %q — is the service name correct and has it run recently?", service)
 	}
-	return strings.TrimSpace(string(out)), nil
+	return res.stdout, nil
 }
 
 func BootLogs(bootIndex int, opts LogOptions) (string, error) {
@@ -88,28 +139,33 @@ func BootLogs(bootIndex int, opts LogOptions) (string, error) {
 	args := []string{"-b", strconv.Itoa(bootIndex), "-n", strconv.Itoa(n)}
 	args = append(args, journalctl.errorLevel...)
 	args = append(args, journalctl.format...)
-	out, err := exec.Command(binJournalctl, args...).Output()
-	if err == nil && isJournalContent(string(out)) {
-		return strings.TrimSpace(string(out)), nil
+	res := runCmd(binJournalctl, args...)
+	if isPermissionError(res.stderr) {
+		return "", permissionErr("--boot " + strconv.Itoa(bootIndex))
+	}
+	if res.err == nil && isJournalContent(res.stdout) {
+		return res.stdout, nil
 	}
 
 	args = []string{"-b", strconv.Itoa(bootIndex), "-n", strconv.Itoa(n)}
 	args = append(args, journalctl.format...)
-	out, err = exec.Command(binJournalctl, args...).Output()
-	if err != nil || !isJournalContent(string(out)) {
+	res = runCmd(binJournalctl, args...)
+	if isPermissionError(res.stderr) {
+		return "", permissionErr("--boot " + strconv.Itoa(bootIndex))
+	}
+	if res.err != nil || !isJournalContent(res.stdout) {
 		return "", fmt.Errorf("no logs found for boot %d — the boot index may be out of range", bootIndex)
 	}
-	return strings.TrimSpace(string(out)), nil
+	return res.stdout, nil
 }
 
 func DmesgLogs(opts LogOptions) (string, error) {
 	n := lines(opts.Lines, defaultDmesgLines)
 
 	raw, _ := runShell("dmesg 2>&1 | head -n 3")
-	if strings.Contains(strings.ToLower(raw), "operation not permitted") ||
-		strings.Contains(strings.ToLower(raw), "permission denied") {
+	if isPermissionError(raw) {
 		return "", fmt.Errorf(
-			"dmesg is restricted on this system (kernel.dmesg_restrict=1)\n" +
+			"permission denied reading dmesg (kernel.dmesg_restrict=1)\n" +
 				"Run with elevated privileges: sudo hosomaki explain --dmesg",
 		)
 	}
@@ -137,20 +193,32 @@ func FileLogs(path string, opts LogOptions) (string, error) {
 	n := lines(opts.Lines, defaultFileLines)
 
 	if _, err := os.Stat(path); err != nil {
+		if os.IsPermission(err) {
+			return "", fmt.Errorf(
+				"permission denied reading %q\n"+
+					"Run with elevated privileges: sudo hosomaki explain --file %s",
+				path, path,
+			)
+		}
 		return "", fmt.Errorf("cannot read log file %q: %w", path, err)
 	}
 
-	out, err := exec.Command(binTail, "-n", strconv.Itoa(n), path).Output()
-	if err != nil || strings.TrimSpace(string(out)) == "" {
+	res := runCmd(binTail, "-n", strconv.Itoa(n), path)
+	if isPermissionError(res.stderr) {
+		return "", fmt.Errorf(
+			"permission denied reading %q\n"+
+				"Run with elevated privileges: sudo hosomaki explain --file %s",
+			path, path,
+		)
+	}
+	if res.err != nil || res.stdout == "" {
 		return "", fmt.Errorf("log file %q is empty or unreadable", path)
 	}
 
-	raw := strings.TrimSpace(string(out))
-
-	if filtered := filterErrorLines(raw); filtered != "" {
+	if filtered := filterErrorLines(res.stdout); filtered != "" {
 		return filtered, nil
 	}
-	return raw, nil
+	return res.stdout, nil
 }
 
 func filterErrorLines(text string) string {

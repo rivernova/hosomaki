@@ -155,7 +155,29 @@ func (r *Renderer) Process(text string) {
 	r.line(indent(1) + r.paint(r.pal.Dim, "> "+text))
 }
 
+func cleanProse(text string) string {
+	var lines []string
+	for _, line := range strings.Split(text, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		trimmed = strings.ReplaceAll(trimmed, "**", "")
+		trimmed = strings.ReplaceAll(trimmed, "__", "")
+		trimmed = strings.ReplaceAll(trimmed, "`", "")
+		for _, pfx := range []string{"- ", "* ", "+ "} {
+			if strings.HasPrefix(trimmed, pfx) {
+				trimmed = trimmed[len(pfx):]
+				break
+			}
+		}
+		lines = append(lines, trimmed)
+	}
+	return strings.Join(lines, "\n")
+}
+
 func (r *Renderer) Paragraph(text string) {
+	text = cleanProse(text)
 	for _, block := range strings.Split(strings.TrimRight(text, "\n"), "\n") {
 		block = strings.TrimSpace(block)
 		if block == "" {
@@ -206,20 +228,27 @@ func (r *Renderer) SummaryLine(text string, st Status) {
 
 func (r *Renderer) Done() {
 	r.Blank()
-	r.line(indent(1) + r.paint(r.pal.OK, "done ✓"))
+	r.line(indent(1) + r.paint(r.pal.OK, "listo ✓"))
 	r.Blank()
 }
 
 func (r *Renderer) Error(err error) {
 	r.Blank()
-	first := true
-	for _, ln := range strings.Split(strings.TrimRight(err.Error(), "\n"), "\n") {
-		if first {
-			r.line(indent(1) + r.paint(r.pal.Crit, "! ") + r.paint(r.pal.Text, ln))
-			first = false
+	lines := strings.Split(strings.TrimRight(err.Error(), "\n"), "\n")
+	for i, ln := range lines {
+		ln = strings.TrimSpace(ln)
+		if ln == "" {
 			continue
 		}
-		r.line(indent(1) + "  " + r.paint(r.pal.Text, ln))
+		if i == 0 {
+			r.line(indent(1) + r.paint(r.pal.Crit, "✗ ") + r.paint(r.pal.Text, ln))
+			continue
+		}
+		if strings.HasPrefix(ln, "Run ") || strings.HasPrefix(ln, "run ") {
+			r.line(indent(2) + r.paint(r.pal.Dim, "→ ") + r.paint(r.pal.Accent, ln))
+			continue
+		}
+		r.line(indent(2) + r.paint(r.pal.Dim, ln))
 	}
 	r.Blank()
 }
@@ -229,11 +258,6 @@ func (r *Renderer) StreamStart(section string) io.Writer {
 	r.Blank()
 	fmt.Fprint(r.w, indent(1))
 	return &streamWriter{r: r}
-}
-
-func (r *Renderer) StreamEnd() {
-	fmt.Fprintln(r.w)
-	r.Blank()
 }
 
 type streamWriter struct {

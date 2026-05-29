@@ -12,14 +12,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// this file contains the implementation of the "shell-integration" command
+// this file contains the shell integration command
 
 var shellSnippets = map[string]snippet{
 	"bash": {
 		rcFile: "~/.bashrc",
 		code: `# hosomaki shell integration
-# Wraps a command so that on failure its output is explained automatically.
-# Usage: explain <command> [args...]
 explain() {
   local out
   out=$("$@" 2>&1)
@@ -37,8 +35,6 @@ explain() {
 	"zsh": {
 		rcFile: "~/.zshrc",
 		code: `# hosomaki shell integration
-# Wraps a command so that on failure its output is explained automatically.
-# Usage: explain <command> [args...]
 explain() {
   local out
   out=$("$@" 2>&1)
@@ -56,8 +52,6 @@ explain() {
 	"fish": {
 		rcFile: "~/.config/fish/config.fish",
 		code: `# hosomaki shell integration
-# Wraps a command so that on failure its output is explained automatically.
-# Usage: explain <command> [args...]
 function explain
   set out (command $argv 2>&1)
   set code $status

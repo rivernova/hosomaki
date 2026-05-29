@@ -11,7 +11,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// this file contains the prompt template share by all commands
+// this file contains shared prompt utilities
 
 type DoctorInput struct {
 	Snapshot *collector.SystemSnapshot
