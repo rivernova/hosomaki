@@ -5,20 +5,29 @@
 package hosomaki
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/rivernova/hosomaki/internal/analysis"
 	"github.com/rivernova/hosomaki/internal/collector"
+	"github.com/rivernova/hosomaki/internal/insight"
+	"github.com/rivernova/hosomaki/internal/output"
+	"github.com/rivernova/hosomaki/internal/present"
 	"github.com/rivernova/hosomaki/internal/prompt"
 	"github.com/rivernova/hosomaki/internal/spinner"
 	"github.com/spf13/cobra"
 )
 
-// this file contains the implementation of the "status" command
+// this file contains the "status" command logic
 
 func newStatusCmd() *cobra.Command {
-	var brief bool
+	var (
+		brief     bool
+		outputFmt string
+	)
 
 	cmd := &cobra.Command{
 		Use:   "status",
@@ -26,8 +35,9 @@ func newStatusCmd() *cobra.Command {
 		Long: `Collects a snapshot of the system (uptime, memory, disk, failed services,
 recent errors) and asks the AI to summarise what's going on.
 
-  hosomaki status           # paragraph summary
-  hosomaki status --brief   # single sentence`,
+  hosomaki status                    # at-a-glance health summary
+  hosomaki status --brief            # single sentence
+  hosomaki status --output json      # machine-readable JSON`,
 
 		Args: cobra.NoArgs,
 
@@ -37,31 +47,55 @@ recent errors) and asks the AI to summarise what's going on.
 				return fmt.Errorf("failed to collect system snapshot: %w", err)
 			}
 
+			report := analysis.Analyze(present.AnalysisInput(snap))
 			p := prompt.Status(prompt.StatusInput{
-				CollectedAt:    snap.CollectedAt,
-				Environment:    snap.Environment,
-				Uptime:         snap.Uptime,
-				Memory:         snap.Memory,
-				Disk:           snap.Disk,
-				FailedServices: snap.FailedServices,
-				RecentErrors:   snap.RecentErrors,
-				TopProcesses:   snap.TopProcesses,
-			}, brief)
+				Snapshot: snap,
+				Language: appCfg.Output.Language,
+				Brief:    brief,
+			})
+
+			if outputFmt == "json" {
+				return statusJSON(report, p)
+			}
+
+			partial := present.StatusReport(report, insight.Status{})
+			streamW := currentUI().RenderStatusStream(partial)
 
 			spin := spinner.Start("thinking…")
-			_, err = provider.GenerateStream(context.Background(), p,
-				func() { spin.Stop() },
-				os.Stdout,
-			)
-			if err != nil {
+			raw, genErr := provider.GenerateStream(context.Background(), p, func() {
 				spin.Stop()
-				return err
+			}, streamW)
+			spin.Stop()
+
+			currentUI().FinaliseStatus()
+
+			if genErr != nil && strings.TrimSpace(raw) == "" {
+				return genErr
 			}
-			fmt.Println()
 			return nil
 		},
 	}
 
 	cmd.Flags().BoolVar(&brief, "brief", false, "one-sentence summary instead of a paragraph")
+	cmd.Flags().StringVar(&outputFmt, "output", "", "output format: json")
+
 	return cmd
+}
+
+func statusJSON(report analysis.Report, p string) error {
+	spin := spinner.Start("thinking…")
+	raw, err := provider.Generate(context.Background(), p)
+	spin.Stop()
+
+	st := insight.ParseStatus(raw)
+	if err != nil && st.Raw == "" && st.Summary == "" {
+		st.Summary = "AI summary unavailable: " + err.Error()
+	}
+
+	var buf bytes.Buffer
+	if encErr := output.WriteStatus(&buf, report, st); encErr != nil {
+		return fmt.Errorf("encoding JSON: %w", encErr)
+	}
+	_, writeErr := os.Stdout.Write(buf.Bytes())
+	return writeErr
 }

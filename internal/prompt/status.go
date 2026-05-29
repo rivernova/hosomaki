@@ -4,78 +4,53 @@
 
 package prompt
 
-import (
-	"fmt"
-	"strings"
-	"time"
+import "fmt"
 
-	"github.com/rivernova/hosomaki/internal/collector"
-)
+// this file contains the status prompt template for "status" command
 
-// this file contains logic for constructing the prompt for the "status" command
+const statusBase = `You are the status engine inside hosomaki, a Linux CLI tool.
+Give a short, calm read on how the system is doing right now.
 
-const maxTopProcessLines = 10
+Return ONLY a single JSON object. No prose around it, no markdown, no code
+fences. It must match this schema exactly:
 
-type StatusInput struct {
-	CollectedAt    time.Time
-	Environment    collector.Environment
-	Uptime         string
-	Memory         string
-	Disk           string
-	FailedServices string
-	RecentErrors   string
-	TopProcesses   string
+{
+  "healthy": true,
+  "summary": "",
+  "observations": [
+    { "text": "", "level": "info" }
+  ]
 }
 
-func Status(s StatusInput, brief bool) string {
-	var style string
-	if brief {
-		style = "Write exactly one sentence summarising the overall health of this system. If there is a critical issue, name it."
-	} else {
-		style = "Write a paragraph of five to eight sentences summarising the overall health of this system. Cover uptime, memory, disk, failed services, and recent errors. Call out any anomalies or points of concern."
+Field rules:
+- healthy: true when nothing needs attention.
+- summary: one or two sentences on the overall state.
+- observations: short standalone notes worth surfacing; each has a text field
+  and a level of "ok", "info", "warn" or "crit". Use an empty array when there
+  is nothing to add.
+
+CRITICAL — every text value is RAW TEXT ONLY. No colours, icons, indentation,
+separators, markdown, ANSI escapes or layout of any kind. hosomaki formats the
+output; formatting here breaks it.
+%s%s
+System data:
+
+%s`
+
+func Status(in StatusInput) string {
+	if in.Snapshot == nil {
+		return fmt.Sprintf(statusBase, "", "", "(no data)")
 	}
 
-	return fmt.Sprintf(`You are a Linux system expert reading a live system snapshot.
-
-%sRULES — follow every one without exception:
-- Plain prose only. No markdown. No bullet points. No numbered lists. No headers. No bold. No italics.
-- Do not suggest fixes, commands to run, or remediation steps of any kind.
-- Do not open with a preamble. Do not close with an offer to help further.
-- %s
-
-System snapshot:
-%s`, EnvironmentSection(s.Environment), style, formatSnapshot(s))
-}
-
-func formatSnapshot(s StatusInput) string {
-	var b strings.Builder
-
-	section := func(title, content string) {
-		content = strings.TrimSpace(content)
-		if content == "" {
-			content = "(no data)"
-		}
-		fmt.Fprintf(&b, "=== %s ===\n%s\n\n", title, content)
+	lang := ""
+	if l := languageLine(in.Language); l != "" {
+		lang = "\n" + l
 	}
 
-	section("Collected at", s.CollectedAt.Format("2006-01-02 15:04:05"))
-	section("Uptime", s.Uptime)
-	section("Memory", s.Memory)
-	section("Disk", s.Disk)
-	section("Failed services", s.FailedServices)
-	section("Recent errors (journalctl)", s.RecentErrors)
-	section("Top processes by CPU", limitLines(s.TopProcesses, maxTopProcessLines))
-
-	return b.String()
-}
-
-func limitLines(s string, n int) string {
-	if s == "" {
-		return s
+	brief := ""
+	if in.Brief {
+		brief = "\nBe brief: a single summary sentence and an empty observations array.\n"
 	}
-	lines := strings.Split(s, "\n")
-	if len(lines) <= n {
-		return s
-	}
-	return strings.Join(lines[:n], "\n")
+
+	return fmt.Sprintf(statusBase, lang, brief, formatSnapshot(in.Snapshot))
 }

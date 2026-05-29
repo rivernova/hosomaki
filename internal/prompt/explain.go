@@ -11,24 +11,37 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// this file contains logic for constructing the prompt for the "explain" command
-func Explain(input, cmd string, env collector.Environment) string {
-	var cmdContext string
-	if c := strings.TrimSpace(cmd); c != "" {
-		cmdContext = fmt.Sprintf("\nThe output below was produced by running: %s\n", c)
+// this file contains the prompt template for the "explain" command
+
+const explainBase = `You are the explain engine inside hosomaki, a Linux CLI tool.
+Read the input below and explain in plain language what it means and what, if
+anything, the user should do about it.
+
+Answer in RAW prose only. Do NOT use markdown, headings, bullet points, code
+fences, colours, icons, indentation or any layout. Write a few clear sentences.
+hosomaki handles all formatting.
+%s
+%s
+%s=== INPUT ===
+%s`
+
+func Explain(input, command string, env collector.Environment, language string) string {
+	lang := ""
+	if l := languageLine(language); l != "" {
+		lang = "\n" + l
 	}
 
-	return fmt.Sprintf(`You are a Linux system expert. You will be given log output or an error message.
+	envBlock := EnvironmentSection(env)
 
-%sRULES — follow every one without exception:
-- Plain prose only. No markdown. No bullet points. No numbered lists. No headers. No bold. No italics.
-- Do not suggest fixes, solutions, commands to run, or next steps of any kind.
-- Do not open with a preamble. Do not close with a summary or offer further help.
-- Write between two and four sentences. Never exceed five sentences under any circumstances.
-- If multiple distinct errors are present, address each one within the same paragraph.
-- State what is happening and why. Focus on root cause and system behaviour.
-- If a command is provided, use it to inform your understanding of the context.
-- Your explanation must be correct for the host environment described above (distribution, kernel, init system, security model). Do not guess based on a different distro.
-%sInput:
-%s`, EnvironmentSection(env), cmdContext, input)
+	cmdCtx := ""
+	if c := strings.TrimSpace(command); c != "" {
+		cmdCtx = fmt.Sprintf("The input was produced by running: %s\n\n", c)
+	}
+
+	body := strings.TrimSpace(input)
+	if body == "" {
+		body = "(no data)"
+	}
+
+	return fmt.Sprintf(explainBase, lang, envBlock, cmdCtx, body)
 }

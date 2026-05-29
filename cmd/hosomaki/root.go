@@ -12,25 +12,48 @@ import (
 	"github.com/rivernova/hosomaki/internal/ai"
 	"github.com/rivernova/hosomaki/internal/ai/ollama"
 	"github.com/rivernova/hosomaki/internal/config"
+	"github.com/rivernova/hosomaki/internal/render"
 	"github.com/spf13/cobra"
 )
 
-// this file contains the root command and global state
+// this file contains the "root" command and shared setup logic
 
 var (
 	cfgFile string
 	version string
 )
 
-var provider ai.Provider
+var (
+	provider ai.Provider
+	appCfg   config.Config
+	ui       *render.Renderer
+)
+
+func currentUI() *render.Renderer {
+	if ui == nil {
+		ui = render.New(os.Stdout)
+	}
+	return ui
+}
+
+func buildRenderer(cfg config.Config, w *os.File) *render.Renderer {
+	if !cfg.Output.Color {
+		return render.New(w, render.WithColor(false))
+	}
+	return render.New(w)
+}
 
 func Execute(v string) {
 	version = v
 	rootCmd.Version = version
-
 	os.Args = normaliseNegativeIntFlag(os.Args, "--boot")
 
 	if err := rootCmd.Execute(); err != nil {
+		errUI := render.New(os.Stderr)
+		if ui != nil {
+			errUI = buildRenderer(appCfg, os.Stderr)
+		}
+		errUI.Error(err)
 		os.Exit(1)
 	}
 }
@@ -66,14 +89,16 @@ func isNegativeInt(s string) bool {
 }
 
 var rootCmd = &cobra.Command{
-	Use:          "hosomaki",
-	SilenceUsage: true,
-	Short:        "Local intelligence layer for Linux",
+	Use:           "hosomaki",
+	Short:         "Local intelligence layer for Linux",
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Init(cfgFile)
 		if err != nil {
 			return fmt.Errorf("configuration error: %w", err)
 		}
+		appCfg = cfg
 
 		switch cfg.AI.Provider {
 		case "ollama", "":
@@ -82,12 +107,14 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("unknown AI provider %q — supported: ollama", cfg.AI.Provider)
 		}
 
+		ui = buildRenderer(cfg, os.Stdout)
 		return nil
 	},
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ~/.config/hosomaki/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "",
+		"config file (default: ~/.config/hosomaki/config.yaml)")
 
 	rootCmd.AddCommand(
 		newDoctorCmd(),

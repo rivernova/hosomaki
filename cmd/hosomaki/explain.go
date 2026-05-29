@@ -5,6 +5,7 @@
 package hosomaki
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -13,21 +14,24 @@ import (
 	"strings"
 
 	"github.com/rivernova/hosomaki/internal/collector"
+	"github.com/rivernova/hosomaki/internal/output"
+	"github.com/rivernova/hosomaki/internal/present"
 	"github.com/rivernova/hosomaki/internal/prompt"
+	"github.com/rivernova/hosomaki/internal/render"
 	"github.com/rivernova/hosomaki/internal/spinner"
 	"github.com/spf13/cobra"
 )
 
-// this file contains the implementation of the "explain" command
-
+// this file contains the "explain" command
 func newExplainCmd() *cobra.Command {
 	var (
-		service string
-		bootStr string
-		dmesg   bool
-		file    string
-		lines   int
-		cmd_    string
+		service   string
+		bootStr   string
+		dmesg     bool
+		file      string
+		lines     int
+		cmd_      string
+		outputFmt string
 	)
 
 	cmd := &cobra.Command{
@@ -56,7 +60,6 @@ by the shell integration):
 
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := collector.LogOptions{Lines: lines}
-
 			bootChanged := cmd.Flags().Changed("boot")
 
 			input, err := resolveInput(resolveParams{
@@ -73,19 +76,35 @@ by the shell integration):
 			}
 
 			env := collector.Env()
+			p := prompt.Explain(input, cmd_, env, appCfg.Output.Language)
 
-			p := prompt.Explain(input, cmd_, env)
+			if outputFmt == "json" {
+				return explainJSON(input, cmd_, p)
+			}
+
+			rep := render.ExplainReport{
+				Title:   "hosomaki explain",
+				Context: present.ContextLine(cmd_),
+			}
+			processLines := []string{
+				"analysing behaviour…",
+				"correlating logs…",
+			}
+
+			streamW := currentUI().RenderExplainStream(rep, processLines)
 
 			spin := spinner.Start("thinking…")
-			_, err = provider.GenerateStream(context.Background(), p,
-				func() { spin.Stop() },
-				os.Stdout,
-			)
-			if err != nil {
+			raw, genErr := provider.GenerateStream(context.Background(), p, func() {
 				spin.Stop()
-				return err
+			}, streamW)
+			spin.Stop()
+
+			currentUI().StreamEnd()
+			currentUI().Done()
+
+			if genErr != nil && strings.TrimSpace(raw) == "" {
+				return genErr
 			}
-			fmt.Println()
 			return nil
 		},
 	}
@@ -96,9 +115,29 @@ by the shell integration):
 	cmd.Flags().StringVarP(&file, "file", "f", "", "explain errors from a log file")
 	cmd.Flags().IntVarP(&lines, "lines", "n", 0, "number of log lines to read (default varies by source)")
 	cmd.Flags().StringVar(&cmd_, "cmd", "", "the command that produced this output (set automatically by shell integration)")
+	cmd.Flags().StringVar(&outputFmt, "output", "", "output format: json")
 	cmd.Flags().Lookup("boot").NoOptDefVal = "0"
 
 	return cmd
+}
+
+func explainJSON(input, command, p string) error {
+	var buf bytes.Buffer
+	spin := spinner.Start("thinking…")
+	_, err := provider.GenerateStream(context.Background(), p, func() { spin.Stop() }, &buf)
+	spin.Stop()
+
+	rawText := strings.TrimSpace(buf.String())
+	if err != nil && rawText == "" {
+		rawText = "AI explanation unavailable: " + err.Error()
+	}
+
+	var out bytes.Buffer
+	if encErr := output.WriteExplain(&out, input, command, rawText); encErr != nil {
+		return fmt.Errorf("encoding JSON: %w", encErr)
+	}
+	_, writeErr := os.Stdout.Write(out.Bytes())
+	return writeErr
 }
 
 type resolveParams struct {
@@ -125,7 +164,6 @@ func resolveInput(p resolveParams) (string, error) {
 	if p.file != "" {
 		sources++
 	}
-
 	if sources > 1 {
 		return "", fmt.Errorf("only one of --service, --boot, --dmesg, --file may be used at a time")
 	}
