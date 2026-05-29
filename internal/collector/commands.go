@@ -16,6 +16,8 @@ const (
 	binTail       = "tail"
 )
 
+// variable parts (line counts, service names, boot indices) are handled
+// at call sites in logs.go using these as the stable base
 var snapshot = struct {
 	uptimeArgs         []string
 	memoryArgs         []string

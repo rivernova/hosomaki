@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// this file contains environment detection
+// this file contains environment detection logic
 type Environment struct {
 	// Distro
 	DistroID         string

@@ -5,20 +5,27 @@
 package hosomaki
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 
+	"github.com/rivernova/hosomaki/internal/analysis"
 	"github.com/rivernova/hosomaki/internal/collector"
+	"github.com/rivernova/hosomaki/internal/insight"
+	"github.com/rivernova/hosomaki/internal/output"
+	"github.com/rivernova/hosomaki/internal/present"
 	"github.com/rivernova/hosomaki/internal/prompt"
 	"github.com/rivernova/hosomaki/internal/spinner"
 	"github.com/spf13/cobra"
 )
 
-// this file contains the implementation of the "doctor" command
-
+// this file contains the "doctor" command logic
 func newDoctorCmd() *cobra.Command {
-	var brief bool
+	var (
+		brief     bool
+		outputFmt string
+	)
 
 	cmd := &cobra.Command{
 		Use:   "doctor",
@@ -33,8 +40,9 @@ you can take — commands to run, files to inspect, configuration values to chan
 If a suggested action is potentially disruptive or irreversible, the output will
 say so explicitly before describing it. Doctor never modifies the system itself.
 
-  hosomaki doctor           # full diagnosis with suggested actions
-  hosomaki doctor --brief   # one sentence per issue`,
+  hosomaki doctor                    # full diagnosis with suggested actions
+  hosomaki doctor --brief            # one sentence per issue
+  hosomaki doctor --output json      # machine-readable JSON`,
 
 		Args: cobra.NoArgs,
 
@@ -44,31 +52,54 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 				return fmt.Errorf("failed to collect system snapshot: %w", err)
 			}
 
+			report := analysis.Analyze(present.AnalysisInput(snap))
 			p := prompt.Doctor(prompt.DoctorInput{
-				CollectedAt:    snap.CollectedAt,
-				Environment:    snap.Environment,
-				Uptime:         snap.Uptime,
-				Memory:         snap.Memory,
-				Disk:           snap.Disk,
-				FailedServices: snap.FailedServices,
-				RecentErrors:   snap.RecentErrors,
-				TopProcesses:   snap.TopProcesses,
-			}, brief)
+				Snapshot: snap,
+				Language: appCfg.Output.Language,
+				Brief:    brief,
+			})
 
-			spin := spinner.Start("diagnosing…")
-			_, err = provider.GenerateStream(context.Background(), p,
-				func() { spin.Stop() },
-				os.Stdout,
-			)
-			if err != nil {
-				spin.Stop()
-				return err
+			if outputFmt == "json" {
+				return doctorJSON(report, p)
 			}
-			fmt.Println()
+
+			pre := present.DoctorReport(report, insight.Doctor{}, brief)
+			_ = currentUI().RenderDoctorStream(pre)
+
+			spin := spinner.Start("analysing…")
+			raw, genErr := provider.Generate(context.Background(), p)
+			spin.Stop()
+
+			doc := insight.ParseDoctor(raw)
+			if genErr != nil && doc.Raw == "" && len(doc.Issues) == 0 {
+				doc.Raw = "AI analysis unavailable: " + genErr.Error()
+			}
+
+			currentUI().FinaliseDoctor(present.DoctorReport(report, doc, brief))
 			return nil
 		},
 	}
 
 	cmd.Flags().BoolVar(&brief, "brief", false, "one sentence per issue instead of a full diagnosis")
+	cmd.Flags().StringVar(&outputFmt, "output", "", "output format: json")
+
 	return cmd
+}
+
+func doctorJSON(report analysis.Report, p string) error {
+	spin := spinner.Start("analysing…")
+	raw, err := provider.Generate(context.Background(), p)
+	spin.Stop()
+
+	doc := insight.ParseDoctor(raw)
+	if err != nil && doc.Raw == "" && len(doc.Issues) == 0 {
+		doc.Raw = "AI analysis unavailable: " + err.Error()
+	}
+
+	var buf bytes.Buffer
+	if encErr := output.WriteDoctor(&buf, report, doc); encErr != nil {
+		return fmt.Errorf("encoding JSON: %w", encErr)
+	}
+	_, writeErr := os.Stdout.Write(buf.Bytes())
+	return writeErr
 }

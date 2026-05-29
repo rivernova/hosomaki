@@ -4,81 +4,78 @@
 
 package prompt
 
-import (
-	"fmt"
-	"strings"
-	"time"
+import "fmt"
 
-	"github.com/rivernova/hosomaki/internal/collector"
-)
+// this file contains the prompt template for the "doctor" command
 
-// this file contains logic for constructing the prompt for the "doctor" command
+const doctorBase = `You are the diagnostic engine inside hosomaki, a Linux CLI tool.
+Analyse the system data below and report what a careful sysadmin would.
 
-type DoctorInput struct {
-	CollectedAt    time.Time
-	Environment    collector.Environment
-	Uptime         string
-	Memory         string
-	Disk           string
-	FailedServices string
-	RecentErrors   string
-	TopProcesses   string
+Return ONLY a single JSON object. No prose before or after it, no markdown, no
+code fences. The JSON must match this schema exactly:
+
+{
+  "healthy": false,
+  "summary": "",
+  "issues": [
+    {
+      "subject": "",
+      "severity": "warn",
+      "pattern": "",
+      "cause": "",
+      "details": [],
+      "actions": [
+        { "description": "", "command": "", "disruptive": false }
+      ]
+    }
+  ]
 }
 
-func Doctor(d DoctorInput, brief bool) string {
-	var style string
-	if brief {
-		style = `Write exactly one sentence per detected issue.
-For each issue state: what is wrong, and the single most important action to take.
-If nothing is wrong, write one sentence confirming the system is healthy.`
-	} else {
-		style = `Write a structured plain-prose diagnosis.
+Field rules:
+- healthy: true only when nothing needs attention.
+- summary: one or two sentences stating the overall verdict.
+- issues: one object per DISTINCT problem; empty array when healthy.
+- subject: the unit, device or component the issue concerns.
+- severity: one of "crit", "warn", "info".
+- pattern: the observed symptom, stated plainly.
+- cause: the most probable underlying cause.
+- details: extra plain-text observations; omit or leave empty if none.
+- actions: concrete remediation steps with an optional command and
+  disruptive=true when the command can cause downtime, data loss or a reboot.
 
-For each issue you detect, write a short paragraph that covers three things in order:
-1. What is wrong and what the likely cause is.
-2. The concrete action or actions the user should take to fix or investigate it (for example: a command to run, a file to inspect, a configuration value to change).
-3. If any suggested action is potentially disruptive or irreversible, say so explicitly.
+CRITICAL — every text value is RAW TEXT ONLY. Do NOT add colours, indentation,
+separators, icons, bullet characters, markdown, ANSI escapes or any layout.
+hosomaki formats everything itself; formatting here corrupts the output.
 
-Separate each issue paragraph with a blank line.
-If multiple issues are related or share a root cause, group them in the same paragraph.
-After all issues, write a final short paragraph summarising the overall health of the system.
-If nothing is wrong, write a single short paragraph confirming the system is healthy and why you think so.`
+Commands must be correct for THIS host: honour the package manager, init system
+and security modules shown in the host environment below, and never invent units
+or paths that the data does not support.
+%s%s%s
+System data:
+
+%s`
+
+func Doctor(in DoctorInput) string {
+	if in.Snapshot == nil {
+		return fmt.Sprintf(doctorBase, "", "", "", "(no data)")
 	}
 
-	return fmt.Sprintf(`You are a Linux system expert performing a full diagnostic of a live system.
-
-%sRULES — follow every one without exception:
-- Plain prose only. No markdown. No bullet points. No numbered lists. No headers. No bold. No italics.
-- Unlike a status report, you MUST suggest concrete next steps for every problem you find.
-- Suggested actions must be specific: name the exact command to run, the file to edit, or the configuration key to change.
-- Every command you suggest MUST be correct for the host environment described above (distribution, package manager, init system).
-- If SELinux is enforcing or AppArmor is enabled on the host, factor that in when explaining permission-related errors.
-- If an action could cause data loss, downtime, or is otherwise risky, explicitly state that it is potentially disruptive before describing it.
-- Do not open with a preamble. Do not close with an offer to help further.
-- %s
-
-System snapshot:
-%s`, EnvironmentSection(d.Environment), style, formatDoctorSnapshot(d))
-}
-
-func formatDoctorSnapshot(d DoctorInput) string {
-	var b strings.Builder
-
-	section := func(title, content string) {
-		content = strings.TrimSpace(content)
-		if content == "" {
-			content = "(no data)"
-		}
-		fmt.Fprintf(&b, "=== %s ===\n%s\n\n", title, content)
+	mac := ""
+	if in.Snapshot.Environment.SELinux != "" || in.Snapshot.Environment.AppArmor != "" {
+		mac = "\nA mandatory-access-control system is active; account for SELinux or " +
+			"AppArmor when proposing fixes.\n"
 	}
 
-	section("Collected at", d.CollectedAt.Format("2006-01-02 15:04:05"))
-	section("Uptime", d.Uptime)
-	section("Memory", d.Memory)
-	section("Disk", d.Disk)
-	section("Failed services", d.FailedServices)
-	section("Recent errors (journalctl)", d.RecentErrors)
-	section("Top processes by CPU", limitLines(d.TopProcesses, maxTopProcessLines))
+	lang := ""
+	if l := languageLine(in.Language); l != "" {
+		lang = "\n" + l
+	}
 
-	return b.String()
+	brief := ""
+	if in.Brief {
+		brief = "\nBe brief: a single concise summary sentence per issue. Include only " +
+			"issues that genuinely need action; omit minor observations.\n"
+	}
+
+	return fmt.Sprintf(doctorBase, mac, lang, brief, formatSnapshot(in.Snapshot))
 }
