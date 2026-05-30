@@ -13,6 +13,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+// this file contains the default configuration
+
 const DefaultTimeout = 120 * time.Second
 
 type Config struct {

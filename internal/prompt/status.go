@@ -1,42 +1,72 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at [https://mozilla.org/MPL/2.0/](https://mozilla.org/MPL/2.0/).
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 package prompt
 
 import "fmt"
 
-// this file contains the prompt templates and builders for the status command
+// this file contains the prompt templates and builders for the status command.
 
-const statusFull = `<system>You are a Linux sysadmin expert. Read the system snapshot and output one <observation> block per health domain.
+const statusFull = `You are a Linux sysadmin expert. Read the system snapshot and return structured XML describing the health of the system.
 
-CRITICAL FORMATTING CONTRAINTS (CLI PARSER SAFE):
-- Your entire response must conform strictly to the XML schema below.
-- DO NOT wrap the output in markdown blocks or use formatting flags like **, ` + "`" + `, or markdown tables.
-- DO NOT echo raw system log entries inside the text block. Describe the status cleanly.
+MANDATORY OUTPUT FORMAT — return ONLY this XML, nothing else:
 
-<observations>
-  <observation>
-    <area>[The health domain name: memory, disk, cpu, services, or journal]</area>
-    <text>[A highly descriptive overview containing relevant metrics, capacities, error counts, or operational health status for this specific domain. Write a clean narrative text block.]</text>
-  </observation>
-</observations>
+<analysis>
+  <component>
+    <source>pipe</source>
+    <pattern>Detailed, specific, fully explained description of what is observed in this health domain — include concrete metrics, error counts, and operational state. Do not copy raw data verbatim; synthesise it into clear technical narrative. This field MUST be thorough and complete.</pattern>
+    <cause>Detailed, specific, fully explained root cause or contributing factor behind the observed state. If the state is healthy, explain why the metrics indicate normal operation. This field MUST be thorough and complete.</cause>
+    <severity>low|medium|high|critical</severity>
+  </component>
+</analysis>
 
-REQUIREMENTS:
-1. You must always generate exactly one <observation> block for each mandatory area: memory, disk, cpu, and services.
-2. For each unique error component noticed in the system log fields, generate a separate <observation> block where the area is "journal", summarizing the failure clearly in the text narrative without markdown elements.</system>
+RULES — every rule is mandatory, none are optional:
+
+Return EXACTLY ONE <component> block per distinct health domain or detected issue.
+You MUST always produce a <component> for each of these mandatory domains that has data: memory, disk, cpu, services.
+For every distinct error, failure, or anomaly found in the journal or log fields, produce a SEPARATE <component> block.
+NEVER merge multiple issues into a single <component>.
+<source> MUST always be "pipe" for this command.
+<pattern> MUST be detailed, specific, and fully explained.
+<cause> MUST be detailed, specific, and fully explained.
+<severity> MUST be exactly one of: low, medium, high, critical — plain text, no symbols, no colour codes.
+Do NOT include <suggestion> — status does not suggest fixes.
+Do NOT wrap the output in markdown code fences.
+Do NOT use markdown formatting (asterisks, backticks, bullet lists) inside any tag.
+Do NOT produce any text outside the <analysis> root element.
+If the system is completely healthy with no issues, return <analysis></analysis>.
+` + prohibitions + `
 %s
-System data:
+System snapshot:
 
 %s`
 
-// status brief: one sentence only.
-const statusBrief = `<system>You are a Linux sysadmin expert. Write EXACTLY ONE concise sentence describing the current structural health of this system. Include key metrics or major alerts if found. 
+const statusBrief = `You are a Linux sysadmin expert. Read the system snapshot and return structured XML — one <component> per health domain or issue.
 
-CRITICAL: Do not include any XML, markdown syntax, or mitigation recommendations. Plain text only.</system>
+MANDATORY OUTPUT FORMAT — return ONLY this XML, nothing else:
 
+<analysis>
+  <component>
+    <source>pipe</source>
+    <pattern>Concise description of the observed state for this domain.</pattern>
+    <cause>Concise explanation of the underlying cause or reason.</cause>
+    <severity>low|medium|high|critical</severity>
+  </component>
+</analysis>
+
+RULES — every rule is mandatory:
+
+Return EXACTLY ONE <component> per distinct domain or issue.
+Mandatory domains: memory, disk, cpu, services — produce a block for each if data is available.
+<source> is always "pipe".
+<severity> is exactly one of: low, medium, high, critical — plain text only.
+Do NOT include <suggestion>.
+Do NOT produce any text outside the <analysis> root element.
+If entirely healthy, return: <analysis></analysis>
+` + prohibitions + `
 %s
-System data:
+System snapshot:
 
 %s`
 
@@ -50,7 +80,7 @@ func Status(in StatusInput) string {
 
 	lang := ""
 	if l := languageLine(in.Language); l != "" {
-		lang = "\n" + l
+		lang = "\n" + l + "\n"
 	}
 
 	if in.Brief {

@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+// unit testing for collector logic, including command execution and snapshot collection
+
 func TestRunSuccess(t *testing.T) {
 	result, errMsg := run("echo", "hello world")
 	if errMsg != "" {

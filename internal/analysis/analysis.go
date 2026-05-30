@@ -11,6 +11,7 @@ import (
 )
 
 // this file contains the core analysis logic that turns raw input strings into structured reports of metrics and findings
+
 type Level int
 
 const (

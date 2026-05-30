@@ -31,9 +31,12 @@ func newStatusCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Show an AI summary of current system health",
+		Short: "Quick health snapshot with AI-powered pattern detection",
 		Long: `Collects a snapshot of the system (uptime, memory, disk, failed services,
-recent errors) and asks the AI to summarise what's going on.
+recent errors) and uses AI to summarise the health of each domain.
+
+Unlike ` + "`hosomaki doctor`" + `, status only describes what it sees — it does not
+suggest remediation steps.
 
   hosomaki status                    # at-a-glance health summary
   hosomaki status --brief            # single sentence
@@ -58,24 +61,24 @@ recent errors) and asks the AI to summarise what's going on.
 				return statusJSON(report, p)
 			}
 
-			partial := present.StatusReport(report, insight.Status{}, brief)
+			partial := present.StatusReport(report, brief)
 			_ = currentUI().RenderStatusStream(partial)
 
 			var aiBuf bytes.Buffer
 			spin := spinner.Start("thinking…")
 			_, genErr := provider.GenerateStream(context.Background(), p, func() {
-				spin.Stop()
+				spin.Writing("writing…")
 			}, &aiBuf)
 			spin.Stop()
 
 			rawAI := strings.TrimSpace(aiBuf.String())
 
 			st := insight.ParseStatus(rawAI)
-			if genErr != nil && st.Raw == "" && len(st.Observations) == 0 {
+			if genErr != nil && st.Raw == "" && len(st.Components) == 0 {
 				st.Raw = "AI summary unavailable: " + genErr.Error()
 			}
 
-			finalRep := present.StatusReportWithObservations(report, st, brief)
+			finalRep := present.StatusReportWithAnalysis(report, st, brief)
 			currentUI().FinaliseStatus(finalRep)
 
 			return nil
@@ -94,8 +97,8 @@ func statusJSON(report analysis.Report, p string) error {
 	spin.Stop()
 
 	st := insight.ParseStatus(raw)
-	if err != nil && st.Raw == "" && st.Summary == "" {
-		st.Summary = "AI summary unavailable: " + err.Error()
+	if err != nil && st.Raw == "" && len(st.Components) == 0 {
+		st.Raw = "AI summary unavailable: " + err.Error()
 	}
 
 	var buf bytes.Buffer

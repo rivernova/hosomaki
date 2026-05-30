@@ -1,6 +1,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at [https://mozilla.org/MPL/2.0/](https://mozilla.org/MPL/2.0/).
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 package prompt
 
@@ -8,36 +8,66 @@ import "fmt"
 
 // this file contains the prompt templates and builders for the doctor command
 
-const doctorFull = `<system>You are a Linux sysadmin expert. Read the system data and output exactly one <issue> block per unique problem found.
+const doctorFull = `You are a Linux sysadmin expert. Read the system data, diagnose every problem, and return structured XML with concrete remediation steps.
 
-CRITICAL FORMATTING CONTRAINTS (CLI PARSER SAFE):
-- Your entire response must conform strictly to the XML schema below.
-- DO NOT wrap the output in markdown code blocks (e.g., do not use ` + "`" + `xml ... ` + "`" + `).
-- DO NOT use any markdown formatting within the text fields (no asterisks for bolding, no backticks for inline code, no markdown tables, no markdown bullet lists). 
-- Text fields must contain plain, unformatted human narrative only.
-- DO NOT simply repeat or copy-paste raw logs into the tags. Explain the data natively.
+MANDATORY OUTPUT FORMAT — return ONLY this XML, nothing else:
 
-<issues>
-  <issue>
-    <component>[The specific systemd service, kernel module, package name, or hardware element]</component>
-    <symptom>[Elaborated plain-text explanation of the error state. Detail what is failing and the operational impact on the running system. No markdown formatting.]</symptom>
-    <cause>[Elaborated plain-text explanation of the underlying root cause mechanism. Explain why this happened conceptually. No markdown formatting.]</cause>
-    <action>[The exact plain-text bash command string or step sequence to cleanly fix the problem. No markdown formatting.]</action>
-  </issue>
-</issues>
+<analysis>
+  <component>
+    <source>pipe</source>
+    <pattern>Detailed, specific, fully explained description of what is failing and the exact observed failure mode. Include concrete metrics, error messages, and operational impact. Do not copy raw data verbatim — synthesise it into clear technical narrative. This field MUST be thorough and complete.</pattern>
+    <cause>Detailed, specific, fully explained root cause. Explain the underlying mechanism that produced the failure — not just what happened, but why it happened. This field MUST be thorough and complete.</cause>
+    <severity>low|medium|high|critical</severity>
+    <suggestion>Concrete, specific, actionable steps to resolve the issue. Include exact commands to run, files to inspect, and configuration values to change. If this action is potentially disruptive or irreversible, state that warning explicitly at the very beginning of this field before describing the steps.</suggestion>
+  </component>
+</analysis>
 
-If an action is potentially disruptive or irreversible, explicitly state that warning clearly inside the narrative of the <action> tag.</system>
-%s%s%s
+RULES — every rule is mandatory, none are optional:
+
+Return EXACTLY ONE <component> block per distinct issue, pattern, anomaly, or signal.
+NEVER merge multiple issues into a single <component>.
+NEVER omit a <component> if an issue exists.
+<source> MUST always be "pipe" for this command.
+<pattern> MUST be detailed, specific, and fully explained.
+<cause> MUST be detailed, specific, and fully explained.
+<severity> MUST be exactly one of: low, medium, high, critical — plain text, no symbols, no colour codes.
+<suggestion> MUST be detailed and specific. Vague suggestions like "restart the service" are not acceptable — provide exact commands and explain what each step does.
+If any suggested step is potentially disruptive or irreversible, state that warning explicitly at the START of the <suggestion> field.
+This tool never modifies the system — only suggest actions; do not claim to perform them.
+Do NOT wrap the output in markdown code fences.
+Do NOT use markdown formatting (asterisks, backticks, bullet lists) inside any tag.
+Do NOT produce any text outside the <analysis> root element.
+If the system is completely healthy with no issues, return: <analysis></analysis>
+` + prohibitions + `
+%s%s
 System data:
 
 %s`
 
-// doctor brief: compact semicolon one-liners.
-const doctorBrief = `<system>You are a Linux sysadmin expert. List the system problems that need action. Provide exactly ONE plain-text line per distinct issue using this strict format:
+const doctorBrief = `You are a Linux sysadmin expert. Read the system data and return structured XML — one <component> per problem found.
 
-component: what is wrong; exact command or steps to fix it
+MANDATORY OUTPUT FORMAT — return ONLY this XML, nothing else:
 
-CRITICAL CONSTRAINT: Do not include any markdown bolding, backticks, or lists. Output only the pure matching lines. No intro, no conclusion.</system>
+<analysis>
+  <component>
+    <source>pipe</source>
+    <pattern>Concise description of the failure.</pattern>
+    <cause>Concise root cause.</cause>
+    <severity>low|medium|high|critical</severity>
+    <suggestion>Concise fix. If disruptive or irreversible, state that warning first.</suggestion>
+  </component>
+</analysis>
+
+RULES — every rule is mandatory:
+
+Return EXACTLY ONE <component> per distinct issue.
+NEVER merge multiple issues into a single <component>.
+<source> is always "pipe".
+<severity> is exactly one of: low, medium, high, critical — plain text only.
+<suggestion> MUST include concrete steps. If disruptive or irreversible, warn at the start.
+Do NOT produce any text outside the <analysis> root element.
+If healthy, return: <analysis></analysis>
+` + prohibitions + `
 %s%s
 System data:
 
@@ -48,21 +78,21 @@ func Doctor(in DoctorInput) string {
 		if in.Brief {
 			return fmt.Sprintf(doctorBrief, "", "", "(no data)")
 		}
-		return fmt.Sprintf(doctorFull, "", "", "", "(no data)")
+		return fmt.Sprintf(doctorFull, "", "", "(no data)")
 	}
 
 	mac := ""
 	if in.Snapshot.Environment.SELinux != "" || in.Snapshot.Environment.AppArmor != "" {
-		mac = "\nMAC system active (SELinux or AppArmor) — account for it in action suggestions.\n"
+		mac = "\nMAC security module active (SELinux or AppArmor) — account for it in every <suggestion>.\n"
 	}
 
 	lang := ""
 	if l := languageLine(in.Language); l != "" {
-		lang = "\n" + l
+		lang = "\n" + l + "\n"
 	}
 
 	if in.Brief {
 		return fmt.Sprintf(doctorBrief, mac, lang, formatSnapshot(in.Snapshot))
 	}
-	return fmt.Sprintf(doctorFull, mac, lang, "", formatSnapshotFull(in.Snapshot))
+	return fmt.Sprintf(doctorFull, mac, lang, formatSnapshotFull(in.Snapshot))
 }

@@ -10,6 +10,8 @@ import (
 	"testing"
 )
 
+// unit testing for doctor
+
 func TestDoctorCmdRegistered(t *testing.T) {
 	found := false
 	for _, sub := range rootCmd.Commands() {
@@ -31,6 +33,14 @@ func TestDoctorCmdHasBriefFlag(t *testing.T) {
 	}
 	if f.DefValue != "false" {
 		t.Errorf("--brief default = %q, want %q", f.DefValue, "false")
+	}
+}
+
+func TestDoctorCmdHasOutputFlag(t *testing.T) {
+	cmd := newDoctorCmd()
+	f := cmd.Flags().Lookup("output")
+	if f == nil {
+		t.Fatal("doctor command is missing the --output flag")
 	}
 }
 

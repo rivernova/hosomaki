@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// this file contains a custom spinner implementation
+// this file contains two-phase terminal spinner
 
 const (
 	cDim     = "\x1b[38;2;110;116;134m"
@@ -44,47 +44,91 @@ var pulse = []string{
 	cAccent + "◉" + rst,
 }
 
+var typewriter = []string{
+	cDim + "▏" + rst,
+	cAccent + "▎" + rst,
+	cAccent + "▍" + rst,
+	cValue + "▌" + rst,
+	cAccent + "▍" + rst,
+	cAccent + "▎" + rst,
+	cDim + "▏" + rst,
+	cDim + "·" + rst,
+}
+
 type Spinner struct {
-	stop chan struct{}
-	done chan struct{}
-	once sync.Once
+	stop    chan struct{}
+	done    chan struct{}
+	writing chan string
+	once    sync.Once
 }
 
 func Start(label string) *Spinner {
 	s := &Spinner{
-		stop: make(chan struct{}),
-		done: make(chan struct{}),
+		stop:    make(chan struct{}),
+		done:    make(chan struct{}),
+		writing: make(chan string, 1),
 	}
-	go func() {
-		defer close(s.done)
-
-		for _, frame := range assemble {
-			select {
-			case <-s.stop:
-				fmt.Fprintf(os.Stderr, "\r\033[K")
-				return
-			default:
-				fmt.Fprintf(os.Stderr, "\r  %s  %s%s%s",
-					frame, cLabel, label, rst)
-				time.Sleep(500 * time.Millisecond)
-			}
-		}
-
-		i := 0
-		for {
-			select {
-			case <-s.stop:
-				fmt.Fprintf(os.Stderr, "\r\033[K")
-				return
-			default:
-				fmt.Fprintf(os.Stderr, "\r  %s  %s%s%s",
-					pulse[i%len(pulse)], cLabel, label, rst)
-				i++
-				time.Sleep(500 * time.Millisecond)
-			}
-		}
-	}()
+	go s.run(label)
 	return s
+}
+
+func (s *Spinner) run(label string) {
+	defer close(s.done)
+
+	for _, frame := range assemble {
+		select {
+		case <-s.stop:
+			fmt.Fprintf(os.Stderr, "\r\033[K")
+			return
+		case newLabel := <-s.writing:
+			s.runWriting(newLabel)
+			return
+		default:
+			fmt.Fprintf(os.Stderr, "\r  %s  %s%s%s", frame, cLabel, label, rst)
+			time.Sleep(70 * time.Millisecond)
+		}
+	}
+
+	i := 0
+	for {
+		select {
+		case <-s.stop:
+			fmt.Fprintf(os.Stderr, "\r\033[K")
+			return
+		case newLabel := <-s.writing:
+			s.runWriting(newLabel)
+			return
+		default:
+			fmt.Fprintf(os.Stderr, "\r  %s  %s%s%s",
+				pulse[i%len(pulse)], cLabel, label, rst)
+			i++
+			time.Sleep(90 * time.Millisecond)
+		}
+	}
+}
+
+func (s *Spinner) runWriting(label string) {
+	i := 0
+	for {
+		select {
+		case <-s.stop:
+			fmt.Fprintf(os.Stderr, "\r\033[K")
+			return
+		default:
+			fmt.Fprintf(os.Stderr, "\r  %s  %s%s%s",
+				typewriter[i%len(typewriter)], cLabel, label, rst)
+			i++
+			time.Sleep(80 * time.Millisecond)
+		}
+	}
+}
+
+func (s *Spinner) Writing(label string) {
+	select {
+	case s.writing <- label:
+	default:
+		// ignore if already writing
+	}
 }
 
 func (s *Spinner) Stop() {

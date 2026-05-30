@@ -64,15 +64,17 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 				return doctorJSON(report, p)
 			}
 
-			pre := present.DoctorReport(report, insight.Doctor{}, brief)
+			pre := present.DoctorReport(report, insight.Analysis{}, brief)
 			_ = currentUI().RenderDoctorStream(pre)
 
-			spin := spinner.Start("analysing…")
-			raw, genErr := provider.Generate(context.Background(), p)
+			spin := spinner.Start("thinking…")
+			raw, genErr := provider.GenerateStream(context.Background(), p, func() {
+				spin.Writing("writing…")
+			}, nil)
 			spin.Stop()
 
 			doc := insight.ParseDoctor(raw)
-			if genErr != nil && doc.Raw == "" && len(doc.Issues) == 0 {
+			if genErr != nil && doc.Raw == "" && len(doc.Components) == 0 {
 				doc.Raw = "AI analysis unavailable: " + genErr.Error()
 			}
 
@@ -90,12 +92,14 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 }
 
 func doctorJSON(report analysis.Report, p string) error {
-	spin := spinner.Start("analysing…")
-	raw, err := provider.Generate(context.Background(), p)
+	spin := spinner.Start("thinking…")
+	raw, err := provider.GenerateStream(context.Background(), p, func() {
+		spin.Writing("writing…")
+	}, nil)
 	spin.Stop()
 
 	doc := insight.ParseDoctor(raw)
-	if err != nil && doc.Raw == "" && len(doc.Issues) == 0 {
+	if err != nil && doc.Raw == "" && len(doc.Components) == 0 {
 		doc.Raw = "AI analysis unavailable: " + err.Error()
 	}
 

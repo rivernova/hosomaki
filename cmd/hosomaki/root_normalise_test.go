@@ -9,6 +9,8 @@ import (
 	"testing"
 )
 
+// unit testing for root command normalisation logic
+
 func TestNormaliseNegativeIntFlag(t *testing.T) {
 	tests := []struct {
 		name  string

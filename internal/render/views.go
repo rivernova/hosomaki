@@ -9,8 +9,7 @@ import (
 	"strings"
 )
 
-// this file contains the view models for the different report types,
-// these are the "view models" that the renderer turns into terminal output.
+// this file contains the logic for rendering the various report types to the terminal
 
 type Metric struct {
 	Label  string
@@ -28,17 +27,13 @@ type Detail struct {
 	Value string
 }
 
-type Action struct {
-	Description string
-	Command     string
-	Disruptive  bool
-}
-
-type Issue struct {
-	Subject string
-	Status  Status
-	Details []Detail
-	Actions []Action
+type Component struct {
+	Source               string
+	DisplayName          string
+	Status               Status
+	Details              []Detail
+	Suggestion           string
+	SuggestionDisruptive bool
 }
 
 type SummaryItem struct {
@@ -53,14 +48,14 @@ type InputInfo struct {
 }
 
 type StatusReport struct {
-	Title     string
-	Metrics   []Metric
-	Services  []Finding
-	Issues    []Issue
-	RawAI     string
-	Summary   []SummaryItem
-	Brief     bool
-	BriefText string
+	Title      string
+	Metrics    []Metric
+	Services   []Finding
+	Components []Component
+	RawAI      string
+	Summary    []SummaryItem
+	Brief      bool
+	BriefText  string
 }
 
 type DoctorReport struct {
@@ -68,7 +63,7 @@ type DoctorReport struct {
 	Metrics      []Metric
 	Findings     []Finding
 	ProcessLines []string
-	Issues       []Issue
+	Components   []Component
 	RawInsight   string
 	Summary      []SummaryItem
 	Brief        bool
@@ -79,7 +74,7 @@ type ExplainReport struct {
 	InputInfo    InputInfo
 	Context      string
 	ProcessLines []string
-	Issues       []Issue
+	Components   []Component
 	RawText      string
 }
 
@@ -133,17 +128,14 @@ func (r *Renderer) renderStatusBrief(rep StatusReport) {
 
 func (r *Renderer) renderStatusAI(rep StatusReport) {
 	switch {
-	case len(rep.Issues) > 0:
-		for _, iss := range rep.Issues {
+	case len(rep.Components) > 0:
+		for _, c := range rep.Components {
 			r.Blank()
-			r.renderIssue(iss)
+			r.renderComponent(c, false)
 		}
 	case strings.TrimSpace(rep.RawAI) != "":
-		// Brief mode sentence — only reaches here for status --brief
 		r.Blank()
 		r.Paragraph(rep.RawAI)
-	default:
-		// structured parse failed but no raw text either — show nothing extra
 	}
 }
 
@@ -216,25 +208,28 @@ func (r *Renderer) renderDoctorBrief(rep DoctorReport) {
 	r.Title(rep.Title)
 	r.Section("quick diagnosis")
 	r.Blank()
-	if len(rep.Issues) == 0 {
+	if len(rep.Components) == 0 {
 		r.SummaryLine("healthy system", OK)
 	} else {
-		for _, iss := range rep.Issues {
-			var cause, suggestion string
-			for _, d := range iss.Details {
+		for _, c := range rep.Components {
+			name := resolveDisplayName(c)
+			var cause string
+			for _, d := range c.Details {
 				if d.Key == "probable cause" {
 					cause = d.Value
+					break
 				}
 			}
-			if len(iss.Actions) > 0 {
-				suggestion = iss.Actions[0].Description
-			}
-			line := iss.Subject
+			line := name
 			if cause != "" {
 				line += ": " + cause
 			}
-			if suggestion != "" {
-				line += " → " + suggestion
+			if c.Suggestion != "" {
+				short := c.Suggestion
+				if len(short) > 100 {
+					short = short[:100] + "…"
+				}
+				line += " → " + short
 			}
 			r.Detail("", line)
 		}
@@ -261,13 +256,12 @@ func (r *Renderer) renderDoctorPreamble(rep DoctorReport) {
 
 func (r *Renderer) renderDoctorAI(rep DoctorReport) {
 	switch {
-	case len(rep.Issues) > 0:
-		for _, iss := range rep.Issues {
+	case len(rep.Components) > 0:
+		for _, c := range rep.Components {
 			r.Blank()
-			r.renderIssue(iss)
+			r.renderComponent(c, true)
 		}
 	default:
-		// structured parse failed — show minimal block rather than prose
 		r.Blank()
 		r.Subject("system", Neutral)
 		r.Detail("detected pattern", "AI response could not be parsed into structured output")
@@ -334,17 +328,20 @@ func (r *Renderer) renderExplainPreamble(rep ExplainReport) {
 	}
 	if c := strings.TrimSpace(rep.Context); c != "" {
 		r.Blank()
-		r.Process(c)
+		r.Paragraph(c)
 	}
 }
 
 func (r *Renderer) renderExplainAI(rep ExplainReport) {
 	switch {
-	case len(rep.Issues) > 0:
-		for _, iss := range rep.Issues {
+	case len(rep.Components) > 0:
+		for _, c := range rep.Components {
 			r.Blank()
-			r.renderIssue(iss)
+			r.renderComponent(c, false)
 		}
+	case strings.TrimSpace(rep.RawText) != "":
+		r.Blank()
+		r.Paragraph(rep.RawText)
 	default:
 		r.Blank()
 		r.Subject("system", Neutral)
@@ -354,29 +351,27 @@ func (r *Renderer) renderExplainAI(rep ExplainReport) {
 }
 
 func (r *Renderer) renderExplainSummary(rep ExplainReport) {
-	if len(rep.Issues) == 0 {
+	if len(rep.Components) == 0 {
 		return
 	}
 
 	patterns := 0
 	causes := 0
-	actions := 0
-	for _, iss := range rep.Issues {
-		for _, d := range iss.Details {
-			if d.Key == "detected pattern" {
+	for _, c := range rep.Components {
+		for _, d := range c.Details {
+			switch d.Key {
+			case "detected pattern":
 				patterns++
-			}
-			if d.Key == "probable cause" {
+			case "probable cause":
 				causes++
 			}
 		}
-		actions += len(iss.Actions)
 	}
 	if patterns == 0 {
-		patterns = len(rep.Issues)
+		patterns = len(rep.Components)
 	}
 	if causes == 0 {
-		causes = len(rep.Issues)
+		causes = len(rep.Components)
 	}
 
 	r.Section("summary")
@@ -385,31 +380,47 @@ func (r *Renderer) renderExplainSummary(rep ExplainReport) {
 	if causes > 0 {
 		r.SummaryLine(plural(causes, "probable cause", "probable causes"), Info)
 	}
-	if actions > 0 {
-		r.SummaryLine(plural(actions, "suggested action", "suggested actions"), Info)
+}
+
+func (r *Renderer) renderComponent(c Component, showSuggestion bool) {
+	name := resolveDisplayName(c)
+	r.Subject(name, c.Status)
+
+	for _, d := range c.Details {
+		r.Detail(d.Key, d.Value)
+	}
+
+	if showSuggestion && strings.TrimSpace(c.Suggestion) != "" {
+		r.Detail("suggestion", "")
+		r.Command(c.Suggestion, c.SuggestionDisruptive)
 	}
 }
 
-func (r *Renderer) renderIssue(iss Issue) {
-	r.Subject(iss.Subject, iss.Status)
-	for _, d := range iss.Details {
-		r.Detail(d.Key, d.Value)
+func resolveDisplayName(c Component) string {
+	if c.DisplayName != "" {
+		return c.DisplayName
 	}
-	for _, a := range iss.Actions {
-		desc := strings.TrimSpace(a.Description)
-		cmd := strings.TrimSpace(a.Command)
-		text := desc
-		if text == "" {
-			text = cmd
-		}
-		if text != "" {
-			r.Detail("suggestion", "")
-			r.line(indent(3) + r.paint(r.pal.Accent, text))
-			if a.Disruptive {
-				r.line(indent(3) + r.paint(r.pal.Warn, "potentially disruptive — review before running"))
+	src := strings.TrimSpace(c.Source)
+	if src == "" {
+		return "system"
+	}
+	for _, prefix := range []string{"service:", "file:", "boot:"} {
+		if strings.HasPrefix(src, prefix) {
+			name := src[len(prefix):]
+			if name != "" {
+				return name
 			}
 		}
 	}
+	switch src {
+	case "dmesg":
+		return "kernel"
+	case "pipe":
+		return "system"
+	case "inline":
+		return "input"
+	}
+	return src
 }
 
 func plural(n int, one, many string) string {

@@ -12,6 +12,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+// unit testing for config loading and default values
+
 func TestSetDefaults(t *testing.T) {
 	viper.Reset()
 	setDefaults()
