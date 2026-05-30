@@ -72,7 +72,7 @@ func Init(cfgFile string) (Config, error) {
 func setDefaults() {
 	viper.SetDefault("ai.provider", "ollama")
 	viper.SetDefault("ai.endpoint", "http://localhost:11434")
-	viper.SetDefault("ai.model", "llama3")
+	viper.SetDefault("ai.model", "qwen2.5-coder:14b")
 	viper.SetDefault("ai.timeout", DefaultTimeout)
 	viper.SetDefault("output.color", true)
 	viper.SetDefault("output.language", "en")

@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// this file contains the view models for the different report types.
+// this file contains the view models for the different report types,
 // these are the "view models" that the renderer turns into terminal output.
 
 type Metric struct {
@@ -121,15 +121,6 @@ func (r *Renderer) FinaliseStatus(rep StatusReport) {
 func (r *Renderer) renderStatusBrief(rep StatusReport) {
 	r.Blank()
 	text := rep.BriefText
-	if text == "" && len(rep.Issues) > 0 {
-		text = rep.Issues[0].Subject
-		for _, d := range rep.Issues[0].Details {
-			if d.Key == "pattern detected" {
-				text += ": " + d.Value
-				break
-			}
-		}
-	}
 	if text == "" && strings.TrimSpace(rep.RawAI) != "" {
 		text = strings.SplitN(strings.TrimSpace(rep.RawAI), "\n", 2)[0]
 	}
@@ -138,6 +129,22 @@ func (r *Renderer) renderStatusBrief(rep StatusReport) {
 	}
 	r.line(indent(1) + r.paint(r.pal.Text, text))
 	r.Done()
+}
+
+func (r *Renderer) renderStatusAI(rep StatusReport) {
+	switch {
+	case len(rep.Issues) > 0:
+		for _, iss := range rep.Issues {
+			r.Blank()
+			r.renderIssue(iss)
+		}
+	case strings.TrimSpace(rep.RawAI) != "":
+		// Brief mode sentence — only reaches here for status --brief
+		r.Blank()
+		r.Paragraph(rep.RawAI)
+	default:
+		// structured parse failed but no raw text either — show nothing extra
+	}
 }
 
 func (r *Renderer) renderStatusBody(rep StatusReport) {
@@ -209,9 +216,9 @@ func (r *Renderer) renderDoctorBrief(rep DoctorReport) {
 	r.Title(rep.Title)
 	r.Section("quick diagnosis")
 	r.Blank()
-	if len(rep.Issues) == 0 && strings.TrimSpace(rep.RawInsight) == "" {
+	if len(rep.Issues) == 0 {
 		r.SummaryLine("healthy system", OK)
-	} else if len(rep.Issues) > 0 {
+	} else {
 		for _, iss := range rep.Issues {
 			var cause, suggestion string
 			for _, d := range iss.Details {
@@ -231,8 +238,6 @@ func (r *Renderer) renderDoctorBrief(rep DoctorReport) {
 			}
 			r.Detail("", line)
 		}
-	} else {
-		r.Paragraph(rep.RawInsight)
 	}
 	r.Done()
 }
@@ -261,12 +266,12 @@ func (r *Renderer) renderDoctorAI(rep DoctorReport) {
 			r.Blank()
 			r.renderIssue(iss)
 		}
-	case strings.TrimSpace(rep.RawInsight) != "":
-		r.Blank()
-		r.Paragraph(rep.RawInsight)
 	default:
+		// structured parse failed — show minimal block rather than prose
 		r.Blank()
-		r.Paragraph("No additional issues detected.")
+		r.Subject("system", Neutral)
+		r.Detail("detected pattern", "AI response could not be parsed into structured output")
+		r.Detail("probable cause", "the local model did not follow the expected XML format")
 	}
 }
 
@@ -340,17 +345,15 @@ func (r *Renderer) renderExplainAI(rep ExplainReport) {
 			r.Blank()
 			r.renderIssue(iss)
 		}
-	case strings.TrimSpace(rep.RawText) != "":
-		r.Blank()
-		r.Paragraph(rep.RawText)
 	default:
 		r.Blank()
-		r.Paragraph("No explanation generated.")
+		r.Subject("system", Neutral)
+		r.Detail("detected pattern", "AI response could not be parsed into structured output")
+		r.Detail("probable cause", "the local model did not follow the expected XML format")
 	}
 }
 
 func (r *Renderer) renderExplainSummary(rep ExplainReport) {
-
 	if len(rep.Issues) == 0 {
 		return
 	}
@@ -387,21 +390,6 @@ func (r *Renderer) renderExplainSummary(rep ExplainReport) {
 	}
 }
 
-func (r *Renderer) renderStatusAI(rep StatusReport) {
-	switch {
-	case len(rep.Issues) > 0:
-		for _, iss := range rep.Issues {
-			r.Blank()
-			r.renderIssue(iss)
-		}
-	case strings.TrimSpace(rep.RawAI) != "":
-		r.Blank()
-		r.Paragraph(rep.RawAI)
-	default:
-		// healthy system
-	}
-}
-
 func (r *Renderer) renderIssue(iss Issue) {
 	r.Subject(iss.Subject, iss.Status)
 	for _, d := range iss.Details {
@@ -409,11 +397,17 @@ func (r *Renderer) renderIssue(iss Issue) {
 	}
 	for _, a := range iss.Actions {
 		desc := strings.TrimSpace(a.Description)
-		if desc != "" {
-			r.Detail("suggestion", desc)
+		cmd := strings.TrimSpace(a.Command)
+		text := desc
+		if text == "" {
+			text = cmd
 		}
-		if cmd := strings.TrimSpace(a.Command); cmd != "" {
-			r.Command(cmd, a.Disruptive)
+		if text != "" {
+			r.Detail("suggestion", "")
+			r.line(indent(3) + r.paint(r.pal.Accent, text))
+			if a.Disruptive {
+				r.line(indent(3) + r.paint(r.pal.Warn, "potentially disruptive — review before running"))
+			}
 		}
 	}
 }

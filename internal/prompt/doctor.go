@@ -1,46 +1,59 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at [https://mozilla.org/MPL/2.0/](https://mozilla.org/MPL/2.0/).
 
 package prompt
 
 import "fmt"
 
-// this file contains the prompt template for the "doctor" command.
+// this file contains the prompt templates and builders for the doctor command
 
-const doctorBase = `You are a Linux sysadmin expert. Diagnose the system described below.
+const doctorFull = `<system>You are a Linux sysadmin expert. Read the system data and output exactly one <issue> block per unique problem found.
 
-RESPONSE FORMAT — STRICT:
-One line per problem, exactly like this real example:
-r8169: firmware failed to load at boot; r8169 module missing firmware file; sudo dnf install linux-firmware && sudo dracut -f
-kernel: ACPI could not resolve symbol _SB.LPCB.EC0; outdated BIOS DSDT table; update BIOS from manufacturer website
-sudo: authentication failed for user rivernova; wrong password or PAM misconfiguration; check /etc/pam.d/sudo and run passwd username
+CRITICAL FORMATTING CONTRAINTS (CLI PARSER SAFE):
+- Your entire response must conform strictly to the XML schema below.
+- DO NOT wrap the output in markdown code blocks (e.g., do not use ` + "`" + `xml ... ` + "`" + `).
+- DO NOT use any markdown formatting within the text fields (no asterisks for bolding, no backticks for inline code, no markdown tables, no markdown bullet lists). 
+- Text fields must contain plain, unformatted human narrative only.
+- DO NOT simply repeat or copy-paste raw logs into the tags. Explain the data natively.
 
-The three fields separated by semicolons are:
-1. what component has the problem (a real name like kernel, nginx, r8169 — NOT the word "component")
-2. what symptom was observed in plain words (NOT the word "pattern")
-3. what to do about it (a concrete action or command — NOT the word "suggestion" or "cause: something")
+<issues>
+  <issue>
+    <component>[The specific systemd service, kernel module, package name, or hardware element]</component>
+    <symptom>[Elaborated plain-text explanation of the error state. Detail what is failing and the operational impact on the running system. No markdown formatting.]</symptom>
+    <cause>[Elaborated plain-text explanation of the underlying root cause mechanism. Explain why this happened conceptually. No markdown formatting.]</cause>
+    <action>[The exact plain-text bash command string or step sequence to cleanly fix the problem. No markdown formatting.]</action>
+  </issue>
+</issues>
 
-If the system is healthy: system: all services and resources are healthy; no issues detected; no action needed
-
-FORBIDDEN — your response must NEVER contain:
-- The words "component", "pattern", "cause", "suggestion" as field values
-- Asterisks, backticks, bold, italic, bullet points, numbered lists
-- More than one line per distinct issue
-- Any text that is not a valid problem line
+If an action is potentially disruptive or irreversible, explicitly state that warning clearly inside the narrative of the <action> tag.</system>
 %s%s%s
+System data:
+
+%s`
+
+// doctor brief: compact semicolon one-liners.
+const doctorBrief = `<system>You are a Linux sysadmin expert. List the system problems that need action. Provide exactly ONE plain-text line per distinct issue using this strict format:
+
+component: what is wrong; exact command or steps to fix it
+
+CRITICAL CONSTRAINT: Do not include any markdown bolding, backticks, or lists. Output only the pure matching lines. No intro, no conclusion.</system>
+%s%s
 System data:
 
 %s`
 
 func Doctor(in DoctorInput) string {
 	if in.Snapshot == nil {
-		return fmt.Sprintf(doctorBase, "", "", "", "(no data)")
+		if in.Brief {
+			return fmt.Sprintf(doctorBrief, "", "", "(no data)")
+		}
+		return fmt.Sprintf(doctorFull, "", "", "", "(no data)")
 	}
 
 	mac := ""
 	if in.Snapshot.Environment.SELinux != "" || in.Snapshot.Environment.AppArmor != "" {
-		mac = "\nMAC system active (SELinux or AppArmor) — account for it in suggestions.\n"
+		mac = "\nMAC system active (SELinux or AppArmor) — account for it in action suggestions.\n"
 	}
 
 	lang := ""
@@ -48,10 +61,8 @@ func Doctor(in DoctorInput) string {
 		lang = "\n" + l
 	}
 
-	brief := ""
 	if in.Brief {
-		brief = "\nOnly include issues that genuinely need action. Skip minor observations.\n"
+		return fmt.Sprintf(doctorBrief, mac, lang, formatSnapshot(in.Snapshot))
 	}
-
-	return fmt.Sprintf(doctorBase, mac, lang, brief, formatSnapshot(in.Snapshot))
+	return fmt.Sprintf(doctorFull, mac, lang, "", formatSnapshotFull(in.Snapshot))
 }

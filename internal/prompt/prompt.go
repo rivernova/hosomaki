@@ -26,8 +26,11 @@ type StatusInput struct {
 }
 
 const (
-	maxRecentErrorLines = 20
-	maxTopProcessLines  = 8
+	maxRecentErrorLinesBrief = 20
+	maxTopProcessLinesBrief  = 5
+
+	maxRecentErrorLinesFull = 50
+	maxTopProcessLinesFull  = 10
 )
 
 func languageLine(lang string) string {
@@ -36,13 +39,21 @@ func languageLine(lang string) string {
 		return ""
 	}
 	return fmt.Sprintf(
-		"Write every human-readable text value in this language: %s. "+
-			"Keep command lines, unit names and identifiers verbatim.\n",
+		"CRITICAL: Write every human-readable text block inside the tags in this language: %s. "+
+			"Keep all command lines, unit names and identifiers verbatim. Do not use markdown wrappers.\n",
 		lang,
 	)
 }
 
 func formatSnapshot(s *collector.SystemSnapshot) string {
+	return buildSnapshot(s, maxRecentErrorLinesBrief, maxTopProcessLinesBrief)
+}
+
+func formatSnapshotFull(s *collector.SystemSnapshot) string {
+	return buildSnapshot(s, maxRecentErrorLinesFull, maxTopProcessLinesFull)
+}
+
+func buildSnapshot(s *collector.SystemSnapshot, maxErrors, maxProcs int) string {
 	var b strings.Builder
 
 	sec := func(name, body string) {
@@ -63,8 +74,8 @@ func formatSnapshot(s *collector.SystemSnapshot) string {
 	sec("MEMORY", s.Memory)
 	sec("DISK", s.Disk)
 	sec("FAILED SERVICES", s.FailedServices)
-	sec("RECENT ERRORS", limitLines(s.RecentErrors, maxRecentErrorLines))
-	sec("TOP PROCESSES", limitLines(s.TopProcesses, maxTopProcessLines))
+	sec("RECENT ERRORS", limitLines(s.RecentErrors, maxErrors))
+	sec("TOP PROCESSES", limitLines(s.TopProcesses, maxProcs))
 
 	if len(s.Errors) > 0 {
 		sec("COLLECTION NOTES", strings.Join(s.Errors, "\n"))

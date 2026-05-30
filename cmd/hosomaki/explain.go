@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// this file contains the "explain" command.
+// this file contains the "explain" command
 
 func newExplainCmd() *cobra.Command {
 	var (
@@ -39,7 +39,7 @@ func newExplainCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "explain [message]",
 		Short: "Explain log output or an error message in plain language",
-		Long: `Explain analyses log output and tells you what happened and what to do.
+		Long: `Explain analyses log output and describes what happened and why.
 
 Without flags, it reads from stdin (pipe) or accepts a message as an argument:
   journalctl -p err -n 20 | hosomaki explain
@@ -113,12 +113,12 @@ by the shell integration):
 
 			rawAI := strings.TrimSpace(aiBuf.String())
 
-			doc := insight.ParseDoctor(rawAI)
-			if genErr != nil && doc.Raw == "" && len(doc.Issues) == 0 {
-				doc.Raw = "AI analysis unavailable: " + genErr.Error()
+			exp := insight.ParseExplain(rawAI)
+			if genErr != nil && exp.Raw == "" && len(exp.Issues) == 0 {
+				exp.Raw = "AI analysis unavailable: " + genErr.Error()
 			}
 
-			finalRep := present.ExplainReportFromIssues(inputInfo, cmd_, doc.Issues, doc.Raw)
+			finalRep := present.ExplainReportFromIssues(inputInfo, cmd_, exp.Issues, exp.Raw)
 			currentUI().FinaliseExplain(finalRep)
 
 			return nil
@@ -137,7 +137,6 @@ by the shell integration):
 	return cmd
 }
 
-// buildInputInfo derives an InputInfo from the resolved params and the actual input text.
 func buildInputInfo(p resolveParams, inputText string) render.InputInfo {
 	switch {
 	case p.service != "":

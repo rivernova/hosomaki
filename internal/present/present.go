@@ -73,40 +73,101 @@ func StatusReport(rep analysis.Report, ai insight.Status, brief bool) render.Sta
 	}
 }
 
-func StatusReportWithAI(rep analysis.Report, issues []insight.Issue, ai insight.Status, brief bool) render.StatusReport {
+func StatusReportWithObservations(rep analysis.Report, ai insight.Status, brief bool) render.StatusReport {
 	sr := StatusReport(rep, ai, brief)
-	sr.Summary = statusSummaryWithIssues(rep, issues)
-	sr.RawAI = ai.Raw
-	sr.BriefText = buildBriefText(issues, ai.Raw)
-	for _, iss := range issues {
-		sr.Issues = append(sr.Issues, toIssue(iss))
+	sr.RawAI = strings.TrimSpace(ai.Raw)
+	sr.BriefText = buildBriefTextFromObservations(ai)
+	sr.Summary = statusHealthSummary(rep, len(ai.Observations))
+
+	for _, obs := range ai.Observations {
+		if obs.Text == "" {
+			continue
+		}
+		text := stripObservationPrefix(obs.Text)
+		pattern := text
+		cause := ""
+		if idx := strings.Index(text, " — "); idx >= 0 {
+			pattern = text[:idx]
+			cause = text[idx+3:]
+		}
+		iss := render.Issue{
+			Subject: observationSubject(obs.Text),
+			Status:  sevStatus(obs.Level),
+		}
+		if pattern != "" {
+			iss.Details = append(iss.Details, render.Detail{Key: "detected pattern", Value: pattern})
+		}
+		if cause != "" {
+			iss.Details = append(iss.Details, render.Detail{Key: "probable cause", Value: cause})
+		}
+		sr.Issues = append(sr.Issues, iss)
 	}
 	return sr
 }
 
-func buildBriefText(issues []insight.Issue, rawAI string) string {
-	if len(issues) == 0 {
-		if rawAI != "" {
-			lines := strings.SplitN(strings.TrimSpace(rawAI), "\n", 2)
-			return lines[0]
+func observationSubject(text string) string {
+	text = strings.TrimSpace(text)
+	if len(text) > 0 && text[0] == '[' {
+		end := strings.Index(text, "]")
+		if end > 0 {
+			return strings.TrimSpace(text[1:end])
 		}
-		return "system operating normally"
 	}
-	iss := issues[0]
-	line := iss.Subject
-	if iss.Pattern != "" {
-		line += ": " + iss.Pattern
+	return "system"
+}
+
+func buildBriefTextFromObservations(ai insight.Status) string {
+	if strings.TrimSpace(ai.Raw) != "" {
+		text := strings.TrimSpace(ai.Raw)
+		if idx := strings.IndexAny(text, ".!?"); idx >= 0 && idx < len(text)-1 {
+			text = text[:idx+1]
+		}
+		return text
 	}
-	if iss.Cause != "" {
-		line += " — " + iss.Cause
+	if len(ai.Observations) > 0 {
+		return stripObservationPrefix(ai.Observations[0].Text)
 	}
-	if len(iss.Actions) > 0 && iss.Actions[0].Description != "" {
-		line += " → " + iss.Actions[0].Description
+	return "system operating normally"
+}
+
+func statusHealthSummary(rep analysis.Report, aiPatterns int) []render.SummaryItem {
+	var items []render.SummaryItem
+
+	critCount := countCritFindings(rep)
+	if critCount > 0 {
+		items = append(items, render.SummaryItem{
+			Text:   plural(critCount, "service failing", "services failing"),
+			Status: render.Crit,
+		})
 	}
-	if len(issues) > 1 {
-		line += fmt.Sprintf(" (+%d more)", len(issues)-1)
+	if rep.FailedCount > 0 {
+		items = append(items, render.SummaryItem{
+			Text:   plural(rep.FailedCount, "service degraded", "services degraded"),
+			Status: render.Warn,
+		})
 	}
-	return line
+	if aiPatterns > 0 {
+		items = append(items, render.SummaryItem{
+			Text:   plural(aiPatterns, "pattern detected by AI", "patterns detected by AI"),
+			Status: render.Info,
+		})
+	}
+	if len(items) == 0 {
+		items = append(items, render.SummaryItem{Text: "healthy system", Status: render.OK})
+	}
+	return items
+}
+
+func stripObservationPrefix(text string) string {
+	text = strings.TrimSpace(text)
+	if len(text) == 0 || text[0] != '[' {
+		return text
+	}
+	end := strings.Index(text, "]")
+	if end < 0 {
+		return text
+	}
+	return strings.TrimSpace(text[end+1:])
 }
 
 func ExplainReportFromIssues(inputInfo render.InputInfo, command string, issues []insight.Issue, raw string) render.ExplainReport {
@@ -251,33 +312,6 @@ func statusSummary(rep analysis.Report, ai insight.Status) []render.SummaryItem 
 	}
 
 	return statusFallbackSummary(rep)
-}
-
-func statusSummaryWithIssues(rep analysis.Report, issues []insight.Issue) []render.SummaryItem {
-	if len(issues) == 0 {
-		return statusFallbackSummary(rep)
-	}
-
-	var items []render.SummaryItem
-
-	if rep.FailedCount > 0 {
-		items = append(items, render.SummaryItem{
-			Text:   plural(rep.FailedCount, "service with warnings", "services with warnings"),
-			Status: render.Warn,
-		})
-	}
-	critCount := countCritFindings(rep)
-	if critCount > 0 {
-		items = append(items, render.SummaryItem{
-			Text:   plural(critCount, "service failing", "services failing"),
-			Status: render.Crit,
-		})
-	}
-	items = append(items, render.SummaryItem{
-		Text:   plural(len(issues), "detected pattern", "detected patterns"),
-		Status: render.Info,
-	})
-	return items
 }
 
 func statusFallbackSummary(rep analysis.Report) []render.SummaryItem {

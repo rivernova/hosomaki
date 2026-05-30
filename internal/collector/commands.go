@@ -29,7 +29,7 @@ var snapshot = struct {
 	memoryArgs:         []string{"-h"},
 	diskShell:          "df -h --output=source,size,used,avail,pcent,target -x tmpfs -x devtmpfs",
 	failedServicesArgs: []string{"--failed", "--no-legend", "--no-pager"},
-	recentErrorsShell:  "journalctl -p err -n 20 --no-pager --no-hostname -o short-monotonic 2>/dev/null",
+	recentErrorsShell:  "journalctl -p err -n 50 --no-pager --no-hostname -o short-monotonic 2>/dev/null",
 	topProcessesArgs:   []string{"aux", "--sort=-%cpu", "--no-headers"},
 }
 
