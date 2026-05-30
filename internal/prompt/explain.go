@@ -1,6 +1,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at [https://mozilla.org/MPL/2.0/](https://mozilla.org/MPL/2.0/).
 
 package prompt
 
@@ -11,28 +11,24 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// this file contains the prompt template for the "explain" command.
+// this file contains the prompt template and builder for the "explain" command
 
-const explainBase = `You are a Linux sysadmin expert. Analyse the log input below and identify problems.
+const explainBase = `<system>You are a Linux sysadmin expert. Analyze the provided logs and output exactly one <issue> block per distinct component error. 
 
-RESPONSE FORMAT — STRICT:
-One line per problem, exactly like this real example:
-r8169: firmware failed to load at boot; r8169 module missing firmware file; sudo dnf install linux-firmware && sudo dracut -f
-kernel: ACPI could not resolve symbol _SB.LPCB.EC0; outdated BIOS DSDT table; update BIOS from manufacturer website
-sshd: too many failed logins from 1.2.3.4; brute force attempt on SSH; add fail2ban or block IP with firewall-cmd
+CRITICAL FORMATTING CONTRAINTS (CLI PARSER SAFE):
+- Your entire response must conform strictly to the XML schema below.
+- DO NOT wrap the output in markdown code blocks.
+- DO NOT use markdown characters inside the XML tags (no asterisks, no backticks, no text tables, no custom markdown formatting).
+- DO NOT output any mitigation commands, fixes, or recommendations. Focus strictly on understanding the logs.
+- DO NOT copy-paste raw logs into the symptom or cause tags. Translate the log context into clear, well-elaborated plain narrative.
 
-The three fields separated by semicolons are:
-1. what component had the problem (a real name like kernel, nginx, r8169 — NOT the word "component")
-2. what symptom was observed in plain words (NOT the word "pattern")
-3. what to do about it (a concrete action or command — NOT the word "suggestion" or "cause: something")
-
-If the logs show no real errors: system: logs appear clean; no actionable issues found; no action required
-
-FORBIDDEN — your response must NEVER contain:
-- The words "component", "pattern", "cause", "suggestion" as field values
-- Asterisks, backticks, bold, italic, bullet points, numbered lists
-- More than one line per distinct issue
-- Any text that is not a valid problem line
+<issues>
+  <issue>
+    <component>[The system service, package, identifier, or kernel element affected]</component>
+    <symptom>[A highly detailed, well-elaborated plain narrative describing what is misbehaving and the immediate system impact of this failure.]</symptom>
+    <cause>[A comprehensive plain narrative explaining the background mechanics of why this error occurred based on the log pattern.]</cause>
+  </issue>
+</issues></system>
 %s
 %s
 %s=== LOG INPUT ===

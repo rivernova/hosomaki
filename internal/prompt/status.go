@@ -1,44 +1,51 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at [https://mozilla.org/MPL/2.0/](https://mozilla.org/MPL/2.0/).
 
 package prompt
 
 import "fmt"
 
-// this file contains the prompt template for the "status" command.
+// this file contains the prompt templates and builders for the status command
 
-const statusBase = `You are a Linux sysadmin expert. Give a brief health summary of the system described below.
+const statusFull = `<system>You are a Linux sysadmin expert. Read the system snapshot and output one <observation> block per health domain.
 
-RESPONSE FORMAT — STRICT:
-One line per observation about system health, exactly like this real example:
-memory: usage at 29 percent; well within normal range
-disk: root partition at 45 percent; adequate free space
-journal: 20 error entries found; investigate with journalctl -p err -n 20
-services: all systemd services healthy; no action needed
+CRITICAL FORMATTING CONTRAINTS (CLI PARSER SAFE):
+- Your entire response must conform strictly to the XML schema below.
+- DO NOT wrap the output in markdown blocks or use formatting flags like **, ` + "`" + `, or markdown tables.
+- DO NOT echo raw system log entries inside the text block. Describe the status cleanly.
 
-The two fields separated by a semicolon are:
-1. what system area this is about (memory, disk, journal, services, cpu — NOT environment metadata like distro, kernel version, architecture, hostname, shell, selinux, virtualisation)
-2. what the current state is and whether it needs attention
+<observations>
+  <observation>
+    <area>[The health domain name: memory, disk, cpu, services, or journal]</area>
+    <text>[A highly descriptive overview containing relevant metrics, capacities, error counts, or operational health status for this specific domain. Write a clean narrative text block.]</text>
+  </observation>
+</observations>
 
-REPORT ONLY these health domains: memory, disk, cpu, journal, services, network, temperature
-DO NOT report: distro name, kernel version, architecture, hostname, shell, selinux status, virtualisation type — these are context, not health observations.
+REQUIREMENTS:
+1. You must always generate exactly one <observation> block for each mandatory area: memory, disk, cpu, and services.
+2. For each unique error component noticed in the system log fields, generate a separate <observation> block where the area is "journal", summarizing the failure clearly in the text narrative without markdown elements.</system>
+%s
+System data:
 
-If the system is healthy: system: all metrics within normal range; no action needed
+%s`
 
-FORBIDDEN — your response must NEVER contain:
-- The words "pattern", "cause", "component", "suggestion" as field values
-- Asterisks, backticks, bold, italic, bullet points, numbered lists
-- Environment metadata (distro, kernel, arch, hostname, shell) as observations
-- Any text that is not a valid observation line
-%s%s
+// status brief: one sentence only.
+const statusBrief = `<system>You are a Linux sysadmin expert. Write EXACTLY ONE concise sentence describing the current structural health of this system. Include key metrics or major alerts if found. 
+
+CRITICAL: Do not include any XML, markdown syntax, or mitigation recommendations. Plain text only.</system>
+
+%s
 System data:
 
 %s`
 
 func Status(in StatusInput) string {
 	if in.Snapshot == nil {
-		return fmt.Sprintf(statusBase, "", "", "(no data)")
+		if in.Brief {
+			return fmt.Sprintf(statusBrief, "", "(no data)")
+		}
+		return fmt.Sprintf(statusFull, "", "(no data)")
 	}
 
 	lang := ""
@@ -46,10 +53,8 @@ func Status(in StatusInput) string {
 		lang = "\n" + l
 	}
 
-	brief := ""
 	if in.Brief {
-		brief = "\nReturn at most one line summarising the overall state.\n"
+		return fmt.Sprintf(statusBrief, lang, formatSnapshot(in.Snapshot))
 	}
-
-	return fmt.Sprintf(statusBase, lang, brief, formatSnapshot(in.Snapshot))
+	return fmt.Sprintf(statusFull, lang, formatSnapshotFull(in.Snapshot))
 }

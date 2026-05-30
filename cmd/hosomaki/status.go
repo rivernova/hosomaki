@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// this file contains the "status" command logic.
+// this file contains the "status" command logic
 
 func newStatusCmd() *cobra.Command {
 	var (
@@ -75,9 +75,7 @@ recent errors) and asks the AI to summarise what's going on.
 				st.Raw = "AI summary unavailable: " + genErr.Error()
 			}
 
-			issues := insight.ParseDoctor(rawAI).Issues
-
-			finalRep := present.StatusReportWithAI(report, issues, st, brief)
+			finalRep := present.StatusReportWithObservations(report, st, brief)
 			currentUI().FinaliseStatus(finalRep)
 
 			return nil
