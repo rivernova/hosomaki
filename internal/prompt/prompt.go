@@ -54,6 +54,20 @@ The summary component MUST NOT be truncated or shortened.
 The summary component is REQUIRED even when there is only one other component.
 If the system is completely healthy with no issues, the single component IS the summary: use <source>summary</source> with a brief healthy-state description.`
 
+func assemblePrompt(instructions, dataLabel, data string) string {
+	var b strings.Builder
+	b.WriteString(strings.TrimRight(instructions, "\n"))
+	b.WriteString(prohibitions)
+	b.WriteString(summaryRule)
+	b.WriteString("\n\n")
+	if dataLabel != "" {
+		b.WriteString(dataLabel)
+		b.WriteString("\n\n")
+	}
+	b.WriteString(strings.TrimSpace(data))
+	return b.String()
+}
+
 func languageLine(lang string) string {
 	lang = strings.TrimSpace(lang)
 	if lang == "" {

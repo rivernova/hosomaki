@@ -81,7 +81,7 @@ func Init(cfgFile string) (Config, error) {
 func setDefaults() {
 	viper.SetDefault("ai.provider", "ollama")
 	viper.SetDefault("ai.endpoint", "http://localhost:11434")
-	viper.SetDefault("ai.model", "mistral:7b-instruct")
+	viper.SetDefault("ai.model", "llama3.1:8b")
 	viper.SetDefault("ai.timeout", DefaultTimeout)
 	viper.SetDefault("ai.temperature", DefaultTemperature)
 	viper.SetDefault("ai.num_predict", DefaultNumPredict)

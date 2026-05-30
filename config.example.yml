@@ -4,7 +4,7 @@
 ai:
   provider: ollama                   # only supported provider currently
   endpoint: http://localhost:11434   # default
-  model: mistral:7b-instruct          # any model
+  model: llama3.1:8b                 # any model
   timeout: 120s                      # increase for slow hardware or large models
   temperature: 0.1
   num_predict: 2048

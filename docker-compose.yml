@@ -26,7 +26,7 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
-    entrypoint: ["ollama", "pull", "mistral:7b-instruct"]
+    entrypoint: ["ollama", "pull", "llama3.1:8b"]
     environment:
       - OLLAMA_HOST=http://ollama:11434
     network_mode: "service:ollama"

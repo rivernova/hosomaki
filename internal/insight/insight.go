@@ -49,12 +49,28 @@ func parseXMLAnalysis(raw string) Analysis {
 		return Analysis{}
 	}
 
+	clean = stripMarkdownFence(clean)
+
 	body, found := extractTagContent(clean, "analysis")
 	if !found {
 		return Analysis{Raw: clean}
 	}
 
 	return Analysis{Components: parseComponents(body)}
+}
+
+func stripMarkdownFence(s string) string {
+	for _, fence := range []string{"```xml", "```XML", "```"} {
+		if strings.HasPrefix(s, fence) {
+			s = s[len(fence):]
+			s = strings.TrimPrefix(s, "\n")
+			if idx := strings.LastIndex(s, "```"); idx >= 0 {
+				s = s[:idx]
+			}
+			return strings.TrimSpace(s)
+		}
+	}
+	return s
 }
 
 func parseComponents(body string) []Component {
@@ -119,60 +135,49 @@ func extractTag(s, tag string) string {
 		return ""
 	}
 	start += len(open)
+
 	end := strings.Index(s[start:], close)
 	if end < 0 {
-		return strings.TrimSpace(s[start:])
+		return ""
 	}
-	return strings.TrimSpace(s[start : start+end])
+	return s[start : start+end]
 }
 
-func splitTag(raw, tag string) []string {
+func splitTag(s, tag string) []string {
 	open := "<" + tag + ">"
 	close := "</" + tag + ">"
 
-	var parts []string
-	rest := raw
+	var chunks []string
 	for {
-		start := strings.Index(rest, open)
+		start := strings.Index(s, open)
 		if start < 0 {
 			break
 		}
-		rest = rest[start+len(open):]
-		end := strings.Index(rest, close)
+		s = s[start+len(open):]
+		end := strings.Index(s, close)
 		if end < 0 {
-			if trimmed := strings.TrimSpace(rest); trimmed != "" {
-				parts = append(parts, trimmed)
-			}
+			chunks = append(chunks, strings.TrimSpace(s))
 			break
 		}
-		parts = append(parts, rest[:end])
-		rest = rest[end+len(close):]
+		chunks = append(chunks, strings.TrimSpace(s[:end]))
+		s = s[end+len(close):]
 	}
-	return parts
+	return chunks
+}
+
+func NormaliseSeverity(s string) string {
+	return normaliseSeverityTag(s)
 }
 
 func normaliseSeverityTag(s string) string {
 	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "low", "minor", "info", "informational", "ok":
-		return "low"
-	case "medium", "warn", "warning", "moderate", "degraded":
-		return "medium"
-	case "high", "error", "severe":
-		return "high"
-	case "critical", "crit", "fatal", "fail", "failed":
-		return "critical"
-	}
-	return ""
-}
-
-func NormaliseSeverity(s string) string {
-	switch normaliseSeverityTag(s) {
-	case "low":
+	case "low", "minor":
 		return "ok"
-	case "medium":
+	case "medium", "warn", "warning", "moderate":
 		return "warn"
-	case "high", "critical":
+	case "high", "critical", "crit", "fatal", "error":
 		return "crit"
+	default:
+		return "info"
 	}
-	return "info"
 }
