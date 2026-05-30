@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+// unit testing for environment detection logic
+
 func TestSplitKeyValue(t *testing.T) {
 	tests := []struct {
 		name      string

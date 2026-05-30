@@ -9,6 +9,8 @@ import (
 	"io"
 )
 
+// this file contains the definition of an abstraction for ai providers
+
 type Provider interface {
 	Generate(ctx context.Context, prompt string) (string, error)
 	GenerateStream(ctx context.Context, prompt string, onFirstToken func(), w io.Writer) (string, error)

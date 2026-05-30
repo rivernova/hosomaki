@@ -11,7 +11,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// this file contains shared prompt utilities
+// this file contains shared prompt utilities and constants.
 
 type DoctorInput struct {
 	Snapshot *collector.SystemSnapshot
@@ -32,6 +32,17 @@ const (
 	maxRecentErrorLinesFull = 50
 	maxTopProcessLinesFull  = 10
 )
+
+const prohibitions = `
+ABSOLUTE PROHIBITIONS — any response that contains any of the following is wrong and must never be produced:
+Any text, sentence, or paragraph before <analysis> or after </analysis>.
+Any prose introduction such as "Here is the analysis", "Here's a breakdown", "The log contains", "I found the following", or any similar preamble.
+Any numbered list (1. 2. 3.) or lettered list (a. b. c.) anywhere in the response.
+Any bullet list (- * •) anywhere in the response.
+Any section heading, summary paragraph, recommendation list, or conclusion paragraph.
+Any text of the form "By addressing these issues…", "I recommend…", "You should…", or "To fix this…".
+Any XML tag not defined in the schema above.
+If you are tempted to write any of the above, stop immediately. Write only the <analysis> XML instead.`
 
 func languageLine(lang string) string {
 	lang = strings.TrimSpace(lang)

@@ -14,6 +14,8 @@ import (
 	"github.com/rivernova/hosomaki/internal/render"
 )
 
+// unit testing for presentation
+
 func TestAnalysisInputPrefersFullKernel(t *testing.T) {
 	in := AnalysisInput(&collector.SystemSnapshot{
 		Environment: collector.Environment{
@@ -64,37 +66,58 @@ func TestRstatusMappings(t *testing.T) {
 	}
 }
 
-func TestSevStatusMappings(t *testing.T) {
+func TestSeverityToStatusMappings(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"critical", "crit"},
-		{"warning", "warn"},
-		{"healthy", "ok"},
-		{"info", "info"},
+		{"high", "crit"},
+		{"medium", "warn"},
+		{"low", "ok"},
+		{"", "info"},
 		{"nonsense", "info"},
 	}
 	for _, c := range cases {
-		got := sevStatus(c.in)
+		got := severityToStatus(c.in)
 		wantStatus := map[string]render.Status{
 			"crit": render.Crit, "warn": render.Warn,
 			"ok": render.OK, "info": render.Info,
 		}[c.want]
 		if got != wantStatus {
-			t.Errorf("sevStatus(%q) = %v, want %v", c.in, got, wantStatus)
+			t.Errorf("severityToStatus(%q) = %v, want %v", c.in, got, wantStatus)
 		}
 	}
 }
 
-func TestDoctorReportMapsIssues(t *testing.T) {
+func TestSourceDisplayName(t *testing.T) {
+	cases := []struct{ source, want string }{
+		{"service:nginx", "nginx"},
+		{"service:postgresql", "postgresql"},
+		{"file:error.log", "error.log"},
+		{"file:syslog", "syslog"},
+		{"boot:-1", "boot"},
+		{"boot:0", "boot"},
+		{"dmesg", "kernel"},
+		{"pipe", "system"},
+		{"inline", "input"},
+		{"", "system"},
+		{"unknown-source", "unknown-source"},
+	}
+	for _, c := range cases {
+		got := sourceDisplayName(c.source)
+		if got != c.want {
+			t.Errorf("sourceDisplayName(%q) = %q, want %q", c.source, got, c.want)
+		}
+	}
+}
+
+func TestDoctorReportMapsComponents(t *testing.T) {
 	rep := analysis.Report{FailedCount: 1, Anomalies: 1}
-	ai := insight.Doctor{
-		Summary: "one service down",
-		Issues: []insight.Issue{{
-			Subject:  "NetworkManager",
-			Severity: "warn",
-			Pattern:  "dhcp timeout",
-			Cause:    "conflict with wpa_supplicant",
-			Details:  []string{"recurring every boot"},
-			Actions:  []insight.Action{{Description: "restart it", Command: "systemctl restart NetworkManager", Disruptive: true}},
+	ai := insight.Analysis{
+		Components: []insight.Component{{
+			Source:     "service:NetworkManager",
+			Severity:   "high",
+			Pattern:    "dhcp timeout observed on interface eth0",
+			Cause:      "conflict with wpa_supplicant binding to the same interface",
+			Suggestion: "systemctl restart NetworkManager",
 		}},
 	}
 
@@ -103,22 +126,27 @@ func TestDoctorReportMapsIssues(t *testing.T) {
 	if out.Title != "hosomaki doctor" {
 		t.Errorf("unexpected title %q", out.Title)
 	}
-	if len(out.Issues) != 1 {
-		t.Fatalf("expected 1 issue, got %d", len(out.Issues))
+	if len(out.Components) != 1 {
+		t.Fatalf("expected 1 component, got %d", len(out.Components))
 	}
-	iss := out.Issues[0]
-	if iss.Subject != "NetworkManager" {
-		t.Errorf("subject not carried: %q", iss.Subject)
+	c := out.Components[0]
+	if c.Source != "service:NetworkManager" {
+		t.Errorf("source not carried: %q", c.Source)
 	}
-	// pattern + cause + one plain detail = 3 detail rows
-	if len(iss.Details) != 3 {
-		t.Fatalf("expected 3 detail rows, got %d", len(iss.Details))
+	if c.DisplayName != "NetworkManager" {
+		t.Errorf("display name wrong: %q, want %q", c.DisplayName, "NetworkManager")
 	}
-	if iss.Details[0].Key != "detected pattern" || iss.Details[1].Key != "probable cause" {
-		t.Errorf("structured details mislabelled: %q / %q", iss.Details[0].Key, iss.Details[1].Key)
+	if c.Suggestion == "" {
+		t.Error("suggestion should be present for doctor")
 	}
-	if len(iss.Actions) != 1 || !iss.Actions[0].Disruptive {
-		t.Error("action mapping lost the disruptive flag")
+	if len(c.Details) < 2 {
+		t.Fatalf("expected at least 2 details (pattern+cause), got %d", len(c.Details))
+	}
+	if c.Details[0].Key != "detected pattern" {
+		t.Errorf("first detail key = %q, want %q", c.Details[0].Key, "detected pattern")
+	}
+	if c.Details[1].Key != "probable cause" {
+		t.Errorf("second detail key = %q, want %q", c.Details[1].Key, "probable cause")
 	}
 	if len(out.Summary) == 0 {
 		t.Error("summary tallies should not be empty")
@@ -126,28 +154,28 @@ func TestDoctorReportMapsIssues(t *testing.T) {
 }
 
 func TestDoctorReportBriefOmitsProcessLines(t *testing.T) {
-	out := DoctorReport(analysis.Report{}, insight.Doctor{Summary: "ok"}, true)
+	out := DoctorReport(analysis.Report{}, insight.Analysis{}, true)
 	if len(out.ProcessLines) != 0 {
 		t.Error("brief doctor should omit process lines")
 	}
 }
 
 func TestDoctorReportFullHasProcessLines(t *testing.T) {
-	out := DoctorReport(analysis.Report{}, insight.Doctor{Summary: "ok"}, false)
+	out := DoctorReport(analysis.Report{}, insight.Analysis{}, false)
 	if len(out.ProcessLines) == 0 {
 		t.Error("full doctor should include process lines")
 	}
 }
 
 func TestDoctorReportRawFallback(t *testing.T) {
-	out := DoctorReport(analysis.Report{}, insight.Doctor{Raw: "model said something"}, false)
+	out := DoctorReport(analysis.Report{}, insight.Analysis{Raw: "model said something"}, false)
 	if out.RawInsight != "model said something" {
 		t.Errorf("raw insight not carried: %q", out.RawInsight)
 	}
 }
 
 func TestDoctorSummaryHealthy(t *testing.T) {
-	out := DoctorReport(analysis.Report{}, insight.Doctor{}, false)
+	out := DoctorReport(analysis.Report{}, insight.Analysis{}, false)
 	if len(out.Summary) != 1 || out.Summary[0].Text != "healthy system" {
 		t.Errorf("expected 'healthy system' summary for clean report, got %v", out.Summary)
 	}
@@ -158,10 +186,15 @@ func TestStatusReportStructure(t *testing.T) {
 	rep.Metrics = []analysis.Metric{{Label: "cpu", Value: "10%", Level: analysis.OK}}
 	rep.Findings = []analysis.Finding{{Level: analysis.Warn, Text: "cups degraded"}}
 
-	ai := insight.Status{
-		Observations: []insight.Observation{{Level: "warn", Text: "1 service with warnings"}},
+	ai := insight.Analysis{
+		Components: []insight.Component{{
+			Source:   "pipe",
+			Severity: "medium",
+			Pattern:  "cups service degraded due to missing printer backend",
+			Cause:    "the backend driver was removed in a recent update",
+		}},
 	}
-	out := StatusReport(rep, ai, false)
+	out := StatusReportWithAnalysis(rep, ai, false)
 
 	if out.Title != "hosomaki status" {
 		t.Errorf("unexpected title: %q", out.Title)
@@ -172,39 +205,86 @@ func TestStatusReportStructure(t *testing.T) {
 	if len(out.Services) == 0 {
 		t.Error("services should come from findings")
 	}
-	if len(out.Summary) == 0 {
-		t.Error("summary should be populated from AI observations")
+	if len(out.Components) == 0 {
+		t.Error("components should come from AI analysis")
 	}
-	if out.Summary[0].Text != "1 service with warnings" {
-		t.Errorf("summary text not carried from AI: %q", out.Summary[0].Text)
+	if len(out.Summary) == 0 {
+		t.Error("summary should be populated")
+	}
+}
+
+func TestStatusComponentNoSuggestion(t *testing.T) {
+	ai := insight.Analysis{
+		Components: []insight.Component{{
+			Source:     "pipe",
+			Pattern:    "high memory usage",
+			Cause:      "multiple browser tabs",
+			Suggestion: "kill some processes",
+		}},
+	}
+	out := StatusReportWithAnalysis(analysis.Report{}, ai, false)
+	if len(out.Components) == 0 {
+		t.Fatal("expected 1 component")
+	}
+	if out.Components[0].Suggestion != "" {
+		t.Error("status components must not carry a suggestion")
 	}
 }
 
 func TestStatusReportFallbackSummary(t *testing.T) {
-	out := StatusReport(analysis.Report{FailedCount: 2}, insight.Status{}, false)
+	out := StatusReport(analysis.Report{FailedCount: 2}, false)
 	if len(out.Summary) == 0 {
 		t.Error("fallback summary should always be non-empty")
 	}
 }
 
-func TestExplainReportStructuredIssues(t *testing.T) {
-	ai := insight.Doctor{
-		Issues: []insight.Issue{{Subject: "NetworkManager", Severity: "warn", Pattern: "dhcp timeout"}},
+func TestExplainReportStructuredComponents(t *testing.T) {
+	ai := insight.Analysis{
+		Components: []insight.Component{{
+			Source:  "service:nginx",
+			Pattern: "nginx failed to bind to port 80 — address already in use",
+			Cause:   "a previous nginx process was not cleanly terminated and still holds the socket",
+		}},
 	}
-	out := ExplainReport("", ai)
-	if len(out.Issues) != 1 {
-		t.Fatalf("expected 1 issue, got %d", len(out.Issues))
+	out := ExplainReport(render.InputInfo{Origin: "service", Detail: "nginx"}, "", ai)
+	if len(out.Components) != 1 {
+		t.Fatalf("expected 1 component, got %d", len(out.Components))
 	}
-	if out.Issues[0].Subject != "NetworkManager" {
-		t.Errorf("issue subject not carried: %q", out.Issues[0].Subject)
+	c := out.Components[0]
+	if c.Source != "service:nginx" {
+		t.Errorf("source not carried: %q", c.Source)
+	}
+	if c.DisplayName != "nginx" {
+		t.Errorf("display name wrong: %q, want nginx", c.DisplayName)
 	}
 }
 
 func TestExplainReportProseFallback(t *testing.T) {
-	ai := insight.Doctor{Raw: "something went wrong"}
-	out := ExplainReport("", ai)
+	ai := insight.Analysis{Raw: "something went wrong"}
+	out := ExplainReport(render.InputInfo{}, "", ai)
 	if out.RawText != "something went wrong" {
 		t.Errorf("raw text not carried: %q", out.RawText)
+	}
+}
+
+func TestExplainComponentNoSuggestion(t *testing.T) {
+	ai := insight.Analysis{
+		Components: []insight.Component{{
+			Source:     "dmesg",
+			Pattern:    "oom killer fired",
+			Cause:      "memory exhausted",
+			Suggestion: "this must be stripped for explain",
+		}},
+	}
+	out := ExplainReport(render.InputInfo{}, "", ai)
+	if len(out.Components) == 0 {
+		t.Fatal("expected 1 component")
+	}
+	if out.Components[0].Suggestion != "" {
+		t.Error("explain components must not carry a suggestion")
+	}
+	if out.Components[0].DisplayName != "kernel" {
+		t.Errorf("display name wrong: %q, want kernel", out.Components[0].DisplayName)
 	}
 }
 
@@ -224,5 +304,24 @@ func TestPluralSingular(t *testing.T) {
 	}
 	if plural(3, "service degraded", "services degraded") != "3 services degraded" {
 		t.Error("plural() plural case wrong")
+	}
+}
+
+func TestIsDisruptive(t *testing.T) {
+	cases := []struct {
+		text string
+		want bool
+	}{
+		{"systemctl restart nginx", false},
+		{"WARNING: potentially disruptive — backup first", true},
+		{"This action is irreversible — proceed with caution", true},
+		{"journalctl -xe | tail -50", false},
+		{"data loss may occur if you proceed", true},
+	}
+	for _, c := range cases {
+		got := isDisruptive(c.text)
+		if got != c.want {
+			t.Errorf("isDisruptive(%q) = %v, want %v", c.text, got, c.want)
+		}
 	}
 }

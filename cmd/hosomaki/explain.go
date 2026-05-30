@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/rivernova/hosomaki/internal/collector"
@@ -23,7 +22,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// this file contains the "explain" command
+// this file contains the "explain" command logic.
 
 func newExplainCmd() *cobra.Command {
 	var (
@@ -38,8 +37,8 @@ func newExplainCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "explain [message]",
-		Short: "Explain log output or an error message in plain language",
-		Long: `Explain analyses log output and describes what happened and why.
+		Short: "Explain logs, errors, or system events using AI",
+		Long: `Understands what's going on — adapts to whatever you throw at it.
 
 Without flags, it reads from stdin (pipe) or accepts a message as an argument:
   journalctl -p err -n 20 | hosomaki explain
@@ -84,12 +83,13 @@ by the shell integration):
 			}
 
 			inputInfo := buildInputInfo(params, inputText)
+			sourceID := buildSourceID(params)
 
 			env := collector.Env()
-			p := prompt.Explain(inputText, cmd_, env, appCfg.Output.Language)
+			p := prompt.Explain(inputText, sourceID, cmd_, env, appCfg.Output.Language, "")
 
 			if outputFmt == "json" {
-				return explainJSON(inputText, cmd_, p)
+				return explainJSON(inputText, sourceID, cmd_, p)
 			}
 
 			initialRep := render.ExplainReport{
@@ -107,18 +107,18 @@ by the shell integration):
 			var aiBuf bytes.Buffer
 			spin := spinner.Start("thinking…")
 			_, genErr := provider.GenerateStream(context.Background(), p, func() {
-				spin.Stop()
+				spin.Writing("writing…")
 			}, &aiBuf)
 			spin.Stop()
 
 			rawAI := strings.TrimSpace(aiBuf.String())
 
 			exp := insight.ParseExplain(rawAI)
-			if genErr != nil && exp.Raw == "" && len(exp.Issues) == 0 {
+			if genErr != nil && exp.Raw == "" && len(exp.Components) == 0 {
 				exp.Raw = "AI analysis unavailable: " + genErr.Error()
 			}
 
-			finalRep := present.ExplainReportFromIssues(inputInfo, cmd_, exp.Issues, exp.Raw)
+			finalRep := present.ExplainReport(inputInfo, cmd_, exp)
 			currentUI().FinaliseExplain(finalRep)
 
 			return nil
@@ -137,6 +137,27 @@ by the shell integration):
 	return cmd
 }
 
+func buildSourceID(p resolveParams) string {
+	switch {
+	case p.service != "":
+		return "service:" + p.service
+	case p.bootChanged:
+		return "boot:" + p.boot
+	case p.dmesg:
+		return "dmesg"
+	case p.file != "":
+		name := p.file
+		if idx := strings.LastIndexAny(name, "/\\"); idx >= 0 {
+			name = name[idx+1:]
+		}
+		return "file:" + name
+	case len(p.args) > 0:
+		return "inline"
+	default:
+		return "pipe"
+	}
+}
+
 func buildInputInfo(p resolveParams, inputText string) render.InputInfo {
 	switch {
 	case p.service != "":
@@ -148,7 +169,7 @@ func buildInputInfo(p resolveParams, inputText string) render.InputInfo {
 	case p.file != "":
 		return render.InputInfo{Origin: "file", Detail: p.file, Lines: countLines(inputText)}
 	case len(p.args) > 0:
-		return render.InputInfo{Origin: "text", Lines: countLines(inputText)}
+		return render.InputInfo{Origin: "inline", Lines: countLines(inputText)}
 	default:
 		return render.InputInfo{Origin: "pipe", Lines: countLines(inputText)}
 	}
@@ -161,19 +182,22 @@ func countLines(s string) int {
 	return len(strings.Split(strings.TrimRight(s, "\n"), "\n"))
 }
 
-func explainJSON(input, command, p string) error {
+func explainJSON(inputText, sourceID, command, p string) error {
 	var buf bytes.Buffer
 	spin := spinner.Start("thinking…")
-	_, err := provider.GenerateStream(context.Background(), p, func() { spin.Stop() }, &buf)
+	_, err := provider.GenerateStream(context.Background(), p, func() {
+		spin.Writing("writing…")
+	}, &buf)
 	spin.Stop()
 
-	rawText := strings.TrimSpace(buf.String())
-	if err != nil && rawText == "" {
-		rawText = "AI explanation unavailable: " + err.Error()
+	rawAI := strings.TrimSpace(buf.String())
+	exp := insight.ParseExplain(rawAI)
+	if err != nil && exp.Raw == "" && len(exp.Components) == 0 {
+		exp.Raw = "AI analysis unavailable: " + err.Error()
 	}
 
 	var out bytes.Buffer
-	if encErr := output.WriteExplain(&out, input, command, rawText); encErr != nil {
+	if encErr := output.WriteExplain(&out, sourceID, command, exp); encErr != nil {
 		return fmt.Errorf("encoding JSON: %w", encErr)
 	}
 	_, writeErr := os.Stdout.Write(out.Bytes())
@@ -258,7 +282,7 @@ func resolveInput(p resolveParams) (string, error) {
 		return collector.ServiceLogs(p.service, p.opts)
 
 	case p.bootChanged:
-		bootIndex, err := strconv.Atoi(p.boot)
+		bootIndex, err := parseInt(p.boot)
 		if err != nil {
 			return "", fmt.Errorf("invalid boot index %q: must be an integer", p.boot)
 		}
@@ -299,6 +323,30 @@ func resolveInput(p resolveParams) (string, error) {
 				"  Quick message:     hosomaki explain \"error text here\"",
 		)
 	}
+}
+
+func parseInt(s string) (int, error) {
+	n := 0
+	neg := false
+	i := 0
+	if len(s) > 0 && s[0] == '-' {
+		neg = true
+		i = 1
+	}
+	if i >= len(s) {
+		return 0, fmt.Errorf("not an integer: %q", s)
+	}
+	for ; i < len(s); i++ {
+		c := s[i]
+		if c < '0' || c > '9' {
+			return 0, fmt.Errorf("not an integer: %q", s)
+		}
+		n = n*10 + int(c-'0')
+	}
+	if neg {
+		return -n, nil
+	}
+	return n, nil
 }
 
 func isStdinPiped() bool {

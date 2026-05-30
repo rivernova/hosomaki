@@ -10,6 +10,8 @@ import (
 	"testing"
 )
 
+// unit testing for root command
+
 func TestExecuteExposesVersionFlag(t *testing.T) {
 	var out bytes.Buffer
 

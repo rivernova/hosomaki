@@ -16,6 +16,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// this file contains the root command and shared logic
+
 var (
 	cfgFile string
 	version string

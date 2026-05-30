@@ -14,8 +14,8 @@ import (
 	"github.com/rivernova/hosomaki/internal/render"
 )
 
-// this file contains the logic for turning analysis reports and parsed insights
-// into view models that the renderer transforms into terminal output
+// this file contains presentation for converting insights to renderable output
+
 func AnalysisInput(s *collector.SystemSnapshot) analysis.Input {
 	if s == nil {
 		return analysis.Input{}
@@ -41,7 +41,7 @@ func ContextLine(command string) string {
 	return "produced by: " + command
 }
 
-func DoctorReport(rep analysis.Report, ai insight.Doctor, brief bool) render.DoctorReport {
+func DoctorReport(rep analysis.Report, ai insight.Analysis, brief bool) render.DoctorReport {
 	out := render.DoctorReport{
 		Title:        "hosomaki doctor",
 		Metrics:      toMetrics(rep),
@@ -51,8 +51,8 @@ func DoctorReport(rep analysis.Report, ai insight.Doctor, brief bool) render.Doc
 		Brief:        brief,
 	}
 
-	for _, iss := range ai.Issues {
-		out.Issues = append(out.Issues, toIssue(iss))
+	for _, c := range ai.Components {
+		out.Components = append(out.Components, toComponent(c, true))
 	}
 
 	out.Summary = doctorSummary(rep, ai)
@@ -63,124 +63,98 @@ func DoctorReport(rep analysis.Report, ai insight.Doctor, brief bool) render.Doc
 	return out
 }
 
-func StatusReport(rep analysis.Report, ai insight.Status, brief bool) render.StatusReport {
+func StatusReport(rep analysis.Report, brief bool) render.StatusReport {
 	return render.StatusReport{
 		Title:    "hosomaki status",
 		Metrics:  toMetrics(rep),
 		Services: toFindings(rep),
-		Summary:  statusSummary(rep, ai),
+		Summary:  statusFallbackSummary(rep),
 		Brief:    brief,
 	}
 }
 
-func StatusReportWithObservations(rep analysis.Report, ai insight.Status, brief bool) render.StatusReport {
-	sr := StatusReport(rep, ai, brief)
+func StatusReportWithAnalysis(rep analysis.Report, ai insight.Analysis, brief bool) render.StatusReport {
+	sr := StatusReport(rep, brief)
 	sr.RawAI = strings.TrimSpace(ai.Raw)
-	sr.BriefText = buildBriefTextFromObservations(ai)
-	sr.Summary = statusHealthSummary(rep, len(ai.Observations))
+	sr.BriefText = buildBriefText(ai)
+	sr.Summary = statusHealthSummary(rep, len(ai.Components))
 
-	for _, obs := range ai.Observations {
-		if obs.Text == "" {
-			continue
-		}
-		text := stripObservationPrefix(obs.Text)
-		pattern := text
-		cause := ""
-		if idx := strings.Index(text, " — "); idx >= 0 {
-			pattern = text[:idx]
-			cause = text[idx+3:]
-		}
-		iss := render.Issue{
-			Subject: observationSubject(obs.Text),
-			Status:  sevStatus(obs.Level),
-		}
-		if pattern != "" {
-			iss.Details = append(iss.Details, render.Detail{Key: "detected pattern", Value: pattern})
-		}
-		if cause != "" {
-			iss.Details = append(iss.Details, render.Detail{Key: "probable cause", Value: cause})
-		}
-		sr.Issues = append(sr.Issues, iss)
+	for _, c := range ai.Components {
+		sr.Components = append(sr.Components, toComponent(c, false))
 	}
 	return sr
 }
 
-func observationSubject(text string) string {
-	text = strings.TrimSpace(text)
-	if len(text) > 0 && text[0] == '[' {
-		end := strings.Index(text, "]")
-		if end > 0 {
-			return strings.TrimSpace(text[1:end])
-		}
-	}
-	return "system"
-}
-
-func buildBriefTextFromObservations(ai insight.Status) string {
-	if strings.TrimSpace(ai.Raw) != "" {
-		text := strings.TrimSpace(ai.Raw)
-		if idx := strings.IndexAny(text, ".!?"); idx >= 0 && idx < len(text)-1 {
-			text = text[:idx+1]
-		}
-		return text
-	}
-	if len(ai.Observations) > 0 {
-		return stripObservationPrefix(ai.Observations[0].Text)
-	}
-	return "system operating normally"
-}
-
-func statusHealthSummary(rep analysis.Report, aiPatterns int) []render.SummaryItem {
-	var items []render.SummaryItem
-
-	critCount := countCritFindings(rep)
-	if critCount > 0 {
-		items = append(items, render.SummaryItem{
-			Text:   plural(critCount, "service failing", "services failing"),
-			Status: render.Crit,
-		})
-	}
-	if rep.FailedCount > 0 {
-		items = append(items, render.SummaryItem{
-			Text:   plural(rep.FailedCount, "service degraded", "services degraded"),
-			Status: render.Warn,
-		})
-	}
-	if aiPatterns > 0 {
-		items = append(items, render.SummaryItem{
-			Text:   plural(aiPatterns, "pattern detected by AI", "patterns detected by AI"),
-			Status: render.Info,
-		})
-	}
-	if len(items) == 0 {
-		items = append(items, render.SummaryItem{Text: "healthy system", Status: render.OK})
-	}
-	return items
-}
-
-func stripObservationPrefix(text string) string {
-	text = strings.TrimSpace(text)
-	if len(text) == 0 || text[0] != '[' {
-		return text
-	}
-	end := strings.Index(text, "]")
-	if end < 0 {
-		return text
-	}
-	return strings.TrimSpace(text[end+1:])
-}
-
-func ExplainReportFromIssues(inputInfo render.InputInfo, command string, issues []insight.Issue, raw string) render.ExplainReport {
+func ExplainReport(inputInfo render.InputInfo, command string, ai insight.Analysis) render.ExplainReport {
 	rep := render.ExplainReport{
 		Title:     "hosomaki explain",
 		InputInfo: inputInfo,
 		Context:   ContextLine(command),
-		RawText:   raw,
+		RawText:   ai.Raw,
 	}
-	for _, iss := range issues {
-		rep.Issues = append(rep.Issues, toIssue(iss))
+	for _, c := range ai.Components {
+		rep.Components = append(rep.Components, toComponent(c, false))
 	}
 	return rep
+}
+
+func toComponent(c insight.Component, includeSuggestion bool) render.Component {
+	v := render.Component{
+		Source:      c.Source,
+		DisplayName: sourceDisplayName(c.Source),
+		Status:      severityToStatus(c.Severity),
+	}
+
+	if c.Pattern != "" {
+		v.Details = append(v.Details, render.Detail{Key: "detected pattern", Value: c.Pattern})
+	}
+	if c.Cause != "" {
+		v.Details = append(v.Details, render.Detail{Key: "probable cause", Value: c.Cause})
+	}
+
+	if includeSuggestion && strings.TrimSpace(c.Suggestion) != "" {
+		v.Suggestion = c.Suggestion
+		v.SuggestionDisruptive = isDisruptive(c.Suggestion)
+	}
+
+	return v
+}
+
+func sourceDisplayName(source string) string {
+	src := strings.TrimSpace(source)
+	if src == "" {
+		return "system"
+	}
+	for _, prefix := range []string{"service:", "file:", "boot:"} {
+		if strings.HasPrefix(src, prefix) {
+			name := src[len(prefix):]
+			if name != "" {
+				return name
+			}
+		}
+	}
+	switch src {
+	case "dmesg":
+		return "kernel"
+	case "pipe":
+		return "system"
+	case "inline":
+		return "input"
+	}
+	return src
+}
+
+func isDisruptive(suggestion string) bool {
+	lower := strings.ToLower(suggestion)
+	for _, kw := range []string{
+		"disruptive", "irreversible", "destructive", "data loss",
+		"caution", "warning:", "careful", "backup first",
+	} {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
+	return false
 }
 
 func rstatus(l analysis.Level) render.Status {
@@ -198,8 +172,8 @@ func rstatus(l analysis.Level) render.Status {
 	}
 }
 
-func sevStatus(sev string) render.Status {
-	switch insight.NormalizeSeverity(sev) {
+func severityToStatus(sev string) render.Status {
+	switch insight.NormaliseSeverity(sev) {
 	case "ok":
 		return render.OK
 	case "warn":
@@ -229,32 +203,6 @@ func toFindings(rep analysis.Report) []render.Finding {
 	return out
 }
 
-func toIssue(iss insight.Issue) render.Issue {
-	v := render.Issue{
-		Subject: iss.Subject,
-		Status:  sevStatus(iss.Severity),
-	}
-	if iss.Pattern != "" {
-		v.Details = append(v.Details, render.Detail{Key: "detected pattern", Value: iss.Pattern})
-	}
-	if iss.Cause != "" {
-		v.Details = append(v.Details, render.Detail{Key: "probable cause", Value: iss.Cause})
-	}
-	for _, d := range iss.Details {
-		if d != "" {
-			v.Details = append(v.Details, render.Detail{Value: d})
-		}
-	}
-	for _, a := range iss.Actions {
-		v.Actions = append(v.Actions, render.Action{
-			Description: a.Description,
-			Command:     a.Command,
-			Disruptive:  a.Disruptive,
-		})
-	}
-	return v
-}
-
 func doctorProcessLines() []string {
 	return []string{
 		"analysing logs…",
@@ -263,7 +211,7 @@ func doctorProcessLines() []string {
 	}
 }
 
-func doctorSummary(rep analysis.Report, ai insight.Doctor) []render.SummaryItem {
+func doctorSummary(rep analysis.Report, ai insight.Analysis) []render.SummaryItem {
 	var items []render.SummaryItem
 
 	if rep.FailedCount > 0 {
@@ -278,13 +226,15 @@ func doctorSummary(rep analysis.Report, ai insight.Doctor) []render.SummaryItem 
 			Status: render.Warn,
 		})
 	}
-	actions := 0
-	for _, iss := range ai.Issues {
-		actions += len(iss.Actions)
+	suggestions := 0
+	for _, c := range ai.Components {
+		if strings.TrimSpace(c.Suggestion) != "" {
+			suggestions++
+		}
 	}
-	if actions > 0 {
+	if suggestions > 0 {
 		items = append(items, render.SummaryItem{
-			Text:   plural(actions, "action suggested", "actions suggested"),
+			Text:   plural(suggestions, "action suggested", "actions suggested"),
 			Status: render.Info,
 		})
 	}
@@ -294,24 +244,32 @@ func doctorSummary(rep analysis.Report, ai insight.Doctor) []render.SummaryItem 
 	return items
 }
 
-func statusSummary(rep analysis.Report, ai insight.Status) []render.SummaryItem {
+func statusHealthSummary(rep analysis.Report, aiComponentCount int) []render.SummaryItem {
 	var items []render.SummaryItem
 
-	for _, o := range ai.Observations {
-		if o.Text == "" {
-			continue
-		}
+	critCount := countCritFindings(rep)
+	if critCount > 0 {
 		items = append(items, render.SummaryItem{
-			Text:   o.Text,
-			Status: sevStatus(o.Level),
+			Text:   plural(critCount, "service failing", "services failing"),
+			Status: render.Crit,
 		})
 	}
-
-	if len(items) > 0 {
-		return items
+	if rep.FailedCount > 0 {
+		items = append(items, render.SummaryItem{
+			Text:   plural(rep.FailedCount, "service degraded", "services degraded"),
+			Status: render.Warn,
+		})
 	}
-
-	return statusFallbackSummary(rep)
+	if aiComponentCount > 0 {
+		items = append(items, render.SummaryItem{
+			Text:   plural(aiComponentCount, "pattern detected by AI", "patterns detected by AI"),
+			Status: render.Info,
+		})
+	}
+	if len(items) == 0 {
+		items = append(items, render.SummaryItem{Text: "healthy system", Status: render.OK})
+	}
+	return items
 }
 
 func statusFallbackSummary(rep analysis.Report) []render.SummaryItem {
@@ -335,6 +293,27 @@ func statusFallbackSummary(rep analysis.Report) []render.SummaryItem {
 	return items
 }
 
+func buildBriefText(ai insight.Analysis) string {
+	if strings.TrimSpace(ai.Raw) != "" {
+		text := strings.TrimSpace(ai.Raw)
+		if idx := strings.IndexAny(text, ".!?"); idx >= 0 && idx < len(text)-1 {
+			text = text[:idx+1]
+		}
+		return text
+	}
+	if len(ai.Components) > 0 {
+		c := ai.Components[0]
+		if c.Pattern != "" {
+			return c.Pattern
+		}
+	}
+	return "system operating normally"
+}
+
+func Rstatus(l analysis.Level) render.Status    { return rstatus(l) }
+func SeverityToStatus(sev string) render.Status { return severityToStatus(sev) }
+func Plural(n int, one, many string) string     { return plural(n, one, many) }
+
 func countCritFindings(rep analysis.Report) int {
 	n := 0
 	for _, f := range rep.Findings {
@@ -351,26 +330,3 @@ func plural(n int, one, many string) string {
 	}
 	return fmt.Sprintf("%d %s", n, many)
 }
-
-func ExplainReport(command string, ai insight.Doctor) render.ExplainReport {
-	rep := render.ExplainReport{
-		Title:   "hosomaki explain",
-		Context: ContextLine(command),
-	}
-	if len(ai.Issues) > 0 {
-		for _, iss := range ai.Issues {
-			rep.Issues = append(rep.Issues, toIssue(iss))
-		}
-	} else {
-		rep.RawText = ai.Raw
-		if rep.RawText == "" {
-			rep.RawText = ai.Summary
-		}
-	}
-	return rep
-}
-
-func Rstatus(l analysis.Level) render.Status { return rstatus(l) }
-func SevStatus(sev string) render.Status     { return sevStatus(sev) }
-
-func Plural(n int, one, many string) string { return plural(n, one, many) }

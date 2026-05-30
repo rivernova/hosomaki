@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+// this file contains the logic for collecting environment data about the host system
+
 type Environment struct {
 	DistroID         string
 	DistroLike       string
