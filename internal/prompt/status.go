@@ -21,6 +21,8 @@ MANDATORY OUTPUT FORMAT — return ONLY this XML, nothing else:
   </component>
 </analysis>
 
+THE SCHEMA ABOVE IS THE ONLY VALID OUTPUT STRUCTURE. Any other XML tags (<processes>, <errors>, <top_process>, <bluetooth_errors>, or any tag not listed above) are FORBIDDEN and must never appear in the output.
+
 RULES — every rule is mandatory, none are optional:
 
 Return EXACTLY ONE <component> block per distinct health domain or detected issue.
@@ -36,11 +38,11 @@ Do NOT wrap the output in markdown code fences.
 Do NOT use markdown formatting (asterisks, backticks, bullet lists) inside any tag.
 Do NOT produce any text outside the <analysis> root element.
 If the system is completely healthy with no issues, return <analysis></analysis>.
-` + prohibitions + `
 %s
 System snapshot:
 
-%s`
+%s
+` + prohibitions
 
 const statusBrief = `You are a Linux sysadmin expert. Read the system snapshot and return structured XML — one <component> per health domain or issue.
 
@@ -55,6 +57,8 @@ MANDATORY OUTPUT FORMAT — return ONLY this XML, nothing else:
   </component>
 </analysis>
 
+THE SCHEMA ABOVE IS THE ONLY VALID OUTPUT STRUCTURE. Any other XML tags are FORBIDDEN.
+
 RULES — every rule is mandatory:
 
 Return EXACTLY ONE <component> per distinct domain or issue.
@@ -63,12 +67,11 @@ Mandatory domains: memory, disk, cpu, services — produce a block for each if d
 <severity> is exactly one of: low, medium, high, critical — plain text only.
 Do NOT include <suggestion>.
 Do NOT produce any text outside the <analysis> root element.
-If entirely healthy, return: <analysis></analysis>
-` + prohibitions + `
 %s
 System snapshot:
 
-%s`
+%s
+` + prohibitions
 
 func Status(in StatusInput) string {
 	if in.Snapshot == nil {

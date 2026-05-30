@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/rivernova/hosomaki/internal/analysis"
 	"github.com/rivernova/hosomaki/internal/collector"
@@ -64,14 +63,11 @@ suggest remediation steps.
 			partial := present.StatusReport(report, brief)
 			_ = currentUI().RenderStatusStream(partial)
 
-			var aiBuf bytes.Buffer
 			spin := spinner.Start("thinking…")
-			_, genErr := provider.GenerateStream(context.Background(), p, func() {
+			rawAI, genErr := provider.GenerateStream(context.Background(), p, func() {
 				spin.Writing("writing…")
-			}, &aiBuf)
+			}, nil)
 			spin.Stop()
-
-			rawAI := strings.TrimSpace(aiBuf.String())
 
 			st := insight.ParseStatus(rawAI)
 			if genErr != nil && st.Raw == "" && len(st.Components) == 0 {

@@ -17,28 +17,42 @@ import (
 )
 
 type Client struct {
-	endpoint   string
-	model      string
-	httpClient *http.Client
+	endpoint    string
+	model       string
+	httpClient  *http.Client
+	temperature float64
+	numPredict  int
 }
 
-func New(endpoint, model string, timeout time.Duration) *Client {
+func New(endpoint, model string, timeout time.Duration, temperature float64, numPredict int) *Client {
 	return &Client{
-		endpoint:   endpoint,
-		model:      model,
-		httpClient: &http.Client{Timeout: timeout},
+		endpoint:    endpoint,
+		model:       model,
+		httpClient:  &http.Client{Timeout: timeout},
+		temperature: temperature,
+		numPredict:  numPredict,
 	}
 }
 
 func (c *Client) Generate(ctx context.Context, prompt string) (string, error) {
-	return c.GenerateStream(ctx, prompt, nil, nil)
+	return c.generateStream(ctx, prompt, nil, nil)
 }
 
 func (c *Client) GenerateStream(ctx context.Context, prompt string, onFirstToken func(), w io.Writer) (string, error) {
+	return c.generateStream(ctx, prompt, onFirstToken, w)
+}
+
+func (c *Client) generateStream(ctx context.Context, prompt string, onFirstToken func(), w io.Writer) (string, error) {
 	body, err := json.Marshal(request{
 		Model:  c.model,
 		Prompt: prompt,
 		Stream: true,
+		Options: &requestOptions{
+			Temperature:   c.temperature,
+			NumPredict:    c.numPredict,
+			TopP:          0.9,
+			RepeatPenalty: 1.1,
+		},
 	})
 	if err != nil {
 		return "", fmt.Errorf("ollama: marshal request: %w", err)
@@ -103,13 +117,38 @@ func (c *Client) GenerateStream(ctx context.Context, prompt string, onFirstToken
 		return "", fmt.Errorf("ollama: read stream: %w", err)
 	}
 
-	return full.String(), nil
+	return extractXML(full.String()), nil
+}
+
+func extractXML(raw string) string {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return s
+	}
+
+	if idx := strings.Index(s, "<analysis"); idx > 0 {
+		s = s[idx:]
+	}
+
+	if idx := strings.LastIndex(s, "</analysis>"); idx >= 0 {
+		s = s[:idx+len("</analysis>")]
+	}
+
+	return strings.TrimSpace(s)
 }
 
 type request struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Stream bool   `json:"stream"`
+	Model   string          `json:"model"`
+	Prompt  string          `json:"prompt"`
+	Stream  bool            `json:"stream"`
+	Options *requestOptions `json:"options,omitempty"`
+}
+
+type requestOptions struct {
+	Temperature   float64 `json:"temperature"`
+	NumPredict    int     `json:"num_predict"`
+	TopP          float64 `json:"top_p"`
+	RepeatPenalty float64 `json:"repeat_penalty"`
 }
 
 type response struct {

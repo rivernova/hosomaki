@@ -16,6 +16,8 @@ import (
 // this file contains the default configuration
 
 const DefaultTimeout = 120 * time.Second
+const DefaultTemperature = 0.1
+const DefaultNumPredict = 2048
 
 type Config struct {
 	AI     AIConfig     `mapstructure:"ai"`
@@ -23,10 +25,12 @@ type Config struct {
 }
 
 type AIConfig struct {
-	Provider string        `mapstructure:"provider"`
-	Endpoint string        `mapstructure:"endpoint"`
-	Model    string        `mapstructure:"model"`
-	Timeout  time.Duration `mapstructure:"timeout"`
+	Provider    string        `mapstructure:"provider"`
+	Endpoint    string        `mapstructure:"endpoint"`
+	Model       string        `mapstructure:"model"`
+	Timeout     time.Duration `mapstructure:"timeout"`
+	Temperature float64       `mapstructure:"temperature"`
+	NumPredict  int           `mapstructure:"num_predict"`
 }
 
 type OutputConfig struct {
@@ -67,6 +71,9 @@ func Init(cfgFile string) (Config, error) {
 	if cfg.AI.Timeout == 0 {
 		cfg.AI.Timeout = DefaultTimeout
 	}
+	if cfg.AI.NumPredict == 0 {
+		cfg.AI.NumPredict = DefaultNumPredict
+	}
 
 	return cfg, nil
 }
@@ -74,8 +81,10 @@ func Init(cfgFile string) (Config, error) {
 func setDefaults() {
 	viper.SetDefault("ai.provider", "ollama")
 	viper.SetDefault("ai.endpoint", "http://localhost:11434")
-	viper.SetDefault("ai.model", "qwen2.5-coder:14b")
+	viper.SetDefault("ai.model", "mistral:7b-instruct")
 	viper.SetDefault("ai.timeout", DefaultTimeout)
+	viper.SetDefault("ai.temperature", DefaultTemperature)
+	viper.SetDefault("ai.num_predict", DefaultNumPredict)
 	viper.SetDefault("output.color", true)
 	viper.SetDefault("output.language", "en")
 }

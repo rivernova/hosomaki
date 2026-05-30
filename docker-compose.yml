@@ -7,6 +7,11 @@ services:
       - "11434:11434"
     volumes:
       - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         reservations:
@@ -14,6 +19,17 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: ollama-pull
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["ollama", "pull", "mistral:7b-instruct"]
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    network_mode: "service:ollama"
 
 volumes:
   ollama-data:

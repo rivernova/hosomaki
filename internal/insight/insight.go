@@ -9,6 +9,7 @@ import (
 )
 
 // this file contains the logic for insight parsing and normalisation
+
 type Component struct {
 	Source     string
 	Pattern    string
@@ -51,6 +52,10 @@ func parseAnalysis(raw string) Analysis {
 
 	if components := parseXMLComponents(clean); len(components) > 0 {
 		return Analysis{Components: components}
+	}
+
+	if strings.Contains(clean, "<analysis") {
+		return Analysis{}
 	}
 
 	if components := parseKeyValueBlocks(clean); len(components) > 0 {

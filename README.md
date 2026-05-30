@@ -121,13 +121,13 @@ docker run -d -p 11434:11434 --name ollama ollama/ollama
 ### Pull a model
 
 ```bash
-ollama pull qwen2.5-coder:14b
+ollama pull mistral:7b-instruct
 ```
 
 Any model works. If using Docker:
 
 ```bash
-docker exec -it ollama ollama pull qwen2.5-coder:14b
+docker exec -it ollama ollama pull mistral:7b-instruct
 ```
 
 ### Install Hosomaki
@@ -152,7 +152,7 @@ cp config.example.yml ~/.config/hosomaki/config.yaml
 ai:
   provider: ollama
   endpoint: http://localhost:11434
-  model: qwen2.5-coder:14b
+  model: mistral:7b-instruct
   timeout: 120s        # increase for slow hardware or large models
 output:
   color: true

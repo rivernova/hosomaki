@@ -25,6 +25,8 @@ MANDATORY OUTPUT FORMAT — return ONLY this XML, nothing else:
   </component>
 </analysis>
 
+THE SCHEMA ABOVE IS THE ONLY VALID OUTPUT STRUCTURE. Any other XML tags are FORBIDDEN and must never appear in the output.
+
 RULES — every rule is mandatory, none are optional:
 
 Return EXACTLY ONE <component> block per distinct issue, pattern, anomaly, or signal.
@@ -39,10 +41,10 @@ Do NOT wrap the output in markdown code fences.
 Do NOT use markdown formatting (asterisks, backticks, bullet lists) inside any tag.
 Do NOT produce any text outside the <analysis> root element.
 If the input contains no issues, return: <analysis></analysis>
-` + prohibitions + `
 %s%s%s
 === LOG INPUT ===
-%s`
+%s
+` + prohibitions
 
 const explainBrief = `You are a Linux sysadmin expert. Analyze the log input and return structured XML.
 
@@ -56,6 +58,8 @@ MANDATORY OUTPUT FORMAT — return ONLY this XML, nothing else:
   </component>
 </analysis>
 
+THE SCHEMA ABOVE IS THE ONLY VALID OUTPUT STRUCTURE. Any other XML tags are FORBIDDEN.
+
 RULES — every rule is mandatory:
 
 Return EXACTLY ONE <component> block per distinct issue.
@@ -64,10 +68,10 @@ NEVER merge multiple issues into a single <component>.
 Do NOT include <severity> or <suggestion>.
 Do NOT produce any text outside the <analysis> root element.
 If there are no issues, return: <analysis></analysis>
-` + prohibitions + `
 %s%s%s
 === LOG INPUT ===
-%s`
+%s
+` + prohibitions
 
 func Explain(input, source, command string, env collector.Environment, language, brief string) string {
 	tmpl := explainFull

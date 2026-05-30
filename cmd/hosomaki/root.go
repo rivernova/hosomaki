@@ -147,7 +147,13 @@ var rootCmd = &cobra.Command{
 
 		switch cfg.AI.Provider {
 		case "ollama", "":
-			provider = ollama.New(cfg.AI.Endpoint, cfg.AI.Model, cfg.AI.Timeout)
+			provider = ollama.New(
+				cfg.AI.Endpoint,
+				cfg.AI.Model,
+				cfg.AI.Timeout,
+				cfg.AI.Temperature,
+				cfg.AI.NumPredict,
+			)
 		default:
 			return fmt.Errorf("unknown AI provider %q — supported: ollama", cfg.AI.Provider)
 		}

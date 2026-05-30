@@ -22,6 +22,8 @@ MANDATORY OUTPUT FORMAT — return ONLY this XML, nothing else:
   </component>
 </analysis>
 
+THE SCHEMA ABOVE IS THE ONLY VALID OUTPUT STRUCTURE. Any other XML tags (<processes>, <errors>, <top_process>, or any tag not listed above) are FORBIDDEN and must never appear in the output.
+
 RULES — every rule is mandatory, none are optional:
 
 Return EXACTLY ONE <component> block per distinct issue, pattern, anomaly, or signal.
@@ -38,11 +40,11 @@ Do NOT wrap the output in markdown code fences.
 Do NOT use markdown formatting (asterisks, backticks, bullet lists) inside any tag.
 Do NOT produce any text outside the <analysis> root element.
 If the system is completely healthy with no issues, return: <analysis></analysis>
-` + prohibitions + `
 %s%s
 System data:
 
-%s`
+%s
+` + prohibitions
 
 const doctorBrief = `You are a Linux sysadmin expert. Read the system data and return structured XML — one <component> per problem found.
 
@@ -58,6 +60,8 @@ MANDATORY OUTPUT FORMAT — return ONLY this XML, nothing else:
   </component>
 </analysis>
 
+THE SCHEMA ABOVE IS THE ONLY VALID OUTPUT STRUCTURE. Any other XML tags are FORBIDDEN.
+
 RULES — every rule is mandatory:
 
 Return EXACTLY ONE <component> per distinct issue.
@@ -66,12 +70,11 @@ NEVER merge multiple issues into a single <component>.
 <severity> is exactly one of: low, medium, high, critical — plain text only.
 <suggestion> MUST include concrete steps. If disruptive or irreversible, warn at the start.
 Do NOT produce any text outside the <analysis> root element.
-If healthy, return: <analysis></analysis>
-` + prohibitions + `
 %s%s
 System data:
 
-%s`
+%s
+` + prohibitions
 
 func Doctor(in DoctorInput) string {
 	if in.Snapshot == nil {

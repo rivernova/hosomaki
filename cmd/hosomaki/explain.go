@@ -104,14 +104,11 @@ by the shell integration):
 			}
 			_ = currentUI().RenderExplainStream(initialRep, processLines)
 
-			var aiBuf bytes.Buffer
 			spin := spinner.Start("thinking…")
-			_, genErr := provider.GenerateStream(context.Background(), p, func() {
+			rawAI, genErr := provider.GenerateStream(context.Background(), p, func() {
 				spin.Writing("writing…")
-			}, &aiBuf)
+			}, nil)
 			spin.Stop()
-
-			rawAI := strings.TrimSpace(aiBuf.String())
 
 			exp := insight.ParseExplain(rawAI)
 			if genErr != nil && exp.Raw == "" && len(exp.Components) == 0 {
@@ -183,14 +180,12 @@ func countLines(s string) int {
 }
 
 func explainJSON(inputText, sourceID, command, p string) error {
-	var buf bytes.Buffer
 	spin := spinner.Start("thinking…")
-	_, err := provider.GenerateStream(context.Background(), p, func() {
+	rawAI, err := provider.GenerateStream(context.Background(), p, func() {
 		spin.Writing("writing…")
-	}, &buf)
+	}, nil)
 	spin.Stop()
 
-	rawAI := strings.TrimSpace(buf.String())
 	exp := insight.ParseExplain(rawAI)
 	if err != nil && exp.Raw == "" && len(exp.Components) == 0 {
 		exp.Raw = "AI analysis unavailable: " + err.Error()
@@ -325,34 +320,33 @@ func resolveInput(p resolveParams) (string, error) {
 	}
 }
 
-func parseInt(s string) (int, error) {
-	n := 0
-	neg := false
-	i := 0
-	if len(s) > 0 && s[0] == '-' {
-		neg = true
-		i = 1
-	}
-	if i >= len(s) {
-		return 0, fmt.Errorf("not an integer: %q", s)
-	}
-	for ; i < len(s); i++ {
-		c := s[i]
-		if c < '0' || c > '9' {
-			return 0, fmt.Errorf("not an integer: %q", s)
-		}
-		n = n*10 + int(c-'0')
-	}
-	if neg {
-		return -n, nil
-	}
-	return n, nil
-}
-
 func isStdinPiped() bool {
 	fi, err := os.Stdin.Stat()
 	if err != nil {
 		return false
 	}
 	return (fi.Mode() & os.ModeCharDevice) == 0
+}
+
+func parseInt(s string) (int, error) {
+	if s == "" {
+		return 0, nil
+	}
+	n := 0
+	neg := false
+	start := 0
+	if s[0] == '-' {
+		neg = true
+		start = 1
+	}
+	for i := start; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return 0, fmt.Errorf("not an integer")
+		}
+		n = n*10 + int(s[i]-'0')
+	}
+	if neg {
+		n = -n
+	}
+	return n, nil
 }
