@@ -14,7 +14,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/render"
 )
 
-// unit testing for presentation
+// unit tests for the present package.
 
 func TestAnalysisInputPrefersFullKernel(t *testing.T) {
 	in := AnalysisInput(&collector.SystemSnapshot{
@@ -67,6 +67,10 @@ func TestRstatusMappings(t *testing.T) {
 }
 
 func TestSeverityToStatusMappings(t *testing.T) {
+	wantMap := map[string]render.Status{
+		"crit": render.Crit, "warn": render.Warn,
+		"ok": render.OK, "info": render.Info,
+	}
 	cases := []struct{ in, want string }{
 		{"critical", "crit"},
 		{"high", "crit"},
@@ -77,12 +81,8 @@ func TestSeverityToStatusMappings(t *testing.T) {
 	}
 	for _, c := range cases {
 		got := severityToStatus(c.in)
-		wantStatus := map[string]render.Status{
-			"crit": render.Crit, "warn": render.Warn,
-			"ok": render.OK, "info": render.Info,
-		}[c.want]
-		if got != wantStatus {
-			t.Errorf("severityToStatus(%q) = %v, want %v", c.in, got, wantStatus)
+		if got != wantMap[c.want] {
+			t.Errorf("severityToStatus(%q) = %v, want %v", c.in, got, wantMap[c.want])
 		}
 	}
 }
@@ -92,14 +92,12 @@ func TestSourceDisplayName(t *testing.T) {
 		{"service:nginx", "nginx"},
 		{"service:postgresql", "postgresql"},
 		{"file:error.log", "error.log"},
-		{"file:syslog", "syslog"},
-		{"boot:-1", "boot"},
-		{"boot:0", "boot"},
 		{"dmesg", "kernel"},
 		{"pipe", "system"},
 		{"inline", "input"},
+		{"summary", "summary"},
 		{"", "system"},
-		{"unknown-source", "unknown-source"},
+		{"custom-source", "custom-source"},
 	}
 	for _, c := range cases {
 		got := sourceDisplayName(c.source)
@@ -134,7 +132,7 @@ func TestDoctorReportMapsComponents(t *testing.T) {
 		t.Errorf("source not carried: %q", c.Source)
 	}
 	if c.DisplayName != "NetworkManager" {
-		t.Errorf("display name wrong: %q, want %q", c.DisplayName, "NetworkManager")
+		t.Errorf("display name wrong: %q, want NetworkManager", c.DisplayName)
 	}
 	if c.Suggestion == "" {
 		t.Error("suggestion should be present for doctor")
@@ -143,10 +141,10 @@ func TestDoctorReportMapsComponents(t *testing.T) {
 		t.Fatalf("expected at least 2 details (pattern+cause), got %d", len(c.Details))
 	}
 	if c.Details[0].Key != "detected pattern" {
-		t.Errorf("first detail key = %q, want %q", c.Details[0].Key, "detected pattern")
+		t.Errorf("first detail key = %q, want detected pattern", c.Details[0].Key)
 	}
 	if c.Details[1].Key != "probable cause" {
-		t.Errorf("second detail key = %q, want %q", c.Details[1].Key, "probable cause")
+		t.Errorf("second detail key = %q, want probable cause", c.Details[1].Key)
 	}
 	if len(out.Summary) == 0 {
 		t.Error("summary tallies should not be empty")
@@ -181,7 +179,7 @@ func TestDoctorSummaryHealthy(t *testing.T) {
 	}
 }
 
-func TestStatusReportStructure(t *testing.T) {
+func TestStatusReportWithAnalysisStructure(t *testing.T) {
 	rep := analysis.Report{FailedCount: 1}
 	rep.Metrics = []analysis.Metric{{Label: "cpu", Value: "10%", Level: analysis.OK}}
 	rep.Findings = []analysis.Finding{{Level: analysis.Warn, Text: "cups degraded"}}
@@ -218,7 +216,7 @@ func TestStatusComponentNoSuggestion(t *testing.T) {
 		Components: []insight.Component{{
 			Source:     "pipe",
 			Pattern:    "high memory usage",
-			Cause:      "multiple browser tabs",
+			Cause:      "multiple browser tabs consuming swap",
 			Suggestion: "kill some processes",
 		}},
 	}
@@ -228,6 +226,16 @@ func TestStatusComponentNoSuggestion(t *testing.T) {
 	}
 	if out.Components[0].Suggestion != "" {
 		t.Error("status components must not carry a suggestion")
+	}
+	// Cause must be preserved for status.
+	hasCause := false
+	for _, d := range out.Components[0].Details {
+		if d.Key == "probable cause" {
+			hasCause = true
+		}
+	}
+	if !hasCause {
+		t.Error("status components must carry cause detail")
 	}
 }
 

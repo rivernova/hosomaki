@@ -12,8 +12,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/insight"
 )
 
-// this file contains the logic for rendering output
-
+// this file contains the logic for converting analysis reports and insights into JSON output for the --output flag
 type ComponentJSON struct {
 	Source     string `json:"source"`
 	Pattern    string `json:"pattern"`
@@ -21,7 +20,6 @@ type ComponentJSON struct {
 	Severity   string `json:"severity,omitempty"`
 	Suggestion string `json:"suggestion,omitempty"`
 }
-
 type DoctorJSON struct {
 	Healthy    bool            `json:"healthy"`
 	Components []ComponentJSON `json:"components"`
@@ -57,7 +55,7 @@ type FindingJSON struct {
 
 func WriteDoctor(w io.Writer, rep analysis.Report, ai insight.Analysis) error {
 	out := DoctorJSON{
-		Healthy:  len(ai.Components) == 0 && ai.Raw == "",
+		Healthy:  isHealthyAnalysis(ai),
 		Metrics:  metricsJSON(rep),
 		Findings: findingsJSON(rep),
 		Raw:      ai.Raw,
@@ -70,7 +68,7 @@ func WriteDoctor(w io.Writer, rep analysis.Report, ai insight.Analysis) error {
 
 func WriteStatus(w io.Writer, rep analysis.Report, ai insight.Analysis) error {
 	out := StatusJSON{
-		Healthy: len(ai.Components) == 0 && ai.Raw == "",
+		Healthy: isHealthyAnalysis(ai),
 		Metrics: metricsJSON(rep),
 		Raw:     ai.Raw,
 	}
@@ -95,6 +93,18 @@ func WriteExplain(w io.Writer, source, command string, ai insight.Analysis) erro
 		out.Components = append(out.Components, cj)
 	}
 	return writeJSON(w, out)
+}
+
+func isHealthyAnalysis(ai insight.Analysis) bool {
+	if ai.Raw != "" {
+		return false
+	}
+	for _, c := range ai.Components {
+		if c.Source != "summary" {
+			return false
+		}
+	}
+	return true
 }
 
 func componentJSON(c insight.Component) ComponentJSON {

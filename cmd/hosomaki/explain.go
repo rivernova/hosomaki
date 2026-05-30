@@ -22,7 +22,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// this file contains the "explain" command logic.
+// "explain" command logic.
 
 func newExplainCmd() *cobra.Command {
 	var (
@@ -31,6 +31,7 @@ func newExplainCmd() *cobra.Command {
 		dmesg     bool
 		file      string
 		lines     int
+		brief     bool
 		cmd_      string
 		outputFmt string
 	)
@@ -86,7 +87,7 @@ by the shell integration):
 			sourceID := buildSourceID(params)
 
 			env := collector.Env()
-			p := prompt.Explain(inputText, sourceID, cmd_, env, appCfg.Output.Language, "")
+			p := prompt.Explain(inputText, sourceID, cmd_, env, appCfg.Output.Language, brief)
 
 			if outputFmt == "json" {
 				return explainJSON(inputText, sourceID, cmd_, p)
@@ -98,7 +99,7 @@ by the shell integration):
 				Context:   present.ContextLine(cmd_),
 			}
 			processLines := []string{
-				"analysing behavior…",
+				"analysing behaviour…",
 				"correlating logs…",
 				"detecting patterns…",
 			}
@@ -127,6 +128,7 @@ by the shell integration):
 	cmd.Flags().BoolVar(&dmesg, "dmesg", false, "explain kernel errors and warnings from dmesg")
 	cmd.Flags().StringVarP(&file, "file", "f", "", "explain errors from a log file")
 	cmd.Flags().IntVarP(&lines, "lines", "n", 0, "number of log lines to read (default varies by source)")
+	cmd.Flags().BoolVar(&brief, "brief", false, "concise output — one sentence per issue")
 	cmd.Flags().StringVar(&cmd_, "cmd", "", "the command that produced this output (set automatically by shell integration)")
 	cmd.Flags().StringVar(&outputFmt, "output", "", "output format: json")
 	cmd.Flags().Lookup("boot").NoOptDefVal = "0"
@@ -240,8 +242,7 @@ func isNoInputError(err error) bool {
 	if err == nil {
 		return false
 	}
-	msg := err.Error()
-	return len(msg) >= 16 && msg[:16] == "no input provided"
+	return strings.HasPrefix(err.Error(), "no input provided")
 }
 
 type resolveParams struct {
@@ -268,6 +269,10 @@ func resolveInput(p resolveParams) (string, error) {
 	if p.file != "" {
 		sources++
 	}
+	if len(p.args) > 0 {
+		sources++
+	}
+
 	if sources > 1 {
 		return "", fmt.Errorf("only one of --service, --boot, --dmesg, --file may be used at a time")
 	}

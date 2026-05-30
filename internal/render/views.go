@@ -9,8 +9,7 @@ import (
 	"strings"
 )
 
-// this file contains the logic for rendering the various report types to the terminal
-
+// this file contains the logic for rendering structured analysis data into human-readable reports
 type Metric struct {
 	Label  string
 	Value  string
@@ -55,7 +54,6 @@ type StatusReport struct {
 	RawAI      string
 	Summary    []SummaryItem
 	Brief      bool
-	BriefText  string
 }
 
 type DoctorReport struct {
@@ -93,7 +91,7 @@ func (r *Renderer) RenderStatusStream(rep StatusReport) io.Writer {
 	r.Section("AI analysis (lightweight)")
 	r.Blank()
 	for _, p := range []string{
-		"analyzing general status…",
+		"analysing general status…",
 		"correlating metrics…",
 		"detecting patterns…",
 	} {
@@ -108,35 +106,63 @@ func (r *Renderer) FinaliseStatus(rep StatusReport) {
 		r.renderStatusBrief(rep)
 		return
 	}
-	r.renderStatusAI(rep)
-	r.renderStatusSummary(rep)
+
+	body, summary := splitSummaryComponent(rep.Components)
+
+	switch {
+	case len(body) > 0 || summary != nil:
+		for _, c := range body {
+			r.Blank()
+			r.renderComponent(c, false)
+		}
+		if summary != nil {
+			r.Section("summary")
+			r.Blank()
+			r.renderComponent(*summary, false)
+		} else {
+			r.renderStatusMetricSummary(rep)
+		}
+	case strings.TrimSpace(rep.RawAI) != "":
+		r.Blank()
+		r.Subject("AI output", Neutral)
+		r.Detail("error", "model response was not valid XML")
+		r.Detail("raw", rep.RawAI)
+		r.renderStatusMetricSummary(rep)
+	default:
+		r.Blank()
+		r.Subject("system", OK)
+		r.Detail("detected pattern", "no issues detected")
+		r.renderStatusMetricSummary(rep)
+	}
+
 	r.Done()
 }
 
 func (r *Renderer) renderStatusBrief(rep StatusReport) {
+	r.Title(rep.Title)
+	r.Section("quick status")
 	r.Blank()
-	text := rep.BriefText
-	if text == "" && strings.TrimSpace(rep.RawAI) != "" {
-		text = strings.SplitN(strings.TrimSpace(rep.RawAI), "\n", 2)[0]
-	}
-	if text == "" {
-		text = "system operating normally"
-	}
-	r.line(indent(1) + r.paint(r.pal.Text, text))
-	r.Done()
-}
 
-func (r *Renderer) renderStatusAI(rep StatusReport) {
+	body, summary := splitSummaryComponent(rep.Components)
+
 	switch {
-	case len(rep.Components) > 0:
-		for _, c := range rep.Components {
-			r.Blank()
+	case len(body) > 0 || summary != nil:
+		for _, c := range body {
 			r.renderComponent(c, false)
+			r.Blank()
+		}
+		if summary != nil {
+			r.Section("summary")
+			r.Blank()
+			r.renderComponent(*summary, false)
 		}
 	case strings.TrimSpace(rep.RawAI) != "":
-		r.Blank()
-		r.Paragraph(rep.RawAI)
+		r.SummaryLine("AI response was not structured XML — run without --brief for details", Neutral)
+	default:
+		r.SummaryLine("healthy system", OK)
 	}
+
+	r.Done()
 }
 
 func (r *Renderer) renderStatusBody(rep StatusReport) {
@@ -156,7 +182,7 @@ func (r *Renderer) renderStatusBody(rep StatusReport) {
 	}
 }
 
-func (r *Renderer) renderStatusSummary(rep StatusReport) {
+func (r *Renderer) renderStatusMetricSummary(rep StatusReport) {
 	if len(rep.Summary) == 0 {
 		return
 	}
@@ -175,8 +201,7 @@ func (r *Renderer) RenderDoctor(rep DoctorReport) {
 	for _, p := range rep.ProcessLines {
 		r.Process(p)
 	}
-	r.renderDoctorAI(rep)
-	r.renderDoctorSummary(rep)
+	r.renderDoctorComponents(rep)
 	r.Done()
 }
 
@@ -199,42 +224,77 @@ func (r *Renderer) FinaliseDoctor(rep DoctorReport) {
 		r.renderDoctorBrief(rep)
 		return
 	}
-	r.renderDoctorAI(rep)
-	r.renderDoctorSummary(rep)
+	r.renderDoctorComponents(rep)
 	r.Done()
+}
+
+func (r *Renderer) renderDoctorComponents(rep DoctorReport) {
+	body, summary := splitSummaryComponent(rep.Components)
+
+	switch {
+	case len(body) > 0 || summary != nil:
+		for _, c := range body {
+			r.Blank()
+			r.renderComponent(c, true)
+		}
+		if summary != nil {
+			r.Section("summary")
+			r.Blank()
+			r.renderComponent(*summary, true)
+		} else {
+			r.renderDoctorMetricSummary(rep)
+		}
+	case strings.TrimSpace(rep.RawInsight) != "":
+		r.Blank()
+		r.Subject("AI output", Neutral)
+		r.Detail("error", "model response was not valid XML")
+		r.Detail("raw", rep.RawInsight)
+		r.renderDoctorMetricSummary(rep)
+	default:
+		r.Blank()
+		r.Subject("system", OK)
+		r.Detail("detected pattern", "no issues detected")
+		r.renderDoctorMetricSummary(rep)
+	}
 }
 
 func (r *Renderer) renderDoctorBrief(rep DoctorReport) {
 	r.Title(rep.Title)
 	r.Section("quick diagnosis")
 	r.Blank()
-	if len(rep.Components) == 0 {
-		r.SummaryLine("healthy system", OK)
-	} else {
-		for _, c := range rep.Components {
-			name := resolveDisplayName(c)
-			var cause string
-			for _, d := range c.Details {
-				if d.Key == "probable cause" {
-					cause = d.Value
-					break
-				}
-			}
-			line := name
-			if cause != "" {
-				line += ": " + cause
-			}
-			if c.Suggestion != "" {
-				short := c.Suggestion
-				if len(short) > 100 {
-					short = short[:100] + "…"
-				}
-				line += " → " + short
-			}
-			r.Detail("", line)
+
+	body, summary := splitSummaryComponent(rep.Components)
+
+	switch {
+	case len(body) > 0 || summary != nil:
+		for _, c := range body {
+			r.renderComponent(c, true)
+			r.Blank()
 		}
+		if summary != nil {
+			r.Section("summary")
+			r.Blank()
+			r.renderComponent(*summary, true)
+		}
+	case strings.TrimSpace(rep.RawInsight) != "":
+		r.Subject("AI output", Neutral)
+		r.Detail("error", "model response was not valid XML — run without --brief for details")
+	default:
+		r.SummaryLine("healthy system", OK)
 	}
+
 	r.Done()
+}
+
+func (r *Renderer) renderDoctorMetricSummary(rep DoctorReport) {
+	if len(rep.Summary) == 0 {
+		return
+	}
+	r.Section("summary")
+	r.Blank()
+	for _, s := range rep.Summary {
+		r.SummaryLine(s.Text, s.Status)
+	}
 }
 
 func (r *Renderer) renderDoctorPreamble(rep DoctorReport) {
@@ -254,32 +314,6 @@ func (r *Renderer) renderDoctorPreamble(rep DoctorReport) {
 	}
 }
 
-func (r *Renderer) renderDoctorAI(rep DoctorReport) {
-	switch {
-	case len(rep.Components) > 0:
-		for _, c := range rep.Components {
-			r.Blank()
-			r.renderComponent(c, true)
-		}
-	default:
-		r.Blank()
-		r.Subject("system", Neutral)
-		r.Detail("detected pattern", "AI response could not be parsed into structured output")
-		r.Detail("probable cause", "the local model did not follow the expected XML format")
-	}
-}
-
-func (r *Renderer) renderDoctorSummary(rep DoctorReport) {
-	if len(rep.Summary) == 0 {
-		return
-	}
-	r.Section("summary")
-	r.Blank()
-	for _, s := range rep.Summary {
-		r.SummaryLine(s.Text, s.Status)
-	}
-}
-
 func (r *Renderer) RenderExplain(rep ExplainReport) {
 	r.Title(rep.Title)
 	r.renderExplainPreamble(rep)
@@ -288,8 +322,7 @@ func (r *Renderer) RenderExplain(rep ExplainReport) {
 	for _, p := range rep.ProcessLines {
 		r.Process(p)
 	}
-	r.renderExplainAI(rep)
-	r.renderExplainSummary(rep)
+	r.renderExplainComponents(rep)
 	r.Done()
 }
 
@@ -305,8 +338,7 @@ func (r *Renderer) RenderExplainStream(rep ExplainReport, processLines []string)
 }
 
 func (r *Renderer) FinaliseExplain(rep ExplainReport) {
-	r.renderExplainAI(rep)
-	r.renderExplainSummary(rep)
+	r.renderExplainComponents(rep)
 	r.Done()
 }
 
@@ -332,54 +364,42 @@ func (r *Renderer) renderExplainPreamble(rep ExplainReport) {
 	}
 }
 
-func (r *Renderer) renderExplainAI(rep ExplainReport) {
+func (r *Renderer) renderExplainComponents(rep ExplainReport) {
+	body, summary := splitSummaryComponent(rep.Components)
+
 	switch {
-	case len(rep.Components) > 0:
-		for _, c := range rep.Components {
+	case len(body) > 0 || summary != nil:
+		for _, c := range body {
 			r.Blank()
 			r.renderComponent(c, false)
 		}
+		if summary != nil {
+			r.Section("summary")
+			r.Blank()
+			r.renderComponent(*summary, false)
+		}
 	case strings.TrimSpace(rep.RawText) != "":
 		r.Blank()
-		r.Paragraph(rep.RawText)
+		r.Subject("AI output", Neutral)
+		r.Detail("error", "model response was not valid XML")
+		r.Detail("raw", rep.RawText)
 	default:
 		r.Blank()
-		r.Subject("system", Neutral)
-		r.Detail("detected pattern", "AI response could not be parsed into structured output")
-		r.Detail("probable cause", "the local model did not follow the expected XML format")
+		r.Subject("system", OK)
+		r.Detail("detected pattern", "no issues detected in the provided input")
 	}
 }
 
-func (r *Renderer) renderExplainSummary(rep ExplainReport) {
-	if len(rep.Components) == 0 {
-		return
+func splitSummaryComponent(components []Component) (body []Component, summary *Component) {
+	if len(components) == 0 {
+		return nil, nil
 	}
-
-	patterns := 0
-	causes := 0
-	for _, c := range rep.Components {
-		for _, d := range c.Details {
-			switch d.Key {
-			case "detected pattern":
-				patterns++
-			case "probable cause":
-				causes++
-			}
-		}
+	last := components[len(components)-1]
+	if last.Source == "summary" {
+		body = components[:len(components)-1]
+		return body, &last
 	}
-	if patterns == 0 {
-		patterns = len(rep.Components)
-	}
-	if causes == 0 {
-		causes = len(rep.Components)
-	}
-
-	r.Section("summary")
-	r.Blank()
-	r.SummaryLine(plural(patterns, "detected pattern", "detected patterns"), Info)
-	if causes > 0 {
-		r.SummaryLine(plural(causes, "probable cause", "probable causes"), Info)
-	}
+	return components, nil
 }
 
 func (r *Renderer) renderComponent(c Component, showSuggestion bool) {
@@ -419,6 +439,8 @@ func resolveDisplayName(c Component) string {
 		return "system"
 	case "inline":
 		return "input"
+	case "summary":
+		return "summary"
 	}
 	return src
 }

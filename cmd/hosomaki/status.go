@@ -20,7 +20,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// this file contains the "status" command logic
+// "status" command logic.
 
 func newStatusCmd() *cobra.Command {
 	var (
@@ -38,7 +38,7 @@ Unlike ` + "`hosomaki doctor`" + `, status only describes what it sees — it do
 suggest remediation steps.
 
   hosomaki status                    # at-a-glance health summary
-  hosomaki status --brief            # single sentence
+  hosomaki status --brief            # concise summary
   hosomaki status --output json      # machine-readable JSON`,
 
 		Args: cobra.NoArgs,
@@ -81,7 +81,7 @@ suggest remediation steps.
 		},
 	}
 
-	cmd.Flags().BoolVar(&brief, "brief", false, "one-sentence summary instead of a paragraph")
+	cmd.Flags().BoolVar(&brief, "brief", false, "concise summary instead of a full paragraph")
 	cmd.Flags().StringVar(&outputFmt, "output", "", "output format: json")
 
 	return cmd
@@ -89,7 +89,9 @@ suggest remediation steps.
 
 func statusJSON(report analysis.Report, p string) error {
 	spin := spinner.Start("thinking…")
-	raw, err := provider.Generate(context.Background(), p)
+	raw, err := provider.GenerateStream(context.Background(), p, func() {
+		spin.Writing("writing…")
+	}, nil)
 	spin.Stop()
 
 	st := insight.ParseStatus(raw)

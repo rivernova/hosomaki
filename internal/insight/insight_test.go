@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// unit testing for insight parsing
+// unit tests for strict XML-only insight parsing and normalisation.
 
 func TestParseAnalysisWellFormedXML(t *testing.T) {
 	raw := `<analysis>
@@ -27,7 +27,7 @@ func TestParseAnalysisWellFormedXML(t *testing.T) {
 	}
 	c := a.Components[0]
 	if c.Source != "pipe" {
-		t.Errorf("source = %q, want %q", c.Source, "pipe")
+		t.Errorf("source = %q, want pipe", c.Source)
 	}
 	if c.Pattern == "" {
 		t.Error("pattern should not be empty")
@@ -36,7 +36,7 @@ func TestParseAnalysisWellFormedXML(t *testing.T) {
 		t.Error("cause should not be empty")
 	}
 	if c.Severity != "high" {
-		t.Errorf("severity = %q, want %q", c.Severity, "high")
+		t.Errorf("severity = %q, want high", c.Severity)
 	}
 	if c.Suggestion == "" {
 		t.Error("suggestion should not be empty for doctor parse")
@@ -93,6 +93,19 @@ func TestParseAnalysisRawFallback(t *testing.T) {
 	}
 }
 
+func TestParseAnalysisProseOnlyReturnedAsRaw(t *testing.T) {
+	raw := `pattern: the sshd service rejected all incoming connections
+cause: the host key file /etc/ssh/ssh_host_rsa_key has incorrect permissions`
+
+	a := parseXMLAnalysis(raw)
+	if len(a.Components) != 0 {
+		t.Errorf("prose-only input must not produce components, got %d", len(a.Components))
+	}
+	if a.Raw == "" {
+		t.Error("raw should be populated for prose-only input")
+	}
+}
+
 func TestParseExplainStripsSeverityAndSuggestion(t *testing.T) {
 	raw := `<analysis>
   <component>
@@ -123,7 +136,7 @@ func TestParseExplainStripsSeverityAndSuggestion(t *testing.T) {
 	}
 }
 
-func TestParseStatusStripssuggestion(t *testing.T) {
+func TestParseStatusStripsSuggestionKeepsCause(t *testing.T) {
 	raw := `<analysis>
   <component>
     <source>pipe</source>
@@ -141,6 +154,9 @@ func TestParseStatusStripssuggestion(t *testing.T) {
 	c := a.Components[0]
 	if c.Suggestion != "" {
 		t.Errorf("status must strip suggestion, got %q", c.Suggestion)
+	}
+	if c.Cause == "" {
+		t.Error("status must preserve cause")
 	}
 	if c.Severity == "" {
 		t.Error("status must preserve severity")
@@ -186,56 +202,55 @@ func TestNormaliseSeverityMappings(t *testing.T) {
 	}
 }
 
-func TestParseKeyValueBlocksFallback(t *testing.T) {
-	raw := `pattern: the sshd service rejected all incoming connections
-cause: the host key file /etc/ssh/ssh_host_rsa_key has incorrect permissions
-
-pattern: systemd-journald hit its rate limit
-cause: a runaway process was producing thousands of log entries per second`
-
-	a := parseAnalysis(raw)
-	if len(a.Components) != 2 {
-		t.Fatalf("expected 2 components from key-value fallback, got %d", len(a.Components))
-	}
-	if a.Components[0].Pattern == "" {
-		t.Error("first component pattern should not be empty")
-	}
-	if a.Components[1].Cause == "" {
-		t.Error("second component cause should not be empty")
-	}
-}
-
-func TestHealthyContentSuppressed(t *testing.T) {
+func TestParseSummaryComponentPreserved(t *testing.T) {
 	raw := `<analysis>
   <component>
     <source>pipe</source>
-    <pattern>no issues found</pattern>
-    <cause>the system is healthy and operating normally</cause>
+    <pattern>nginx failed to bind to port 80</pattern>
+    <cause>port already in use by another process</cause>
+    <severity>high</severity>
+    <suggestion>run ss -tlnp | grep :80 to find the conflicting process and terminate it</suggestion>
+  </component>
+  <component>
+    <source>summary</source>
+    <pattern>One critical service failure detected requiring immediate attention</pattern>
+    <cause>Port conflict is preventing nginx from starting</cause>
+    <severity>high</severity>
+    <suggestion>Resolve the port 80 conflict as described in the preceding component</suggestion>
   </component>
 </analysis>`
 
 	a := ParseDoctor(raw)
-	if len(a.Components) != 0 {
-		t.Errorf("healthy content should be suppressed, got %d components", len(a.Components))
+	if len(a.Components) != 2 {
+		t.Fatalf("expected 2 components including summary, got %d", len(a.Components))
+	}
+	last := a.Components[len(a.Components)-1]
+	if last.Source != "summary" {
+		t.Errorf("last component source = %q, want summary", last.Source)
+	}
+	if last.Pattern == "" {
+		t.Error("summary component pattern must not be empty")
 	}
 }
 
-func TestIsHealthyContent(t *testing.T) {
-	cases := []struct {
-		text string
-		want bool
-	}{
-		{"no issues detected", true},
-		{"system is healthy", true},
-		{"no errors found in the journal", true},
-		{"nginx service is failing to bind", false},
-		{"oom killer was activated", false},
-		{"all systems operational", true},
+func TestParseHealthySummaryComponentKept(t *testing.T) {
+	// A summary component with healthy content MUST be preserved.
+	// The parser must not filter based on content.
+	raw := `<analysis>
+  <component>
+    <source>summary</source>
+    <pattern>No issues detected. All services are operating normally.</pattern>
+    <cause>All monitored metrics are within normal operating ranges.</cause>
+    <severity>low</severity>
+    <suggestion>No action required.</suggestion>
+  </component>
+</analysis>`
+
+	a := ParseDoctor(raw)
+	if len(a.Components) != 1 {
+		t.Errorf("healthy summary component must be preserved, got %d components", len(a.Components))
 	}
-	for _, c := range cases {
-		got := isHealthyContent(c.text)
-		if got != c.want {
-			t.Errorf("isHealthyContent(%q) = %v, want %v", c.text, got, c.want)
-		}
+	if a.Components[0].Source != "summary" {
+		t.Errorf("source = %q, want summary", a.Components[0].Source)
 	}
 }

@@ -11,14 +11,13 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// this file contains shared prompt utilities and constants.
+// this file contains the shared prompt templates for all commands
 
 type DoctorInput struct {
 	Snapshot *collector.SystemSnapshot
 	Language string
 	Brief    bool
 }
-
 type StatusInput struct {
 	Snapshot *collector.SystemSnapshot
 	Language string
@@ -39,10 +38,21 @@ Any text, sentence, or paragraph before <analysis> or after </analysis>.
 Any prose introduction such as "Here is the analysis", "Here's a breakdown", "The log contains", "I found the following", or any similar preamble.
 Any numbered list (1. 2. 3.) or lettered list (a. b. c.) anywhere in the response.
 Any bullet list (- * •) anywhere in the response.
-Any section heading, summary paragraph, recommendation list, or conclusion paragraph.
-Any text of the form "By addressing these issues…", "I recommend…", "You should…", or "To fix this…".
+Any section heading, summary paragraph, recommendation list, or conclusion paragraph outside a <component>.
+Any text of the form "By addressing these issues…", "I recommend…", "You should…", or "To fix this…" outside a <component>.
 Any XML tag not defined in the schema above.
+Any truncated field. Every field MUST be complete. Never end a field mid-sentence.
+Any ellipsis ("…", "...", "[...]") used to shorten a field. Shortening is forbidden.
+Any field that ends with "and more", "etc.", "and so on", or any similar placeholder.
 If you are tempted to write any of the above, stop immediately. Write only the <analysis> XML instead.`
+
+const summaryRule = `
+MANDATORY SUMMARY COMPONENT — the LAST <component> in every response MUST have <source>summary</source>.
+The summary component MUST synthesise the key findings across all preceding components.
+The summary component MUST follow exactly the same schema as all other components.
+The summary component MUST NOT be truncated or shortened.
+The summary component is REQUIRED even when there is only one other component.
+If the system is completely healthy with no issues, the single component IS the summary: use <source>summary</source> with a brief healthy-state description.`
 
 func languageLine(lang string) string {
 	lang = strings.TrimSpace(lang)
@@ -51,7 +61,7 @@ func languageLine(lang string) string {
 	}
 	return fmt.Sprintf(
 		"CRITICAL: Write every human-readable text block inside the tags in this language: %s. "+
-			"Keep all command lines, unit names and identifiers verbatim. Do not use markdown wrappers.\n",
+			"Keep all command lines, unit names, and identifiers verbatim. Do not use markdown wrappers.\n",
 		lang,
 	)
 }
@@ -85,8 +95,8 @@ func buildSnapshot(s *collector.SystemSnapshot, maxErrors, maxProcs int) string 
 	sec("MEMORY", s.Memory)
 	sec("DISK", s.Disk)
 	sec("FAILED SERVICES", s.FailedServices)
-	sec("RECENT ERRORS", limitLines(s.RecentErrors, maxErrors))
-	sec("TOP PROCESSES", limitLines(s.TopProcesses, maxProcs))
+	sec("RECENT ERRORS", headLines(s.RecentErrors, maxErrors))
+	sec("TOP PROCESSES", headLines(s.TopProcesses, maxProcs))
 
 	if len(s.Errors) > 0 {
 		sec("COLLECTION NOTES", strings.Join(s.Errors, "\n"))
@@ -95,7 +105,7 @@ func buildSnapshot(s *collector.SystemSnapshot, maxErrors, maxProcs int) string 
 	return strings.TrimRight(b.String(), "\n")
 }
 
-func limitLines(text string, n int) string {
+func headLines(text string, n int) string {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return ""
@@ -104,6 +114,5 @@ func limitLines(text string, n int) string {
 	if len(lines) <= n {
 		return text
 	}
-	kept := append(lines[:n:n], fmt.Sprintf("… (%d more lines omitted)", len(lines)-n))
-	return strings.Join(kept, "\n")
+	return strings.Join(lines[:n], "\n")
 }

@@ -14,7 +14,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/render"
 )
 
-// this file contains presentation for converting insights to renderable output
+// this file contains the logic for converting system snapshots, analysis reports, and insights into structured data for rendering
 
 func AnalysisInput(s *collector.SystemSnapshot) analysis.Input {
 	if s == nil {
@@ -35,20 +35,23 @@ func AnalysisInput(s *collector.SystemSnapshot) analysis.Input {
 }
 
 func ContextLine(command string) string {
-	if command == "" {
+	if strings.TrimSpace(command) == "" {
 		return ""
 	}
-	return "produced by: " + command
+	return "produced by: " + strings.TrimSpace(command)
 }
 
 func DoctorReport(rep analysis.Report, ai insight.Analysis, brief bool) render.DoctorReport {
 	out := render.DoctorReport{
-		Title:        "hosomaki doctor",
-		Metrics:      toMetrics(rep),
-		Findings:     toFindings(rep),
-		ProcessLines: doctorProcessLines(),
-		RawInsight:   ai.Raw,
-		Brief:        brief,
+		Title:      "hosomaki doctor",
+		Metrics:    toMetrics(rep),
+		Findings:   toFindings(rep),
+		RawInsight: ai.Raw,
+		Brief:      brief,
+	}
+
+	if !brief {
+		out.ProcessLines = doctorProcessLines()
 	}
 
 	for _, c := range ai.Components {
@@ -56,10 +59,6 @@ func DoctorReport(rep analysis.Report, ai insight.Analysis, brief bool) render.D
 	}
 
 	out.Summary = doctorSummary(rep, ai)
-
-	if brief {
-		out.ProcessLines = nil
-	}
 	return out
 }
 
@@ -76,9 +75,7 @@ func StatusReport(rep analysis.Report, brief bool) render.StatusReport {
 func StatusReportWithAnalysis(rep analysis.Report, ai insight.Analysis, brief bool) render.StatusReport {
 	sr := StatusReport(rep, brief)
 	sr.RawAI = strings.TrimSpace(ai.Raw)
-	sr.BriefText = buildBriefText(ai)
 	sr.Summary = statusHealthSummary(rep, len(ai.Components))
-
 	for _, c := range ai.Components {
 		sr.Components = append(sr.Components, toComponent(c, false))
 	}
@@ -140,6 +137,8 @@ func sourceDisplayName(source string) string {
 		return "system"
 	case "inline":
 		return "input"
+	case "summary":
+		return "summary"
 	}
 	return src
 }
@@ -274,6 +273,7 @@ func statusHealthSummary(rep analysis.Report, aiComponentCount int) []render.Sum
 
 func statusFallbackSummary(rep analysis.Report) []render.SummaryItem {
 	var items []render.SummaryItem
+
 	if rep.FailedCount > 0 {
 		items = append(items, render.SummaryItem{
 			Text:   plural(rep.FailedCount, "service with warnings", "services with warnings"),
@@ -293,27 +293,6 @@ func statusFallbackSummary(rep analysis.Report) []render.SummaryItem {
 	return items
 }
 
-func buildBriefText(ai insight.Analysis) string {
-	if strings.TrimSpace(ai.Raw) != "" {
-		text := strings.TrimSpace(ai.Raw)
-		if idx := strings.IndexAny(text, ".!?"); idx >= 0 && idx < len(text)-1 {
-			text = text[:idx+1]
-		}
-		return text
-	}
-	if len(ai.Components) > 0 {
-		c := ai.Components[0]
-		if c.Pattern != "" {
-			return c.Pattern
-		}
-	}
-	return "system operating normally"
-}
-
-func Rstatus(l analysis.Level) render.Status    { return rstatus(l) }
-func SeverityToStatus(sev string) render.Status { return severityToStatus(sev) }
-func Plural(n int, one, many string) string     { return plural(n, one, many) }
-
 func countCritFindings(rep analysis.Report) int {
 	n := 0
 	for _, f := range rep.Findings {
@@ -330,3 +309,7 @@ func plural(n int, one, many string) string {
 	}
 	return fmt.Sprintf("%d %s", n, many)
 }
+
+func Rstatus(l analysis.Level) render.Status    { return rstatus(l) }
+func SeverityToStatus(sev string) render.Status { return severityToStatus(sev) }
+func Plural(n int, one, many string) string     { return plural(n, one, many) }

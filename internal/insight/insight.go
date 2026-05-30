@@ -8,8 +8,7 @@ import (
 	"strings"
 )
 
-// this file contains the logic for insight parsing and normalisation
-
+// this file contains the logic for parsing the XML output from the analysis scripts into structured data
 type Component struct {
 	Source     string
 	Pattern    string
@@ -24,7 +23,7 @@ type Analysis struct {
 }
 
 func ParseExplain(raw string) Analysis {
-	a := parseAnalysis(raw)
+	a := parseXMLAnalysis(raw)
 	for i := range a.Components {
 		a.Components[i].Severity = ""
 		a.Components[i].Suggestion = ""
@@ -33,7 +32,7 @@ func ParseExplain(raw string) Analysis {
 }
 
 func ParseStatus(raw string) Analysis {
-	a := parseAnalysis(raw)
+	a := parseXMLAnalysis(raw)
 	for i := range a.Components {
 		a.Components[i].Suggestion = ""
 	}
@@ -41,37 +40,30 @@ func ParseStatus(raw string) Analysis {
 }
 
 func ParseDoctor(raw string) Analysis {
-	return parseAnalysis(raw)
+	return parseXMLAnalysis(raw)
 }
 
-func parseAnalysis(raw string) Analysis {
+func parseXMLAnalysis(raw string) Analysis {
 	clean := strings.TrimSpace(raw)
 	if clean == "" {
 		return Analysis{}
 	}
 
-	if components := parseXMLComponents(clean); len(components) > 0 {
-		return Analysis{Components: components}
+	body, found := extractTagContent(clean, "analysis")
+	if !found {
+		return Analysis{Raw: clean}
 	}
 
-	if strings.Contains(clean, "<analysis") {
-		return Analysis{}
-	}
-
-	if components := parseKeyValueBlocks(clean); len(components) > 0 {
-		return Analysis{Components: components}
-	}
-
-	return Analysis{Raw: clean}
+	return Analysis{Components: parseComponents(body)}
 }
 
-func parseXMLComponents(raw string) []Component {
-	chunks := splitTag(raw, "component")
+func parseComponents(body string) []Component {
+	chunks := splitTag(body, "component")
 	if len(chunks) == 0 {
 		return nil
 	}
 
-	var components []Component
+	out := make([]Component, 0, len(chunks))
 	for _, chunk := range chunks {
 		source := strings.TrimSpace(extractTag(chunk, "source"))
 		pattern := strings.TrimSpace(extractTag(chunk, "pattern"))
@@ -79,18 +71,14 @@ func parseXMLComponents(raw string) []Component {
 		severity := normaliseSeverityTag(strings.TrimSpace(extractTag(chunk, "severity")))
 		suggestion := strings.TrimSpace(extractTag(chunk, "suggestion"))
 
-		if pattern == "" && cause == "" {
+		if pattern == "" {
 			continue
 		}
-		if isHealthyContent(source + " " + pattern + " " + cause) {
-			continue
-		}
-
 		if source == "" {
 			source = "pipe"
 		}
 
-		components = append(components, Component{
+		out = append(out, Component{
 			Source:     source,
 			Pattern:    pattern,
 			Cause:      cause,
@@ -98,92 +86,34 @@ func parseXMLComponents(raw string) []Component {
 			Suggestion: suggestion,
 		})
 	}
-	return components
+	return out
 }
 
-func parseKeyValueBlocks(raw string) []Component {
-	var components []Component
-	var cur map[string]string
-	var currentKey string
+func extractTagContent(s, tag string) (string, bool) {
+	open := "<" + tag
+	close := "</" + tag + ">"
 
-	flush := func() {
-		if len(cur) == 0 {
-			return
-		}
-		for k, v := range cur {
-			cur[k] = strings.TrimSpace(v)
-		}
-		pattern := cur["pattern"]
-		cause := cur["cause"]
-		if pattern == "" && cause == "" {
-			cur = nil
-			currentKey = ""
-			return
-		}
-		if isHealthyContent(pattern + " " + cause) {
-			cur = nil
-			currentKey = ""
-			return
-		}
-		src := cur["source"]
-		if src == "" {
-			src = "pipe"
-		}
-		components = append(components, Component{
-			Source:     src,
-			Pattern:    pattern,
-			Cause:      cause,
-			Severity:   normaliseSeverityTag(cur["severity"]),
-			Suggestion: cur["suggestion"],
-		})
-		cur = nil
-		currentKey = ""
+	start := strings.Index(s, open)
+	if start < 0 {
+		return "", false
 	}
-
-	for _, line := range strings.Split(raw, "\n") {
-		trimmed := strings.TrimSpace(line)
-
-		if trimmed == "" {
-			if cur != nil {
-				flush()
-			}
-			continue
-		}
-
-		if isMarkdownNoise(trimmed) {
-			continue
-		}
-
-		colonIdx := strings.Index(trimmed, ":")
-		if colonIdx > 0 && colonIdx <= 40 {
-			label := strings.ToLower(strings.TrimSpace(trimmed[:colonIdx]))
-			canonical := normFieldLabel(label)
-			if canonical != "" {
-				if cur == nil {
-					cur = make(map[string]string)
-				}
-				if _, exists := cur[canonical]; exists && canonical == "pattern" {
-					flush()
-					cur = make(map[string]string)
-				}
-				cur[canonical] = strings.TrimSpace(trimmed[colonIdx+1:])
-				currentKey = canonical
-				continue
-			}
-		}
-
-		if currentKey != "" && cur != nil {
-			cur[currentKey] += " " + trimmed
-		}
+	gt := strings.Index(s[start:], ">")
+	if gt < 0 {
+		return "", false
 	}
-	flush()
+	contentStart := start + gt + 1
 
-	return components
+	end := strings.LastIndex(s, close)
+	if end < contentStart {
+		return strings.TrimSpace(s[contentStart:]), true
+	}
+	return strings.TrimSpace(s[contentStart:end]), true
 }
 
 func extractTag(s, tag string) string {
 	open := "<" + tag + ">"
 	close := "</" + tag + ">"
+
 	start := strings.Index(s, open)
 	if start < 0 {
 		return ""
@@ -199,6 +129,7 @@ func extractTag(s, tag string) string {
 func splitTag(raw, tag string) []string {
 	open := "<" + tag + ">"
 	close := "</" + tag + ">"
+
 	var parts []string
 	rest := raw
 	for {
@@ -209,7 +140,9 @@ func splitTag(raw, tag string) []string {
 		rest = rest[start+len(open):]
 		end := strings.Index(rest, close)
 		if end < 0 {
-			parts = append(parts, rest)
+			if trimmed := strings.TrimSpace(rest); trimmed != "" {
+				parts = append(parts, trimmed)
+			}
 			break
 		}
 		parts = append(parts, rest[:end])
@@ -218,27 +151,9 @@ func splitTag(raw, tag string) []string {
 	return parts
 }
 
-func normFieldLabel(label string) string {
-	switch label {
-	case "source", "origin", "input":
-		return "source"
-	case "pattern", "symptom", "issue", "problem", "error", "observation",
-		"what happened", "description", "details":
-		return "pattern"
-	case "cause", "root cause", "reason", "why", "explanation":
-		return "cause"
-	case "severity", "level", "priority":
-		return "severity"
-	case "suggestion", "action", "fix", "solution", "recommendation",
-		"suggested action", "suggested fix", "what to do", "resolution":
-		return "suggestion"
-	}
-	return ""
-}
-
 func normaliseSeverityTag(s string) string {
 	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "low", "minor", "info", "informational":
+	case "low", "minor", "info", "informational", "ok":
 		return "low"
 	case "medium", "warn", "warning", "moderate", "degraded":
 		return "medium"
@@ -260,32 +175,4 @@ func NormaliseSeverity(s string) string {
 		return "crit"
 	}
 	return "info"
-}
-
-func isHealthyContent(text string) bool {
-	lower := strings.ToLower(text)
-	healthy := []string{
-		"no issues", "no errors", "no failures", "no problems", "no anomalies",
-		"healthy", "everything is fine", "all systems operational", "no action required",
-		"operating normally", "system is healthy", "no alerts",
-	}
-	for _, h := range healthy {
-		if strings.Contains(lower, h) {
-			return true
-		}
-	}
-	return false
-}
-
-func isMarkdownNoise(line string) bool {
-	if strings.HasPrefix(line, "```") || strings.HasPrefix(line, "---") ||
-		strings.HasPrefix(line, "===") || strings.HasPrefix(line, "***") ||
-		strings.HasPrefix(line, "#") {
-		return true
-	}
-	if (strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") ||
-		strings.HasPrefix(line, "+ ")) && !strings.Contains(line, ":") {
-		return true
-	}
-	return false
 }
