@@ -78,26 +78,6 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 	return cmd
 }
 
-// printDoctorFull renders the full-mode doctor layout:
-//
-//	Doctor
-//	──────────────────────────────────────────────
-//
-//	System analysis
-//	──────────────────────────────────────────────
-//	<key/value system info>
-//
-//	Local insights
-//	──────────────────────────────────────────────
-//	<✓ ! ✗ bullets>
-//
-//	AI analysis
-//	──────────────────────────────────────────────
-//	<AI streaming output — untouched>
-//
-//	Summary
-//	──────────────────────────────────────────────
-//	<summary lines>
 func printDoctorFull(data ui.SnapshotData, p string) {
 	fmt.Print(ui.DoctorHeader())
 	fmt.Print(ui.DoctorSystemSection(data))
@@ -105,7 +85,7 @@ func printDoctorFull(data ui.SnapshotData, p string) {
 	fmt.Print(ui.DoctorAIHeader())
 
 	spin := spinner.Start("diagnosing…")
-	_, err := provider.GenerateStream(context.Background(), p,
+	aiText, err := provider.GenerateStream(context.Background(), p,
 		func() { spin.Stop() },
 		os.Stdout,
 	)
@@ -116,25 +96,9 @@ func printDoctorFull(data ui.SnapshotData, p string) {
 	}
 	fmt.Println()
 
-	fmt.Print(ui.DoctorSummary(data))
+	fmt.Print(ui.DoctorSummary(ui.ParseDoctorAI(aiText)))
 }
 
-// printDoctorBrief renders the brief-mode doctor layout:
-//
-//	Doctor (brief)
-//	──────────────────────────────────────────────
-//
-//	System
-//	<compact system info>
-//
-//	Insights
-//	<compact bullets>
-//
-//	AI
-//	<AI streaming output — untouched>
-//
-//	Summary
-//	<compact summary>
 func printDoctorBrief(data ui.SnapshotData, p string) {
 	fmt.Print(ui.DoctorHeaderBrief())
 	fmt.Print(ui.DoctorSystemSectionBrief(data))
@@ -142,7 +106,7 @@ func printDoctorBrief(data ui.SnapshotData, p string) {
 	fmt.Print(ui.DoctorAIHeaderBrief())
 
 	spin := spinner.Start("diagnosing…")
-	_, err := provider.GenerateStream(context.Background(), p,
+	aiText, err := provider.GenerateStream(context.Background(), p,
 		func() { spin.Stop() },
 		os.Stdout,
 	)
@@ -153,5 +117,5 @@ func printDoctorBrief(data ui.SnapshotData, p string) {
 	}
 	fmt.Println()
 
-	fmt.Print(ui.DoctorSummaryBrief(data))
+	fmt.Print(ui.DoctorSummaryBrief(ui.ParseDoctorAI(aiText)))
 }

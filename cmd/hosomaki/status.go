@@ -71,26 +71,6 @@ recent errors) and asks the AI to summarise what's going on.
 	return cmd
 }
 
-// printStatusFull renders the full-mode status layout:
-//
-//	Status
-//	──────────────────────────────────────────────
-//
-//	System status
-//	──────────────────────────────────────────────
-//	<key/value metrics>
-//
-//	Local insights
-//	──────────────────────────────────────────────
-//	<✓ ! ✗ bullets>
-//
-//	AI analysis
-//	──────────────────────────────────────────────
-//	<AI streaming output — untouched>
-//
-//	Summary
-//	──────────────────────────────────────────────
-//	<summary lines>
 func printStatusFull(data ui.SnapshotData, p string) {
 	fmt.Print(ui.StatusHeader())
 	fmt.Print(ui.StatusSystemSection(data))
@@ -98,7 +78,7 @@ func printStatusFull(data ui.SnapshotData, p string) {
 	fmt.Print(ui.StatusAIHeader())
 
 	spin := spinner.Start("thinking…")
-	_, err := provider.GenerateStream(context.Background(), p,
+	aiText, err := provider.GenerateStream(context.Background(), p,
 		func() { spin.Stop() },
 		os.Stdout,
 	)
@@ -109,25 +89,9 @@ func printStatusFull(data ui.SnapshotData, p string) {
 	}
 	fmt.Println()
 
-	fmt.Print(ui.StatusSummary(data))
+	fmt.Print(ui.StatusSummary(data, ui.ParseStatusAI(aiText, data)))
 }
 
-// printStatusBrief renders the brief-mode status layout:
-//
-//	Status (brief)
-//	──────────────────────────────────────────────
-//
-//	System
-//	<compact metrics>
-//
-//	Insights
-//	<compact bullets>
-//
-//	AI
-//	<AI streaming output — untouched>
-//
-//	Summary
-//	<compact summary>
 func printStatusBrief(data ui.SnapshotData, p string) {
 	fmt.Print(ui.StatusHeaderBrief())
 	fmt.Print(ui.StatusSystemSectionBrief(data))
@@ -135,7 +99,7 @@ func printStatusBrief(data ui.SnapshotData, p string) {
 	fmt.Print(ui.StatusAIHeaderBrief())
 
 	spin := spinner.Start("thinking…")
-	_, err := provider.GenerateStream(context.Background(), p,
+	aiText, err := provider.GenerateStream(context.Background(), p,
 		func() { spin.Stop() },
 		os.Stdout,
 	)
@@ -146,5 +110,5 @@ func printStatusBrief(data ui.SnapshotData, p string) {
 	}
 	fmt.Println()
 
-	fmt.Print(ui.StatusSummaryBrief(data))
+	fmt.Print(ui.StatusSummaryBrief(data, ui.ParseStatusAI(aiText, data)))
 }

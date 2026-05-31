@@ -107,26 +107,6 @@ by the shell integration):
 	return cmd
 }
 
-// printExplainFull renders the full-mode explain layout:
-//
-//	Explain
-//	──────────────────────────────────────────────
-//
-//	Context
-//	──────────────────────────────────────────────
-//	<context info>
-//
-//	Explanation
-//	──────────────────────────────────────────────
-//	<✓ ! ✗ bullets>
-//
-//	AI analysis
-//	──────────────────────────────────────────────
-//	<AI streaming output — untouched>
-//
-//	Summary
-//	──────────────────────────────────────────────
-//	<summary lines>
 func printExplainFull(ctx ui.ExplainContext, p string) {
 	fmt.Print(ui.ExplainHeader())
 	fmt.Print(ui.ExplainContextSection(ctx))
@@ -134,7 +114,7 @@ func printExplainFull(ctx ui.ExplainContext, p string) {
 	fmt.Print(ui.ExplainAIHeader())
 
 	spin := spinner.Start("thinking…")
-	_, err := provider.GenerateStream(context.Background(), p,
+	aiText, err := provider.GenerateStream(context.Background(), p,
 		func() { spin.Stop() },
 		os.Stdout,
 	)
@@ -145,12 +125,9 @@ func printExplainFull(ctx ui.ExplainContext, p string) {
 	}
 	fmt.Println()
 
-	fmt.Print(ui.ExplainSummary(ctx))
+	fmt.Print(ui.ExplainSummary(ui.ParseExplainAI(aiText)))
 }
 
-// resolveSourceLabel returns a human-readable label for the log source
-// used in the Context section. It mirrors the logic of resolveInput
-// without re-collecting the logs.
 func resolveSourceLabel(p resolveParams) string {
 	switch {
 	case p.service != "":
