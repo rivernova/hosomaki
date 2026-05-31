@@ -12,8 +12,6 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// this file contains logic for constructing the prompt for the "status" command
-
 const maxTopProcessLines = 10
 
 type StatusInput struct {
@@ -30,7 +28,10 @@ type StatusInput struct {
 func Status(s StatusInput, brief bool) string {
 	var style string
 	if brief {
-		style = "Write exactly one sentence summarising the overall health of this system. If there is a critical issue, name it."
+		style = `OUTPUT FORMAT — follow this exactly, no exceptions:
+- Output exactly ONE sentence. Hard limit: 30 words.
+- State overall health and name the single most critical issue if any exists.
+- NOTHING else. No introduction. No elaboration. No second sentence. Stop immediately after the period.`
 	} else {
 		style = "Write a paragraph of five to eight sentences summarising the overall health of this system. Cover uptime, memory, disk, failed services, and recent errors. Call out any anomalies or points of concern."
 	}

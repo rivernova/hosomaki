@@ -15,6 +15,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 	"github.com/rivernova/hosomaki/internal/prompt"
 	"github.com/rivernova/hosomaki/internal/spinner"
+	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -72,20 +73,25 @@ by the shell integration):
 				return err
 			}
 
-			env := collector.Env()
+			source := resolveSourceLabel(resolveParams{
+				args:        args,
+				service:     service,
+				boot:        bootStr,
+				bootChanged: bootChanged,
+				dmesg:       dmesg,
+				file:        file,
+			})
 
+			ctx := ui.ExplainContext{
+				Source: source,
+				Cmd:    strings.TrimSpace(cmd_),
+				Lines:  lines,
+			}
+
+			env := collector.Env()
 			p := prompt.Explain(input, cmd_, env)
 
-			spin := spinner.Start("thinking…")
-			_, err = provider.GenerateStream(context.Background(), p,
-				func() { spin.Stop() },
-				os.Stdout,
-			)
-			if err != nil {
-				spin.Stop()
-				return err
-			}
-			fmt.Println()
+			printExplainFull(ctx, p)
 			return nil
 		},
 	}
@@ -99,6 +105,51 @@ by the shell integration):
 	cmd.Flags().Lookup("boot").NoOptDefVal = "0"
 
 	return cmd
+}
+
+func printExplainFull(ctx ui.ExplainContext, p string) {
+	fmt.Print(ui.ExplainHeader())
+	fmt.Print(ui.ExplainContextSection(ctx))
+	fmt.Print(ui.ExplainExplanationSection(ctx))
+	fmt.Print(ui.ExplainAIHeader())
+
+	spin := spinner.Start("thinking…")
+	aiText, err := provider.GenerateStream(context.Background(), p,
+		func() { spin.Stop() },
+		os.Stdout,
+	)
+	if err != nil {
+		spin.Stop()
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return
+	}
+	fmt.Println()
+
+	fmt.Print(ui.ExplainSummary(ui.ParseExplainAI(aiText)))
+}
+
+func resolveSourceLabel(p resolveParams) string {
+	switch {
+	case p.service != "":
+		return "service: " + p.service
+	case p.bootChanged:
+		index, err := strconv.Atoi(p.boot)
+		if err != nil {
+			return "boot: " + p.boot
+		}
+		if index == 0 {
+			return "boot: current"
+		}
+		return fmt.Sprintf("boot: %d", index)
+	case p.dmesg:
+		return "dmesg"
+	case p.file != "":
+		return "file: " + p.file
+	case len(p.args) > 0:
+		return "argument"
+	default:
+		return "stdin"
+	}
 }
 
 type resolveParams struct {

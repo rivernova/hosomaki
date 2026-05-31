@@ -12,8 +12,6 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// this file contains logic for constructing the prompt for the "doctor" command
-
 type DoctorInput struct {
 	CollectedAt    time.Time
 	Environment    collector.Environment
@@ -28,9 +26,11 @@ type DoctorInput struct {
 func Doctor(d DoctorInput, brief bool) string {
 	var style string
 	if brief {
-		style = `Write exactly one sentence per detected issue.
-For each issue state: what is wrong, and the single most important action to take.
-If nothing is wrong, write one sentence confirming the system is healthy.`
+		style = `OUTPUT FORMAT — follow this exactly, no exceptions:
+- Write one sentence per detected issue. Maximum 5 sentences total. Stop after the 5th sentence no matter what.
+- Each sentence must name the issue and the single most important fix. Hard limit: 20 words per sentence.
+- No introduction. No explanation. No preamble. No closing remarks. No blank lines. Only the sentences, one per line.
+- If nothing is wrong, write exactly: "System is healthy."`
 	} else {
 		style = `Write a structured plain-prose diagnosis.
 
