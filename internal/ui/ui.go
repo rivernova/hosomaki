@@ -21,13 +21,16 @@ const (
 	glyphWarn = "!"
 	glyphFail = "✗"
 
-	styleReset   = ""
-	styleTitle   = ""
-	styleSection = ""
-	styleMuted   = ""
-	styleOK      = ""
-	styleWarn    = ""
-	styleFail    = ""
+	// Wabi-Sabi palette
+	styleReset       = "\x1b[0m"
+	styleTitle       = "\x1b[38;5;58m"  // dark warm brown
+	styleSection     = "\x1b[38;5;94m"  // mid brown
+	styleMuted       = "\x1b[38;5;101m" // muted brown
+	styleOK          = "\x1b[38;5;65m"  // sage green
+	styleWarn        = "\x1b[38;5;136m" // amber
+	styleFail        = "\x1b[38;5;130m" // rust
+	styleSeparator   = "\x1b[38;5;101m" // muted brown
+	styleSummaryLine = "\x1b[38;5;58m"  // dark warm brown
 )
 
 func Title(text string) string {
@@ -61,7 +64,7 @@ func SectionCompact(title, body string) string {
 func SectionSummary(body string) string {
 	sep := strings.Repeat(string(separatorRune), separatorLen)
 	var b strings.Builder
-	fmt.Fprintf(&b, "\n%ssummary%s\n%s\n", styleSection, styleReset, sep)
+	fmt.Fprintf(&b, "\n%ssummary%s\n%s%s%s\n", styleSection, styleReset, styleSeparator, sep, styleReset)
 	if strings.TrimSpace(body) != "" {
 		b.WriteString(body)
 		if !strings.HasSuffix(body, "\n") {
@@ -73,7 +76,7 @@ func SectionSummary(body string) string {
 }
 
 func SummaryLine(text string) string {
-	return summaryIndent + text + "\n"
+	return fmt.Sprintf("%s%s%s%s\n", summaryIndent, styleSummaryLine, text, styleReset)
 }
 
 func KeyValue(key, value string) string {
