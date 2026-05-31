@@ -12,6 +12,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 	"github.com/rivernova/hosomaki/internal/prompt"
 	"github.com/rivernova/hosomaki/internal/spinner"
+	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -44,6 +45,15 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 				return fmt.Errorf("failed to collect system snapshot: %w", err)
 			}
 
+			data := ui.SnapshotData{
+				CollectedAt:    snap.CollectedAt,
+				Uptime:         snap.Uptime,
+				Memory:         snap.Memory,
+				Disk:           snap.Disk,
+				FailedServices: snap.FailedServices,
+				RecentErrors:   snap.RecentErrors,
+			}
+
 			p := prompt.Doctor(prompt.DoctorInput{
 				CollectedAt:    snap.CollectedAt,
 				Environment:    snap.Environment,
@@ -55,20 +65,93 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 				TopProcesses:   snap.TopProcesses,
 			}, brief)
 
-			spin := spinner.Start("diagnosing…")
-			_, err = provider.GenerateStream(context.Background(), p,
-				func() { spin.Stop() },
-				os.Stdout,
-			)
-			if err != nil {
-				spin.Stop()
-				return err
+			if brief {
+				printDoctorBrief(data, p)
+			} else {
+				printDoctorFull(data, p)
 			}
-			fmt.Println()
 			return nil
 		},
 	}
 
 	cmd.Flags().BoolVar(&brief, "brief", false, "one sentence per issue instead of a full diagnosis")
 	return cmd
+}
+
+// printDoctorFull renders the full-mode doctor layout:
+//
+//	Doctor
+//	──────────────────────────────────────────────
+//
+//	System analysis
+//	──────────────────────────────────────────────
+//	<key/value system info>
+//
+//	Local insights
+//	──────────────────────────────────────────────
+//	<✓ ! ✗ bullets>
+//
+//	AI analysis
+//	──────────────────────────────────────────────
+//	<AI streaming output — untouched>
+//
+//	Summary
+//	──────────────────────────────────────────────
+//	<summary lines>
+func printDoctorFull(data ui.SnapshotData, p string) {
+	fmt.Print(ui.DoctorHeader())
+	fmt.Print(ui.DoctorSystemSection(data))
+	fmt.Print(ui.DoctorInsightsSection(data))
+	fmt.Print(ui.DoctorAIHeader())
+
+	spin := spinner.Start("diagnosing…")
+	_, err := provider.GenerateStream(context.Background(), p,
+		func() { spin.Stop() },
+		os.Stdout,
+	)
+	if err != nil {
+		spin.Stop()
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return
+	}
+	fmt.Println()
+
+	fmt.Print(ui.DoctorSummary(data))
+}
+
+// printDoctorBrief renders the brief-mode doctor layout:
+//
+//	Doctor (brief)
+//	──────────────────────────────────────────────
+//
+//	System
+//	<compact system info>
+//
+//	Insights
+//	<compact bullets>
+//
+//	AI
+//	<AI streaming output — untouched>
+//
+//	Summary
+//	<compact summary>
+func printDoctorBrief(data ui.SnapshotData, p string) {
+	fmt.Print(ui.DoctorHeaderBrief())
+	fmt.Print(ui.DoctorSystemSectionBrief(data))
+	fmt.Print(ui.DoctorInsightsSectionBrief(data))
+	fmt.Print(ui.DoctorAIHeaderBrief())
+
+	spin := spinner.Start("diagnosing…")
+	_, err := provider.GenerateStream(context.Background(), p,
+		func() { spin.Stop() },
+		os.Stdout,
+	)
+	if err != nil {
+		spin.Stop()
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return
+	}
+	fmt.Println()
+
+	fmt.Print(ui.DoctorSummaryBrief(data))
 }
