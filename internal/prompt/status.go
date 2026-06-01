@@ -12,6 +12,8 @@ import (
 
 // this file contains logic for constructing the prompt sent to the AI provider for status summaries
 
+const maxTopProcessLines = 10
+
 type StatusInput struct {
 	CollectedAt    time.Time
 	Uptime         string
@@ -55,7 +57,18 @@ func formatSnapshot(s StatusInput) string {
 	section("Disk", s.Disk)
 	section("Failed services", s.FailedServices)
 	section("Recent errors (journalctl)", s.RecentErrors)
-	section("Top processes by CPU", s.TopProcesses)
+	section("Top processes by CPU", limitLines(s.TopProcesses, maxTopProcessLines))
 
 	return b.String()
+}
+
+func limitLines(s string, n int) string {
+	if s == "" {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	if len(lines) <= n {
+		return s
+	}
+	return strings.Join(lines[:n], "\n")
 }

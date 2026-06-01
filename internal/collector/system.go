@@ -13,8 +13,6 @@ import (
 
 // this file contains logic for collecting a general snapshot of the system state
 
-const maxTopProcessLines = 10
-
 type SystemSnapshot struct {
 	CollectedAt    time.Time
 	Uptime         string
@@ -52,7 +50,6 @@ func Snapshot() (*SystemSnapshot, error) {
 	set(&s.RecentErrors, val, err)
 
 	val, err = run(binPs, snapshot.topProcessesArgs...)
-	val = limitLines(val, maxTopProcessLines)
 	set(&s.TopProcesses, val, err)
 
 	return s, nil
@@ -72,15 +69,4 @@ func runShell(cmd string) (string, string) {
 		return "", fmt.Sprintf("sh -c %q: %s", cmd, err)
 	}
 	return strings.TrimSpace(string(out)), ""
-}
-
-func limitLines(s string, n int) string {
-	if s == "" {
-		return s
-	}
-	lines := strings.Split(s, "\n")
-	if len(lines) <= n {
-		return s
-	}
-	return strings.Join(lines[:n], "\n")
 }
