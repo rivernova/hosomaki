@@ -46,13 +46,16 @@ func Status(s StatusInput, brief bool) string {
 - Do not open with a preamble. Do not close with an offer to help further.
 - %s
 
-After your analysis, on a new line write exactly:
----JSON---
-{"failed_services": <count of failed services>, "warn_services": <count of services with warnings or errors>, "patterns_detected": <count of distinct issues or anomalies you observed>}
----END---
-
 System snapshot:
-%s`, EnvironmentSection(s.Environment), style, formatSnapshot(s))
+%s
+REQUIRED — you MUST include this block at the very end of your response, after all prose, no exceptions:
+---JSON---
+{"failed_services": <integer: count of failed services>, "warn_services": <integer: count of services with warnings or errors>, "patterns_detected": <integer: count of distinct issues or anomalies you observed>}
+---END---
+Example of a valid block: ---JSON---
+{"failed_services": 0, "warn_services": 1, "patterns_detected": 3}
+---END---
+Do not skip this block. Do not add any text after ---END---.`, EnvironmentSection(s.Environment), style, formatSnapshot(s))
 }
 
 func formatSnapshot(s StatusInput) string {

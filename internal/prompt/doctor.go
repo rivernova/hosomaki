@@ -59,13 +59,16 @@ If nothing is wrong, write a single short paragraph confirming the system is hea
 - Do not open with a preamble. Do not close with an offer to help further.
 - %s
 
-After your analysis, on a new line write exactly:
----JSON---
-{"anomalies": <count of distinct issues you identified>, "actions": <count of distinct commands or actions you suggested>}
----END---
-
 System snapshot:
-%s`, EnvironmentSection(d.Environment), style, formatDoctorSnapshot(d))
+%s
+REQUIRED — you MUST include this block at the very end of your response, after all prose, no exceptions:
+---JSON---
+{"anomalies": <integer: number of distinct issues you identified>, "actions": <integer: number of distinct commands or actions you suggested>}
+---END---
+Example of a valid block: ---JSON---
+{"anomalies": 3, "actions": 5}
+---END---
+Do not skip this block. Do not add any text after ---END---.`, EnvironmentSection(d.Environment), style, formatDoctorSnapshot(d))
 }
 
 func formatDoctorSnapshot(d DoctorInput) string {

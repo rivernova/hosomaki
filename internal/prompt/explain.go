@@ -30,11 +30,15 @@ func Explain(input, cmd string, env collector.Environment) string {
 - State what is happening and why. Focus on root cause and system behaviour.
 - If a command is provided, use it to inform your understanding of the context.
 - Your explanation must be correct for the host environment described above (distribution, kernel, init system, security model). Do not guess based on a different distro.
-
-After your explanation, on a new line write exactly:
----JSON---
-{"patterns": <count of distinct error patterns or issues you identified>, "causes": <count of distinct root causes you identified>}
----END---
 %sInput:
-%s`, EnvironmentSection(env), cmdContext, input)
+%s
+
+REQUIRED — you MUST include this block at the very end of your response, after all prose, no exceptions:
+---JSON---
+{"patterns": <integer: count of distinct error patterns or issues you identified>, "causes": <integer: count of distinct root causes you identified>}
+---END---
+Example of a valid block: ---JSON---
+{"patterns": 2, "causes": 1}
+---END---
+Do not skip this block. Do not add any text after ---END---.`, EnvironmentSection(env), cmdContext, input)
 }
