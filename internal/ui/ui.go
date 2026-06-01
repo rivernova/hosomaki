@@ -21,16 +21,17 @@ const (
 	glyphWarn = "!"
 	glyphFail = "✗"
 
-	// Wabi-Sabi palette
+	// pastel palette
 	styleReset       = "\x1b[0m"
-	styleTitle       = "\x1b[38;5;58m"  // dark warm brown
-	styleSection     = "\x1b[38;5;94m"  // mid brown
-	styleMuted       = "\x1b[38;5;101m" // muted brown
-	styleOK          = "\x1b[38;5;65m"  // sage green
-	styleWarn        = "\x1b[38;5;136m" // amber
-	styleFail        = "\x1b[38;5;130m" // rust
-	styleSeparator   = "\x1b[38;5;101m" // muted brown
-	styleSummaryLine = "\x1b[38;5;58m"  // dark warm brown
+	styleTitle       = "\x1b[38;5;110m" // steel blue pastel
+	styleSection     = "\x1b[38;5;109m" // desaturated blue-grey
+	styleMuted       = "\x1b[38;5;247m" // warm grey pastel
+	styleOK          = "\x1b[38;5;151m" // mint-teal pastel
+	styleWarn        = "\x1b[38;5;223m" // soft amber pastel
+	styleFail        = "\x1b[38;5;210m" // coral pastel
+	styleSeparator   = "\x1b[38;5;146m" // lavender-grey pastel
+	styleSummaryLine = "\x1b[38;5;67m"  // deep muted blue
+
 )
 
 func Title(text string) string {
