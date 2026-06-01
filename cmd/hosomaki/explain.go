@@ -113,11 +113,13 @@ func printExplainFull(ctx ui.ExplainContext, p string) {
 	fmt.Print(ui.ExplainExplanationSection(ctx))
 	fmt.Print(ui.ExplainAIHeader())
 
+	sw := ui.NewSentinelWriter(os.Stdout)
 	spin := spinner.Start("thinking…")
-	aiText, err := provider.GenerateStream(context.Background(), p,
+	_, err := provider.GenerateStream(context.Background(), p,
 		func() { spin.Stop() },
-		os.Stdout,
+		sw,
 	)
+	sw.Flush()
 	if err != nil {
 		spin.Stop()
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -125,7 +127,7 @@ func printExplainFull(ctx ui.ExplainContext, p string) {
 	}
 	fmt.Println()
 
-	fmt.Print(ui.ExplainSummary(ui.ParseExplainAI(aiText)))
+	fmt.Print(ui.ExplainSummary(ui.ParseExplainCounts(sw)))
 }
 
 func resolveSourceLabel(p resolveParams) string {

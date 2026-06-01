@@ -23,7 +23,7 @@ func TestSetDefaults(t *testing.T) {
 	}{
 		{"AI provider default", "ai.provider", "ollama"},
 		{"AI endpoint default", "ai.endpoint", "http://localhost:11434"},
-		{"AI model default", "ai.model", "llama3"},
+		{"AI model default", "ai.model", "llama3.1:8b"},
 		{"Output color default", "output.color", true},
 		{"Output language default", "output.language", "en"},
 	}

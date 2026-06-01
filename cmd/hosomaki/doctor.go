@@ -84,11 +84,13 @@ func printDoctorFull(data ui.SnapshotData, p string) {
 	fmt.Print(ui.DoctorInsightsSection(data))
 	fmt.Print(ui.DoctorAIHeader())
 
+	sw := ui.NewSentinelWriter(os.Stdout)
 	spin := spinner.Start("diagnosing…")
-	aiText, err := provider.GenerateStream(context.Background(), p,
+	_, err := provider.GenerateStream(context.Background(), p,
 		func() { spin.Stop() },
-		os.Stdout,
+		sw,
 	)
+	sw.Flush()
 	if err != nil {
 		spin.Stop()
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -96,7 +98,7 @@ func printDoctorFull(data ui.SnapshotData, p string) {
 	}
 	fmt.Println()
 
-	fmt.Print(ui.DoctorSummary(ui.ParseDoctorAI(aiText)))
+	fmt.Print(ui.DoctorSummary(ui.ParseDoctorCounts(sw)))
 }
 
 func printDoctorBrief(data ui.SnapshotData, p string) {
@@ -105,11 +107,13 @@ func printDoctorBrief(data ui.SnapshotData, p string) {
 	fmt.Print(ui.DoctorInsightsSectionBrief(data))
 	fmt.Print(ui.DoctorAIHeaderBrief())
 
+	sw := ui.NewSentinelWriter(os.Stdout)
 	spin := spinner.Start("diagnosing…")
-	aiText, err := provider.GenerateStream(context.Background(), p,
+	_, err := provider.GenerateStream(context.Background(), p,
 		func() { spin.Stop() },
-		os.Stdout,
+		sw,
 	)
+	sw.Flush()
 	if err != nil {
 		spin.Stop()
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -117,5 +121,5 @@ func printDoctorBrief(data ui.SnapshotData, p string) {
 	}
 	fmt.Println()
 
-	fmt.Print(ui.DoctorSummaryBrief(ui.ParseDoctorAI(aiText)))
+	fmt.Print(ui.DoctorSummaryBrief(ui.ParseDoctorCounts(sw)))
 }

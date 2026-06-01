@@ -11,7 +11,8 @@ import (
 	"time"
 )
 
-// composition. assembles primitives from ui into the sections each command prints
+// generates the various sections outputs
+
 type SnapshotData struct {
 	CollectedAt    time.Time
 	Uptime         string
@@ -25,22 +26,6 @@ type ExplainContext struct {
 	Source string
 	Cmd    string
 	Lines  int
-}
-
-type DoctorCounts struct {
-	Anomalies int
-	Actions   int
-}
-
-type StatusCounts struct {
-	FailedServices   int
-	WarnServices     int
-	PatternsDetected int
-}
-
-type ExplainCounts struct {
-	Patterns int
-	Causes   int
 }
 
 func StatusHeader() string {
@@ -79,14 +64,14 @@ func StatusSummary(d SnapshotData, c StatusCounts) string {
 	var b strings.Builder
 	b.WriteString(SummaryLine(plural(c.FailedServices, "service failing", "services failing")))
 	b.WriteString(SummaryLine(plural(c.WarnServices, "service with warnings", "services with warnings")))
-	b.WriteString(SummaryLine(plural(c.PatternsDetected, "pattern detected by AI", "patterns detected by AI")))
+	b.WriteString(SummaryLine(plural(c.PatternsDetected, "pattern or issue detected", "patterns or issues detected")))
 	return SectionSummary(b.String())
 }
 
 func StatusSummaryBrief(d SnapshotData, c StatusCounts) string {
 	var b strings.Builder
 	b.WriteString(SummaryLine(plural(c.FailedServices, "service failing", "services failing")))
-	b.WriteString(SummaryLine(plural(c.PatternsDetected, "pattern detected", "patterns detected")))
+	b.WriteString(SummaryLine(plural(c.PatternsDetected, "pattern or issue detected", "patterns or issues detected")))
 	return SectionSummary(b.String())
 }
 
@@ -154,70 +139,9 @@ func ExplainAIHeader() string {
 
 func ExplainSummary(c ExplainCounts) string {
 	var b strings.Builder
-	b.WriteString(SummaryLine(plural(c.Patterns, "pattern detected", "patterns detected")))
+	b.WriteString(SummaryLine(plural(c.Patterns, "pattern or issue detected", "patterns or issues detected")))
 	b.WriteString(SummaryLine(plural(c.Causes, "probable cause", "probable causes")))
 	return SectionSummary(b.String())
-}
-
-func ParseDoctorAI(text string) DoctorCounts {
-	actionStarters := []string{
-		"to investigate", "to fix", "to resolve", "to address",
-		"you should", "you can ", "you may", "you could",
-	}
-	summaryStarters := []string{
-		"overall", "in summary", "in conclusion", "these issues", "the system is experiencing",
-	}
-
-	anomalies := 0
-	actions := 0
-
-	for _, p := range splitParagraphs(text) {
-		lower := strings.ToLower(p)
-		if startsWithAny(lower, summaryStarters) {
-			continue
-		}
-		if startsWithAny(lower, actionStarters) {
-			actions += len(regexp.MustCompile("`[^`]+`").FindAllString(p, -1))
-			continue
-		}
-		anomalies++
-		actions += len(regexp.MustCompile("`[^`]+`").FindAllString(p, -1))
-	}
-
-	return DoctorCounts{Anomalies: anomalies, Actions: actions}
-}
-
-func ParseStatusAI(text string, d SnapshotData) StatusCounts {
-	failed := len(nonEmptyLines(d.FailedServices))
-	warnings := 0
-	if strings.TrimSpace(d.RecentErrors) != "" {
-		warnings = 1
-	}
-	patterns := len(splitParagraphs(text))
-	return StatusCounts{
-		FailedServices:   failed,
-		WarnServices:     warnings,
-		PatternsDetected: patterns,
-	}
-}
-
-func ParseExplainAI(text string) ExplainCounts {
-	causeKeywords := []string{"because", "caused by", "due to", "result of", "triggered by", "likely"}
-	sentences := splitSentences(text)
-	causes := 0
-	for _, s := range sentences {
-		lower := strings.ToLower(s)
-		for _, kw := range causeKeywords {
-			if strings.Contains(lower, kw) {
-				causes++
-				break
-			}
-		}
-	}
-	return ExplainCounts{
-		Patterns: len(sentences),
-		Causes:   causes,
-	}
 }
 
 func systemKV(d SnapshotData) string {
@@ -367,38 +291,6 @@ func plural(n int, singular, pluralForm string) string {
 		return fmt.Sprintf("%d %s", n, singular)
 	}
 	return fmt.Sprintf("%d %s", n, pluralForm)
-}
-
-func splitParagraphs(text string) []string {
-	var out []string
-	for _, p := range strings.Split(text, "\n\n") {
-		if strings.TrimSpace(p) != "" {
-			out = append(out, strings.TrimSpace(p))
-		}
-	}
-	return out
-}
-
-func splitSentences(text string) []string {
-	var out []string
-	for _, s := range regexp.MustCompile(`(?:[.!?])\s+`).Split(strings.TrimSpace(text), -1) {
-		if strings.TrimSpace(s) != "" {
-			out = append(out, strings.TrimSpace(s))
-		}
-	}
-	if len(out) == 0 && strings.TrimSpace(text) != "" {
-		out = append(out, strings.TrimSpace(text))
-	}
-	return out
-}
-
-func startsWithAny(s string, prefixes []string) bool {
-	for _, p := range prefixes {
-		if strings.HasPrefix(s, p) {
-			return true
-		}
-	}
-	return false
 }
 
 func orNone(s string) string {
