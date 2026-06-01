@@ -49,3 +49,31 @@ func TestLimitLinesKeepsEmptyInput(t *testing.T) {
 		t.Fatalf("limitLines() = %q, want empty string", got)
 	}
 }
+
+func TestFormatSnapshotLimitsTopProcesses(t *testing.T) {
+	lines := []string{
+		"line 1",
+		"line 2",
+		"line 3",
+		"line 4",
+		"line 5",
+		"line 6",
+		"line 7",
+		"line 8",
+		"line 9",
+		"line 10",
+		"line 11",
+	}
+
+	got := formatSnapshot(StatusInput{TopProcesses: strings.Join(lines, "\n")})
+
+	if !strings.Contains(got, "=== Top processes by CPU ===\nline 1") {
+		t.Fatalf("formatSnapshot() did not include top process section:\n%s", got)
+	}
+	if !strings.Contains(got, "line 10") {
+		t.Fatalf("formatSnapshot() = %q, want line 10 to be included", got)
+	}
+	if strings.Contains(got, "line 11") {
+		t.Fatalf("formatSnapshot() = %q, want line 11 to be omitted", got)
+	}
+}
