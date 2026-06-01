@@ -11,7 +11,8 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// this file contains logic for constructing the prompt for the "explain" command
+// template for prompt for explain command
+
 func Explain(input, cmd string, env collector.Environment) string {
 	var cmdContext string
 	if c := strings.TrimSpace(cmd); c != "" {
@@ -29,6 +30,11 @@ func Explain(input, cmd string, env collector.Environment) string {
 - State what is happening and why. Focus on root cause and system behaviour.
 - If a command is provided, use it to inform your understanding of the context.
 - Your explanation must be correct for the host environment described above (distribution, kernel, init system, security model). Do not guess based on a different distro.
+
+After your explanation, on a new line write exactly:
+---JSON---
+{"patterns": <count of distinct error patterns or issues you identified>, "causes": <count of distinct root causes you identified>}
+---END---
 %sInput:
 %s`, EnvironmentSection(env), cmdContext, input)
 }

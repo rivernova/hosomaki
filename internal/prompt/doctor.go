@@ -12,6 +12,8 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
+// template for prompt for doctor command
+
 type DoctorInput struct {
 	CollectedAt    time.Time
 	Environment    collector.Environment
@@ -56,6 +58,11 @@ If nothing is wrong, write a single short paragraph confirming the system is hea
 - If an action could cause data loss, downtime, or is otherwise risky, explicitly state that it is potentially disruptive before describing it.
 - Do not open with a preamble. Do not close with an offer to help further.
 - %s
+
+After your analysis, on a new line write exactly:
+---JSON---
+{"anomalies": <count of distinct issues you identified>, "actions": <count of distinct commands or actions you suggested>}
+---END---
 
 System snapshot:
 %s`, EnvironmentSection(d.Environment), style, formatDoctorSnapshot(d))

@@ -12,6 +12,8 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
+// template for prompt for status command
+
 const maxTopProcessLines = 10
 
 type StatusInput struct {
@@ -43,6 +45,11 @@ func Status(s StatusInput, brief bool) string {
 - Do not suggest fixes, commands to run, or remediation steps of any kind.
 - Do not open with a preamble. Do not close with an offer to help further.
 - %s
+
+After your analysis, on a new line write exactly:
+---JSON---
+{"failed_services": <count of failed services>, "warn_services": <count of services with warnings or errors>, "patterns_detected": <count of distinct issues or anomalies you observed>}
+---END---
 
 System snapshot:
 %s`, EnvironmentSection(s.Environment), style, formatSnapshot(s))
