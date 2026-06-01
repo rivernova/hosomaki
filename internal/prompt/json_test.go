@@ -12,8 +12,6 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// unit tests for prompt generation functions to ensure they include JSON sentinels and fiels
-
 func TestDoctorFullPromptContainsJSONSentinel(t *testing.T) {
 	p := Doctor(DoctorInput{CollectedAt: time.Now()}, false)
 	if !strings.Contains(p, "---JSON---") {
@@ -73,5 +71,25 @@ func TestStatusJSONSentinelAppearsAfterSnapshot(t *testing.T) {
 	snapshotIdx := strings.Index(p, "System snapshot:")
 	if jsonIdx < snapshotIdx {
 		t.Error("Status() ---JSON--- sentinel must appear after the system snapshot, not before")
+	}
+}
+
+func TestStatusFullPromptStyle(t *testing.T) {
+	p := Status(StatusInput{CollectedAt: time.Now()}, false)
+	if !strings.Contains(p, "five to eight sentences") {
+		t.Error("Status() full prompt should instruct five to eight sentences")
+	}
+	if !strings.Contains(p, "Do not suggest fixes") {
+		t.Error("Status() full prompt should forbid suggesting fixes")
+	}
+}
+
+func TestStatusBriefPromptStyle(t *testing.T) {
+	p := Status(StatusInput{CollectedAt: time.Now()}, true)
+	if !strings.Contains(p, "ONE sentence") {
+		t.Error("Status() brief prompt should instruct exactly one sentence")
+	}
+	if strings.Contains(p, "five to eight sentences") {
+		t.Error("Status() brief prompt should not contain full-mode instruction")
 	}
 }
