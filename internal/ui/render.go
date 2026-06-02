@@ -12,7 +12,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/prompt"
 )
 
-// functions to render the structured results from the prompt package
+// functions to render the JSON results from the prompt
 
 func ParseJSON(raw string, v interface{}) error {
 	if s, ok := extractJSONObject(raw); ok {
@@ -20,7 +20,6 @@ func ParseJSON(raw string, v interface{}) error {
 			return nil
 		}
 	}
-
 	s := strings.TrimSpace(raw)
 	s = strings.TrimPrefix(s, "```json")
 	s = strings.TrimPrefix(s, "```")
@@ -58,10 +57,12 @@ func ParseExplainJSON(raw string, result *prompt.ExplainResult) error {
 	}
 
 	whatAliases := []string{
-		"what",
+		"what", "what_is_happening", "whats_happening",
+		"analysis", "description", "event", "events", "error", "errors",
 	}
 	whyAliases := []string{
-		"why",
+		"why", "why_it_is_happening", "whys_happening",
+		"cause", "causes", "reason", "reasons", "explanation", "root_cause",
 	}
 	extractEntry := func(em map[string]json.RawMessage) prompt.ExplainEntry {
 		var e prompt.ExplainEntry
@@ -298,9 +299,9 @@ func renderIssues(issues []prompt.DoctorIssue, emptyMsg string) string {
 		}
 		switch iss.Severity {
 		case "failed":
-			b.WriteString(BulletFail(label))
+			b.WriteString(BulletTitleFail(label))
 		default:
-			b.WriteString(BulletWarn(label))
+			b.WriteString(BulletTitleWarn(label))
 		}
 		if detail != "" {
 			b.WriteString(indentProse(detail))
@@ -330,9 +331,9 @@ func renderAnomalies(anomalies []prompt.StatusAnomaly, emptyMsg string) string {
 		}
 		switch a.Severity {
 		case "failed":
-			b.WriteString(BulletFail(label))
+			b.WriteString(BulletTitleFail(label))
 		default:
-			b.WriteString(BulletWarn(label))
+			b.WriteString(BulletTitleWarn(label))
 		}
 		if detail != "" {
 			b.WriteString(indentProse(detail))
