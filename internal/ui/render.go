@@ -12,7 +12,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/prompt"
 )
 
-// rendering functions for the structured outputs from the prompt package
+// rendering functions. these take the structured results from the prompt package
 
 func ParseJSON(raw string, v interface{}) error {
 	if s, ok := extractJSONObject(raw); ok {
@@ -38,7 +38,7 @@ func ParseExplainJSON(raw string, result *prompt.ExplainResult) error {
 		return fmt.Errorf("could not parse model response as JSON object: %w", err)
 	}
 
-	coerce := func(msg json.RawMessage) string {
+	coerceString := func(msg json.RawMessage) string {
 		var s string
 		if err := json.Unmarshal(msg, &s); err == nil {
 			return strings.TrimSpace(s)
@@ -64,48 +64,71 @@ func ParseExplainJSON(raw string, result *prompt.ExplainResult) error {
 		"why", "why_it_is_happening", "whys_happening",
 		"cause", "causes", "reason", "reasons", "explanation", "root_cause",
 	}
-
-	for _, k := range whatAliases {
-		if msg, ok := m[k]; ok {
-			if v := coerce(msg); v != "" {
-				result.What = v
-				break
-			}
-		}
-	}
-	for _, k := range whyAliases {
-		if msg, ok := m[k]; ok {
-			if v := coerce(msg); v != "" {
-				result.Why = v
-				break
-			}
-		}
-	}
-
-	if result.What == "" || result.Why == "" {
-		keys := make([]string, 0, len(m))
-		for k := range m {
-			keys = append(keys, k)
-		}
-		sortStrings(keys)
-
-		var vals []string
-		for _, k := range keys {
-			if v := coerce(m[k]); v != "" {
-				vals = append(vals, v)
-				if len(vals) == 2 {
+	extractEntry := func(em map[string]json.RawMessage) prompt.ExplainEntry {
+		var e prompt.ExplainEntry
+		for _, k := range whatAliases {
+			if msg, ok := em[k]; ok {
+				if v := coerceString(msg); v != "" {
+					e.What = v
 					break
 				}
 			}
 		}
-		if result.What == "" && len(vals) > 0 {
-			result.What = vals[0]
+		for _, k := range whyAliases {
+			if msg, ok := em[k]; ok {
+				if v := coerceString(msg); v != "" {
+					e.Why = v
+					break
+				}
+			}
 		}
-		if result.Why == "" && len(vals) > 1 {
-			result.Why = vals[1]
+		if e.What == "" || e.Why == "" {
+			keys := make([]string, 0, len(em))
+			for k := range em {
+				keys = append(keys, k)
+			}
+			sortStrings(keys)
+			var vals []string
+			for _, k := range keys {
+				if v := coerceString(em[k]); v != "" {
+					vals = append(vals, v)
+					if len(vals) == 2 {
+						break
+					}
+				}
+			}
+			if e.What == "" && len(vals) > 0 {
+				e.What = vals[0]
+			}
+			if e.Why == "" && len(vals) > 1 {
+				e.Why = vals[1]
+			}
+		}
+		return e
+	}
+
+	if issuesRaw, ok := m["issues"]; ok {
+		var rawEntries []json.RawMessage
+		if err := json.Unmarshal(issuesRaw, &rawEntries); err == nil {
+			for _, entryRaw := range rawEntries {
+				var em map[string]json.RawMessage
+				if err := json.Unmarshal(entryRaw, &em); err != nil {
+					continue
+				}
+				if e := extractEntry(em); e.What != "" || e.Why != "" {
+					result.Issues = append(result.Issues, e)
+				}
+			}
+			if len(result.Issues) > 0 {
+				return nil
+			}
 		}
 	}
 
+	e := extractEntry(m)
+	if e.What != "" || e.Why != "" {
+		result.Issues = []prompt.ExplainEntry{e}
+	}
 	return nil
 }
 
@@ -158,11 +181,9 @@ func extractJSONObject(s string) (string, bool) {
 func RenderDoctor(result prompt.DoctorResult) string {
 	var b strings.Builder
 
-	// ── issues section ──────────────────────────────────────────────────────
 	issueBody := renderIssues(result.Issues, "no issues detected")
 	b.WriteString(Section("issues", issueBody))
 
-	// ── actions section ─────────────────────────────────────────────────────
 	actionBody := renderActions(result.Actions, "no actions required")
 	b.WriteString(Section("suggested actions", actionBody))
 
@@ -197,13 +218,11 @@ func RenderStatus(result prompt.StatusResult) string {
 		overview = "(no overview)"
 	}
 	b.WriteString(Section("system overview", overview))
-
 	anomalyBody := renderAnomalies(result.Anomalies, "no anomalies detected")
 	b.WriteString(Section("anomalies", anomalyBody))
 
 	return b.String()
 }
-
 func RenderStatusBrief(result prompt.StatusBriefResult) string {
 	summary := strings.TrimSpace(result.Summary)
 	if summary == "" {
@@ -211,7 +230,6 @@ func RenderStatusBrief(result prompt.StatusBriefResult) string {
 	}
 	return Section("summary", summary)
 }
-
 func RenderStatusSummary(result prompt.StatusResult) string {
 	var b strings.Builder
 	critical, warnings := 0, 0
@@ -226,22 +244,36 @@ func RenderStatusSummary(result prompt.StatusResult) string {
 	b.WriteString(SummaryLine(plural(warnings, "warning", "warnings")))
 	return SectionSummary(b.String())
 }
-
 func RenderExplain(result prompt.ExplainResult) string {
+	if len(result.Issues) == 0 {
+		return Section("what is happening", "(no information)") +
+			Section("why it is happening", "(no information)")
+	}
+
+	multi := len(result.Issues) > 1
 	var b strings.Builder
+	for i, entry := range result.Issues {
+		what := strings.TrimSpace(entry.What)
+		why := strings.TrimSpace(entry.Why)
+		if what == "" {
+			what = "(no information)"
+		}
+		if why == "" {
+			why = "(no information)"
+		}
 
-	what := strings.TrimSpace(result.What)
-	if what == "" {
-		what = "(no information)"
+		var whatTitle, whyTitle string
+		if multi {
+			whatTitle = fmt.Sprintf("issue %d — what is happening", i+1)
+			whyTitle = fmt.Sprintf("issue %d — why it is happening", i+1)
+		} else {
+			whatTitle = "what is happening"
+			whyTitle = "why it is happening"
+		}
+
+		b.WriteString(Section(whatTitle, what))
+		b.WriteString(Section(whyTitle, why))
 	}
-	b.WriteString(Section("what is happening", what))
-
-	why := strings.TrimSpace(result.Why)
-	if why == "" {
-		why = "(no information)"
-	}
-	b.WriteString(Section("why it is happening", why))
-
 	return b.String()
 }
 

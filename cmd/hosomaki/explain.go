@@ -131,7 +131,10 @@ func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
 	}
 
 	if debug {
-		fmt.Fprintf(os.Stderr, "parsed: what=%q why=%q\n", result.What, result.Why)
+		fmt.Fprintf(os.Stderr, "parsed: %d issue(s)\n", len(result.Issues))
+		for i, e := range result.Issues {
+			fmt.Fprintf(os.Stderr, "  [%d] what=%q why=%q\n", i+1, e.What, e.Why)
+		}
 	}
 
 	fmt.Print(ui.RenderExplain(result))

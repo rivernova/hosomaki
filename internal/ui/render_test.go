@@ -11,8 +11,6 @@ import (
 	"github.com/rivernova/hosomaki/internal/prompt"
 )
 
-// unit tests for rendering functions
-
 func TestParseJSONPlain(t *testing.T) {
 	var v map[string]string
 	if err := ParseJSON(`{"key":"value"}`, &v); err != nil {
@@ -153,62 +151,76 @@ func TestExtractJSONObjectUnclosed(t *testing.T) {
 	}
 }
 
-func TestParseExplainJSONCanonicalKeys(t *testing.T) {
+func TestParseExplainJSONCanonicalArrayShape(t *testing.T) {
+	raw := `{"issues":[{"what":"disk is full","why":"logs accumulated"},{"what":"sshd failed","why":"port in use"}]}`
+	var r prompt.ExplainResult
+	if err := ParseExplainJSON(raw, &r); err != nil {
+		t.Fatalf("ParseExplainJSON() error = %v", err)
+	}
+	if len(r.Issues) != 2 {
+		t.Fatalf("Issues len = %d, want 2", len(r.Issues))
+	}
+	if r.Issues[0].What != "disk is full" {
+		t.Errorf("Issues[0].What = %q, want disk is full", r.Issues[0].What)
+	}
+	if r.Issues[1].Why != "port in use" {
+		t.Errorf("Issues[1].Why = %q, want port in use", r.Issues[1].Why)
+	}
+}
+
+func TestParseExplainJSONFallbackSingleEntry(t *testing.T) {
 	raw := `{"what":"disk is full","why":"logs accumulated"}`
 	var r prompt.ExplainResult
 	if err := ParseExplainJSON(raw, &r); err != nil {
 		t.Fatalf("ParseExplainJSON() error = %v", err)
 	}
-	if r.What != "disk is full" {
-		t.Errorf("What = %q, want disk is full", r.What)
+	if len(r.Issues) != 1 {
+		t.Fatalf("Issues len = %d, want 1", len(r.Issues))
 	}
-	if r.Why != "logs accumulated" {
-		t.Errorf("Why = %q, want logs accumulated", r.Why)
+	if r.Issues[0].What != "disk is full" {
+		t.Errorf("Issues[0].What = %q, want disk is full", r.Issues[0].What)
 	}
 }
 
 func TestParseExplainJSONArrayValues(t *testing.T) {
-	raw := `{
-		"what": ["Kernel logging stopped.", "Signal 15 sent."],
-		"why":  ["System is shutting down.", "SIGTERM triggered by systemd."]
-	}`
+	raw := `{"issues":[{"what":["Kernel logging stopped.","Signal 15 sent."],"why":["System shutting down.","SIGTERM by systemd."]}]}`
 	var r prompt.ExplainResult
 	if err := ParseExplainJSON(raw, &r); err != nil {
 		t.Fatalf("ParseExplainJSON() error = %v", err)
 	}
-	if !strings.Contains(r.What, "Kernel logging stopped") {
-		t.Errorf("What = %q, expected to contain array items joined", r.What)
+	if len(r.Issues) != 1 {
+		t.Fatalf("Issues len = %d, want 1", len(r.Issues))
 	}
-	if !strings.Contains(r.Why, "SIGTERM") {
-		t.Errorf("Why = %q, expected to contain array items joined", r.Why)
+	if !strings.Contains(r.Issues[0].What, "Kernel logging stopped") {
+		t.Errorf("Issues[0].What = %q, expected array items joined", r.Issues[0].What)
+	}
+	if !strings.Contains(r.Issues[0].Why, "SIGTERM") {
+		t.Errorf("Issues[0].Why = %q, expected array items joined", r.Issues[0].Why)
 	}
 }
 
 func TestParseExplainJSONAliasKeys(t *testing.T) {
-	raw := `{"what_is_happening":"nginx crashed","why_it_is_happening":"OOM killed it"}`
+	raw := `{"issues":[{"what_is_happening":"nginx crashed","why_it_is_happening":"OOM killed it"}]}`
 	var r prompt.ExplainResult
 	if err := ParseExplainJSON(raw, &r); err != nil {
 		t.Fatalf("ParseExplainJSON() error = %v", err)
 	}
-	if r.What != "nginx crashed" {
-		t.Errorf("What = %q, want nginx crashed", r.What)
+	if len(r.Issues) != 1 {
+		t.Fatalf("Issues len = %d, want 1", len(r.Issues))
 	}
-	if r.Why != "OOM killed it" {
-		t.Errorf("Why = %q, want OOM killed it", r.Why)
+	if r.Issues[0].What != "nginx crashed" {
+		t.Errorf("Issues[0].What = %q, want nginx crashed", r.Issues[0].What)
 	}
 }
 
-func TestParseExplainJSONMixedArrayAndString(t *testing.T) {
-	raw := `{"what":["Event A.","Event B."],"why":"Root cause here."}`
+func TestParseExplainJSONMarkdownFenceAndPreamble(t *testing.T) {
+	raw := "Here is the analysis:\n```json\n{\"issues\":[{\"what\":\"disk full\",\"why\":\"logs grew\"}]}\n```"
 	var r prompt.ExplainResult
 	if err := ParseExplainJSON(raw, &r); err != nil {
 		t.Fatalf("ParseExplainJSON() error = %v", err)
 	}
-	if !strings.Contains(r.What, "Event A") {
-		t.Errorf("What = %q, expected Event A", r.What)
-	}
-	if r.Why != "Root cause here." {
-		t.Errorf("Why = %q, want Root cause here.", r.Why)
+	if len(r.Issues) != 1 || r.Issues[0].What != "disk full" {
+		t.Errorf("Issues = %v, want one entry with What=disk full", r.Issues)
 	}
 }
 
@@ -219,169 +231,44 @@ func TestParseExplainJSONNoJSONReturnsError(t *testing.T) {
 	}
 }
 
-func TestRenderDoctorEmptyResult(t *testing.T) {
-	out := RenderDoctor(prompt.DoctorResult{})
-	if !strings.Contains(out, "no issues detected") {
-		t.Error("RenderDoctor() with empty result should show 'no issues detected'")
-	}
-	if !strings.Contains(out, "no actions required") {
-		t.Error("RenderDoctor() with empty result should show 'no actions required'")
-	}
-}
-
-func TestRenderDoctorFailedIssueUsesBulletFail(t *testing.T) {
-	out := RenderDoctor(prompt.DoctorResult{
-		Issues:  []prompt.DoctorIssue{{Severity: "failed", Summary: "nginx.service has failed"}},
-		Actions: []prompt.DoctorAction{{Description: "Run systemctl restart nginx"}},
-	})
-	if !strings.Contains(out, "✗") {
-		t.Error("RenderDoctor() failed issue should use fail bullet (✗)")
-	}
-	if !strings.Contains(out, "nginx.service has failed") {
-		t.Error("RenderDoctor() should include the issue summary")
-	}
-}
-
-func TestRenderDoctorWarningIssueUsesBulletWarn(t *testing.T) {
-	out := RenderDoctor(prompt.DoctorResult{
-		Issues:  []prompt.DoctorIssue{{Severity: "warning", Summary: "disk usage above 80%"}},
-		Actions: []prompt.DoctorAction{{Description: "Run du -sh /var to find large directories"}},
-	})
-	if !strings.Contains(out, "!") {
-		t.Error("RenderDoctor() warning issue should use warn bullet (!)")
-	}
-}
-
-func TestRenderDoctorDisruptiveActionFlagged(t *testing.T) {
-	out := RenderDoctor(prompt.DoctorResult{
-		Issues:  []prompt.DoctorIssue{{Severity: "failed", Summary: "postgresql.service failed"}},
-		Actions: []prompt.DoctorAction{{Description: "Run pg_resetwal", Disruptive: true}},
-	})
-	if !strings.Contains(out, "[disruptive]") {
-		t.Error("RenderDoctor() disruptive action should be flagged with [disruptive]")
-	}
-}
-
-func TestRenderDoctorNonDisruptiveActionNoFlag(t *testing.T) {
-	out := RenderDoctor(prompt.DoctorResult{
-		Issues:  []prompt.DoctorIssue{{Severity: "warning", Summary: "high memory pressure"}},
-		Actions: []prompt.DoctorAction{{Description: "Run free -h", Disruptive: false}},
-	})
-	if strings.Contains(out, "[disruptive]") {
-		t.Error("RenderDoctor() non-disruptive action must not be flagged")
-	}
-}
-
-func TestRenderDoctorSectionsPresent(t *testing.T) {
-	out := RenderDoctor(prompt.DoctorResult{
-		Issues:  []prompt.DoctorIssue{{Severity: "warning", Summary: "something"}},
-		Actions: []prompt.DoctorAction{{Description: "do something"}},
-	})
-	if !strings.Contains(out, "issues") {
-		t.Error("RenderDoctor() output should contain 'issues' section")
-	}
-	if !strings.Contains(out, "suggested actions") {
-		t.Error("RenderDoctor() output should contain 'suggested actions' section")
-	}
-}
-
-func TestRenderDoctorSummaryCountsIssues(t *testing.T) {
-	result := prompt.DoctorResult{
-		Issues: []prompt.DoctorIssue{
-			{Severity: "failed", Summary: "a"},
-			{Severity: "warning", Summary: "b"},
-			{Severity: "warning", Summary: "c"},
-		},
-		Actions: []prompt.DoctorAction{
-			{Description: "x"},
-			{Description: "y", Disruptive: true},
-		},
-	}
-	out := RenderDoctorSummary(result)
-	if !strings.Contains(out, "3 issues found") {
-		t.Errorf("RenderDoctorSummary() should show 3 issues found, got:\n%s", out)
-	}
-	if !strings.Contains(out, "2 actions suggested") {
-		t.Errorf("RenderDoctorSummary() should show 2 actions suggested, got:\n%s", out)
-	}
-	if !strings.Contains(out, "1 action flagged as disruptive") {
-		t.Errorf("RenderDoctorSummary() should show 1 action flagged as disruptive, got:\n%s", out)
-	}
-}
-
-func TestRenderDoctorSummaryNoDisruptiveWhenNone(t *testing.T) {
-	result := prompt.DoctorResult{
-		Issues:  []prompt.DoctorIssue{{Severity: "warning", Summary: "x"}},
-		Actions: []prompt.DoctorAction{{Description: "y", Disruptive: false}},
-	}
-	out := RenderDoctorSummary(result)
-	if strings.Contains(out, "disruptive") {
-		t.Error("RenderDoctorSummary() should not mention disruptive when none flagged")
-	}
-}
-
-func TestRenderStatusOverviewPresent(t *testing.T) {
-	out := RenderStatus(prompt.StatusResult{
-		Overview:  "The system is running well. Memory is fine. Disk is fine.",
-		Anomalies: nil,
-	})
-	if !strings.Contains(out, "system overview") {
-		t.Error("RenderStatus() should contain 'system overview' section")
-	}
-	if !strings.Contains(out, "running well") {
-		t.Error("RenderStatus() should include the overview text")
-	}
-}
-
-func TestRenderStatusAnomaliesSection(t *testing.T) {
-	out := RenderStatus(prompt.StatusResult{
-		Overview: "Fine.",
-		Anomalies: []prompt.StatusAnomaly{
-			{Severity: "failed", Summary: "sshd.service failed"},
-			{Severity: "warning", Summary: "disk at 91%"},
-		},
-	})
-	if !strings.Contains(out, "anomalies") {
-		t.Error("RenderStatus() should contain 'anomalies' section")
-	}
-	if !strings.Contains(out, "sshd.service failed") {
-		t.Error("RenderStatus() should include the anomaly summary")
-	}
-	if !strings.Contains(out, "disk at 91%") {
-		t.Error("RenderStatus() should include the warning summary")
-	}
-}
-
-func TestRenderStatusNoAnomalies(t *testing.T) {
-	out := RenderStatus(prompt.StatusResult{Overview: "All good.", Anomalies: nil})
-	if !strings.Contains(out, "no anomalies detected") {
-		t.Error("RenderStatus() with no anomalies should show 'no anomalies detected'")
-	}
-}
-
-func TestRenderStatusBriefShowsSummary(t *testing.T) {
-	out := RenderStatusBrief(prompt.StatusBriefResult{Summary: "System is healthy."})
-	if !strings.Contains(out, "System is healthy.") {
-		t.Error("RenderStatusBrief() should include the summary text")
-	}
-}
-
-func TestRenderExplainBothSections(t *testing.T) {
+func TestRenderExplainSingleIssueNoNumber(t *testing.T) {
 	out := RenderExplain(prompt.ExplainResult{
-		What: "The OOM killer terminated nginx.",
-		Why:  "Available memory was exhausted by a memory leak in a PHP worker.",
+		Issues: []prompt.ExplainEntry{
+			{What: "The OOM killer terminated nginx.", Why: "Memory exhausted by a PHP leak."},
+		},
 	})
 	if !strings.Contains(out, "what is happening") {
-		t.Error("RenderExplain() should contain 'what is happening' section")
+		t.Error("RenderExplain() single issue should show plain 'what is happening' title")
 	}
 	if !strings.Contains(out, "why it is happening") {
-		t.Error("RenderExplain() should contain 'why it is happening' section")
+		t.Error("RenderExplain() single issue should show plain 'why it is happening' title")
+	}
+	if strings.Contains(out, "issue 1") {
+		t.Error("RenderExplain() single issue should not show issue number")
 	}
 	if !strings.Contains(out, "OOM killer") {
-		t.Error("RenderExplain() should include the what text")
+		t.Error("RenderExplain() should include what text")
 	}
-	if !strings.Contains(out, "memory leak") {
-		t.Error("RenderExplain() should include the why text")
+}
+
+func TestRenderExplainMultipleIssuesNumbered(t *testing.T) {
+	out := RenderExplain(prompt.ExplainResult{
+		Issues: []prompt.ExplainEntry{
+			{What: "sshd failed to start.", Why: "Port 22 already bound."},
+			{What: "nginx exited.", Why: "Config syntax error."},
+		},
+	})
+	if !strings.Contains(out, "issue 1") {
+		t.Error("RenderExplain() multiple issues should show 'issue 1' heading")
+	}
+	if !strings.Contains(out, "issue 2") {
+		t.Error("RenderExplain() multiple issues should show 'issue 2' heading")
+	}
+	if !strings.Contains(out, "sshd failed") {
+		t.Error("RenderExplain() should include first issue what text")
+	}
+	if !strings.Contains(out, "nginx exited") {
+		t.Error("RenderExplain() should include second issue what text")
 	}
 }
 

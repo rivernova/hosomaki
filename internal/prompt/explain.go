@@ -11,11 +11,13 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// template for prompt for explain command
-
-type ExplainResult struct {
+// template for the prompt for the "explain" command
+type ExplainEntry struct {
 	What string `json:"what"`
 	Why  string `json:"why"`
+}
+type ExplainResult struct {
+	Issues []ExplainEntry `json:"issues"`
 }
 
 func Explain(input, cmd string, env collector.Environment) string {
@@ -30,13 +32,17 @@ func Explain(input, cmd string, env collector.Environment) string {
 TASK
 Analyse the input below. Respond with ONLY a JSON object — no other text, no markdown, no explanation.
 
-The JSON object must have exactly these two keys, both with string values:
-{"what":"<prose string>","why":"<prose string>"}
+Identify every distinct error pattern or issue in the input. Return one entry per issue.
 
-"what": one continuous prose string describing every distinct error or event in the input.
-"why": one continuous prose string explaining every root cause. Do not suggest fixes.
+The JSON must follow this exact structure:
+{"issues":[{"what":"<string>","why":"<string>"},{"what":"<string>","why":"<string>"}]}
 
-Both values must be plain strings, not arrays.
+Rules for each entry:
+- "what": a prose string describing this specific error or event. Be precise and reference the actual log lines.
+- "why": a prose string explaining the root cause of this specific issue. Do not suggest fixes.
+- Both values must be plain strings, not arrays or nested objects.
+- If there is only one issue, the array has one entry.
+- Group related log lines into a single entry. Do not create one entry per log line.
 %s
 Input:
 %s`, EnvironmentSection(env), cmdContext, input)
