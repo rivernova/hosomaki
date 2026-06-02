@@ -66,11 +66,9 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 			}, brief)
 
 			if brief {
-				printDoctorBrief(data, p)
-			} else {
-				printDoctorFull(data, p)
+				return runDoctorBrief(data, p)
 			}
-			return nil
+			return runDoctorFull(data, p)
 		},
 	}
 
@@ -78,48 +76,52 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 	return cmd
 }
 
-func printDoctorFull(data ui.SnapshotData, p string) {
+func runDoctorFull(data ui.SnapshotData, p string) error {
 	fmt.Print(ui.DoctorHeader())
 	fmt.Print(ui.DoctorSystemSection(data))
 	fmt.Print(ui.DoctorInsightsSection(data))
-	fmt.Print(ui.DoctorAIHeader())
 
-	sw := ui.NewSentinelWriter(os.Stdout)
 	spin := spinner.Start("diagnosing…")
-	_, err := provider.GenerateStream(context.Background(), p,
-		func() { spin.Stop() },
-		sw,
-	)
-	sw.Flush()
+	raw, err := provider.GenerateJSON(context.Background(), p, spin.Stop)
+	spin.Stop()
 	if err != nil {
-		spin.Stop()
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return
+		return err
 	}
-	fmt.Println()
 
-	fmt.Print(ui.DoctorSummary(ui.ParseDoctorCounts(sw)))
+	var result prompt.DoctorResult
+	if parseErr := ui.ParseJSON(raw, &result); parseErr != nil {
+		fmt.Fprintf(os.Stderr, "error: could not parse AI response: %v\n", parseErr)
+		fmt.Fprintf(os.Stderr, "raw response:\n%s\n", raw)
+		return parseErr
+	}
+
+	fmt.Print(ui.RenderDoctor(result))
+	fmt.Print(ui.RenderDoctorSummary(result))
+	return nil
 }
 
-func printDoctorBrief(data ui.SnapshotData, p string) {
+func runDoctorBrief(data ui.SnapshotData, p string) error {
 	fmt.Print(ui.DoctorHeaderBrief())
 	fmt.Print(ui.DoctorSystemSectionBrief(data))
 	fmt.Print(ui.DoctorInsightsSectionBrief(data))
-	fmt.Print(ui.DoctorAIHeaderBrief())
 
-	sw := ui.NewSentinelWriter(os.Stdout)
 	spin := spinner.Start("diagnosing…")
-	_, err := provider.GenerateStream(context.Background(), p,
-		func() { spin.Stop() },
-		sw,
-	)
-	sw.Flush()
+	raw, err := provider.GenerateJSON(context.Background(), p, spin.Stop)
+	spin.Stop()
 	if err != nil {
-		spin.Stop()
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return
+		return err
 	}
-	fmt.Println()
 
-	fmt.Print(ui.DoctorSummaryBrief(ui.ParseDoctorCounts(sw)))
+	var result prompt.DoctorBriefResult
+	if parseErr := ui.ParseJSON(raw, &result); parseErr != nil {
+		fmt.Fprintf(os.Stderr, "error: could not parse AI response: %v\n", parseErr)
+		fmt.Fprintf(os.Stderr, "raw response:\n%s\n", raw)
+		return parseErr
+	}
+
+	fmt.Print(ui.RenderDoctorBrief(result))
+	fmt.Print(ui.RenderDoctorSummary(result))
+	return nil
 }

@@ -13,7 +13,6 @@ import (
 )
 
 // template for prompt for doctor command
-
 type DoctorInput struct {
 	CollectedAt    time.Time
 	Environment    collector.Environment
@@ -25,50 +24,65 @@ type DoctorInput struct {
 	TopProcesses   string
 }
 
+type DoctorIssue struct {
+	Severity string `json:"severity"`
+	Summary  string `json:"summary"`
+}
+
+type DoctorAction struct {
+	Description string `json:"description"`
+	Disruptive  bool   `json:"disruptive"`
+}
+
+type DoctorResult struct {
+	Issues  []DoctorIssue  `json:"issues"`
+	Actions []DoctorAction `json:"actions"`
+}
+
+type DoctorBriefResult = DoctorResult
+
 func Doctor(d DoctorInput, brief bool) string {
-	var style string
+	var volumeInstr string
 	if brief {
-		style = `OUTPUT FORMAT — follow this exactly, no exceptions:
-- Write one sentence per detected issue. Maximum 5 sentences total. Stop after the 5th sentence no matter what.
-- Each sentence must name the issue and the single most important fix. Hard limit: 20 words per sentence.
-- No introduction. No explanation. No preamble. No closing remarks. No blank lines. Only the sentences, one per line.
-- If nothing is wrong, write exactly: "System is healthy."`
+		volumeInstr = `Include only the most critical issues and their matching actions. Maximum 3 issues and 3 actions. If the system is healthy, return empty arrays.`
 	} else {
-		style = `Write a structured plain-prose diagnosis.
-
-For each issue you detect, write a short paragraph that covers three things in order:
-1. What is wrong and what the likely cause is.
-2. The concrete action or actions the user should take to fix or investigate it (for example: a command to run, a file to inspect, a configuration value to change).
-3. If any suggested action is potentially disruptive or irreversible, say so explicitly.
-
-Separate each issue paragraph with a blank line.
-If multiple issues are related or share a root cause, group them in the same paragraph.
-After all issues, write a final short paragraph summarising the overall health of the system.
-If nothing is wrong, write a single short paragraph confirming the system is healthy and why you think so.`
+		volumeInstr = `Include every distinct issue you find. There is no maximum. If the system is healthy, return empty arrays.`
 	}
 
 	return fmt.Sprintf(`You are a Linux system expert performing a full diagnostic of a live system.
 
-%sRULES — follow every one without exception:
-- Plain prose only. No markdown. No bullet points. No numbered lists. No headers. No bold. No italics.
-- Unlike a status report, you MUST suggest concrete next steps for every problem you find.
-- Suggested actions must be specific: name the exact command to run, the file to edit, or the configuration key to change.
-- Every command you suggest MUST be correct for the host environment described above (distribution, package manager, init system).
-- If SELinux is enforcing or AppArmor is enabled on the host, factor that in when explaining permission-related errors.
-- If an action could cause data loss, downtime, or is otherwise risky, explicitly state that it is potentially disruptive before describing it.
-- Do not open with a preamble. Do not close with an offer to help further.
+%s
+TASK
+Analyse the system snapshot below and return a JSON object — and nothing else.
+No prose, no explanation, no markdown fences, no commentary. Pure JSON only.
+
+JSON SCHEMA (you must follow this exactly):
+{
+  "issues": [
+    {
+      "severity": "<string: must be exactly 'failed' or 'warning'>",
+      "summary":  "<string: one short line naming the problem, e.g. 'nginx.service has failed'>"
+    }
+  ],
+  "actions": [
+    {
+      "description": "<string: one actionable sentence; name the exact command to run or file to inspect>",
+      "disruptive":  <boolean: true if this action could cause downtime, data loss, or is otherwise risky>
+    }
+  ]
+}
+
+RULES
+- Return valid JSON and nothing else. Do not wrap it in backticks or add any text outside the JSON.
+- issues[i] and actions[i] must correspond: issue 0 is addressed by action 0, and so on.
+- If there are no issues return {"issues":[],"actions":[]}.
+- severity must be exactly the string "failed" (service is down / critical error) or "warning" (degraded / non-critical).
+- Every command in an action must be correct for the host environment described above.
+- If an action could cause downtime or data loss, set disruptive to true.
 - %s
 
 System snapshot:
-%s
-REQUIRED — you MUST include this block at the very end of your response, after all prose, no exceptions:
----JSON---
-{"anomalies": <integer: number of distinct issues you identified>, "actions": <integer: number of distinct commands or actions you suggested>}
----END---
-Example of a valid block: ---JSON---
-{"anomalies": 3, "actions": 5}
----END---
-Do not skip this block. Do not add any text after ---END---.`, EnvironmentSection(d.Environment), style, formatDoctorSnapshot(d))
+%s`, EnvironmentSection(d.Environment), volumeInstr, formatDoctorSnapshot(d))
 }
 
 func formatDoctorSnapshot(d DoctorInput) string {

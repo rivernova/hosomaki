@@ -27,35 +27,68 @@ type StatusInput struct {
 	TopProcesses   string
 }
 
+type StatusAnomaly struct {
+	Severity string `json:"severity"`
+	Summary  string `json:"summary"`
+}
+type StatusResult struct {
+	Overview  string          `json:"overview"`
+	Anomalies []StatusAnomaly `json:"anomalies"`
+}
+
+type StatusBriefResult struct {
+	Summary string `json:"summary"`
+}
+
 func Status(s StatusInput, brief bool) string {
-	var style string
 	if brief {
-		style = `OUTPUT FORMAT — follow this exactly, no exceptions:
-- Output exactly ONE sentence. Hard limit: 30 words.
-- State overall health and name the single most critical issue if any exists.
-- NOTHING else. No introduction. No elaboration. No second sentence. Stop immediately after the period.`
-	} else {
-		style = "Write a paragraph of five to eight sentences summarising the overall health of this system. Cover uptime, memory, disk, failed services, and recent errors. Call out any anomalies or points of concern."
+		return fmt.Sprintf(`You are a Linux system expert reading a live system snapshot.
+
+%s
+TASK
+Analyse the system snapshot below and return a JSON object — and nothing else.
+No prose, no explanation, no markdown fences, no commentary. Pure JSON only.
+
+JSON SCHEMA:
+{
+  "summary": "<string: exactly one sentence, maximum 30 words, stating overall health and the most critical issue if any>"
+}
+
+RULES
+- Return valid JSON and nothing else.
+- summary must be a single sentence of at most 30 words.
+
+System snapshot:
+%s`, EnvironmentSection(s.Environment), formatSnapshot(s))
 	}
 
 	return fmt.Sprintf(`You are a Linux system expert reading a live system snapshot.
 
-%sRULES — follow every one without exception:
-- Plain prose only. No markdown. No bullet points. No numbered lists. No headers. No bold. No italics.
-- Do not suggest fixes, commands to run, or remediation steps of any kind.
-- Do not open with a preamble. Do not close with an offer to help further.
-- %s
+%s
+TASK
+Analyse the system snapshot below and return a JSON object — and nothing else.
+No prose, no explanation, no markdown fences, no commentary. Pure JSON only.
+
+JSON SCHEMA:
+{
+  "overview":  "<string: 2–4 sentence prose paragraph covering uptime, memory, and disk health; must not mention any problems or anomalies>",
+  "anomalies": [
+    {
+      "severity": "<string: must be exactly 'failed' or 'warning'>",
+      "summary":  "<string: one short line describing the anomaly>"
+    }
+  ]
+}
+
+RULES
+- Return valid JSON and nothing else. Do not wrap it in backticks or add any text outside the JSON.
+- overview must describe uptime, memory, and disk only. Never mention problems in overview.
+- anomalies lists every issue found: failed services, high memory/disk usage, concerning error patterns.
+- If no anomalies exist, return an empty array: "anomalies": [].
+- severity must be exactly "failed" (service is down / critical) or "warning" (degraded / non-critical).
 
 System snapshot:
-%s
-REQUIRED — you MUST include this block at the very end of your response, after all prose, no exceptions:
----JSON---
-{"failed_services": <integer: count of failed services>, "warn_services": <integer: count of services with warnings or errors>, "patterns_detected": <integer: count of distinct issues or anomalies you observed>}
----END---
-Example of a valid block: ---JSON---
-{"failed_services": 0, "warn_services": 1, "patterns_detected": 3}
----END---
-Do not skip this block. Do not add any text after ---END---.`, EnvironmentSection(s.Environment), style, formatSnapshot(s))
+%s`, EnvironmentSection(s.Environment), formatSnapshot(s))
 }
 
 func formatSnapshot(s StatusInput) string {

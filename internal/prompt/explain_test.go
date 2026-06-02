@@ -11,6 +11,8 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
+// unit test for explain
+
 func TestExplainWithoutCmd(t *testing.T) {
 	p := Explain("some error output", "", collector.Environment{})
 	if strings.Contains(p, "produced by running") {
@@ -49,19 +51,40 @@ func TestExplainIncludesEnvironmentContext(t *testing.T) {
 		InitSystem:       "systemd",
 	}
 	p := Explain("some error", "", env)
-
 	for _, want := range []string{"Fedora Linux 40", "dnf", "systemd"} {
 		if !strings.Contains(p, want) {
-			t.Errorf("Explain() should include environment field %q, got prompt:\n%s", want, p)
+			t.Errorf("Explain() should include environment field %q", want)
 		}
 	}
 }
 
 func TestExplainInstructsModelToUseEnvironment(t *testing.T) {
 	p := Explain("some error", "", collector.Environment{DistroID: "arch"})
-	// The explain prompt must reference the host environment when
-	// instructing the model — otherwise the section is decorative.
 	if !strings.Contains(p, "host environment") {
 		t.Error("Explain() should instruct the model to use the host environment")
+	}
+}
+
+func TestExplainPromptRequestsJSON(t *testing.T) {
+	p := Explain("some error", "", collector.Environment{})
+	if !strings.Contains(p, `"what"`) {
+		t.Error("Explain() prompt must reference the 'what' JSON field")
+	}
+	if !strings.Contains(p, `"why"`) {
+		t.Error("Explain() prompt must reference the 'why' JSON field")
+	}
+}
+
+func TestExplainPromptPureJSONInstruction(t *testing.T) {
+	p := Explain("some error", "", collector.Environment{})
+	if !strings.Contains(p, "Pure JSON only") {
+		t.Error("Explain() prompt must instruct the model to return pure JSON")
+	}
+}
+
+func TestExplainPromptNoFixSuggestions(t *testing.T) {
+	p := Explain("some error", "", collector.Environment{})
+	if !strings.Contains(p, "Do not suggest fixes") {
+		t.Error("Explain() prompt must forbid fix suggestions")
 	}
 }

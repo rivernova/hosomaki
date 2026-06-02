@@ -27,7 +27,7 @@ func newStatusCmd() *cobra.Command {
 		Long: `Collects a snapshot of the system (uptime, memory, disk, failed services,
 recent errors) and asks the AI to summarise what's going on.
 
-  hosomaki status           # paragraph summary
+  hosomaki status           # paragraph summary with anomaly list
   hosomaki status --brief   # single sentence`,
 
 		Args: cobra.NoArgs,
@@ -59,11 +59,9 @@ recent errors) and asks the AI to summarise what's going on.
 			}, brief)
 
 			if brief {
-				printStatusBrief(data, p)
-			} else {
-				printStatusFull(data, p)
+				return runStatusBrief(data, p)
 			}
-			return nil
+			return runStatusFull(data, p)
 		},
 	}
 
@@ -71,48 +69,51 @@ recent errors) and asks the AI to summarise what's going on.
 	return cmd
 }
 
-func printStatusFull(data ui.SnapshotData, p string) {
+func runStatusFull(data ui.SnapshotData, p string) error {
 	fmt.Print(ui.StatusHeader())
 	fmt.Print(ui.StatusSystemSection(data))
 	fmt.Print(ui.StatusInsightsSection(data))
-	fmt.Print(ui.StatusAIHeader())
 
-	sw := ui.NewSentinelWriter(os.Stdout)
 	spin := spinner.Start("thinking…")
-	_, err := provider.GenerateStream(context.Background(), p,
-		func() { spin.Stop() },
-		sw,
-	)
-	sw.Flush()
+	raw, err := provider.GenerateJSON(context.Background(), p, spin.Stop)
+	spin.Stop()
 	if err != nil {
-		spin.Stop()
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return
+		return err
 	}
-	fmt.Println()
 
-	fmt.Print(ui.StatusSummary(data, ui.ParseStatusCounts(sw)))
+	var result prompt.StatusResult
+	if parseErr := ui.ParseJSON(raw, &result); parseErr != nil {
+		fmt.Fprintf(os.Stderr, "error: could not parse AI response: %v\n", parseErr)
+		fmt.Fprintf(os.Stderr, "raw response:\n%s\n", raw)
+		return parseErr
+	}
+
+	fmt.Print(ui.RenderStatus(result))
+	fmt.Print(ui.RenderStatusSummary(result))
+	return nil
 }
 
-func printStatusBrief(data ui.SnapshotData, p string) {
+func runStatusBrief(data ui.SnapshotData, p string) error {
 	fmt.Print(ui.StatusHeaderBrief())
 	fmt.Print(ui.StatusSystemSectionBrief(data))
 	fmt.Print(ui.StatusInsightsSectionBrief(data))
-	fmt.Print(ui.StatusAIHeaderBrief())
 
-	sw := ui.NewSentinelWriter(os.Stdout)
 	spin := spinner.Start("thinking…")
-	_, err := provider.GenerateStream(context.Background(), p,
-		func() { spin.Stop() },
-		sw,
-	)
-	sw.Flush()
+	raw, err := provider.GenerateJSON(context.Background(), p, spin.Stop)
+	spin.Stop()
 	if err != nil {
-		spin.Stop()
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return
+		return err
 	}
-	fmt.Println()
 
-	fmt.Print(ui.StatusSummaryBrief(data, ui.ParseStatusCounts(sw)))
+	var result prompt.StatusBriefResult
+	if parseErr := ui.ParseJSON(raw, &result); parseErr != nil {
+		fmt.Fprintf(os.Stderr, "error: could not parse AI response: %v\n", parseErr)
+		fmt.Fprintf(os.Stderr, "raw response:\n%s\n", raw)
+		return parseErr
+	}
+
+	fmt.Print(ui.RenderStatusBrief(result))
+	return nil
 }

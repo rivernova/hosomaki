@@ -13,6 +13,11 @@ import (
 
 // template for prompt for explain command
 
+type ExplainResult struct {
+	What string `json:"what"`
+	Why  string `json:"why"`
+}
+
 func Explain(input, cmd string, env collector.Environment) string {
 	var cmdContext string
 	if c := strings.TrimSpace(cmd); c != "" {
@@ -21,24 +26,18 @@ func Explain(input, cmd string, env collector.Environment) string {
 
 	return fmt.Sprintf(`You are a Linux system expert. You will be given log output or an error message.
 
-%sRULES — follow every one without exception:
-- Plain prose only. No markdown. No bullet points. No numbered lists. No headers. No bold. No italics.
-- Do not suggest fixes, solutions, commands to run, or next steps of any kind.
-- Do not open with a preamble. Do not close with a summary or offer further help.
-- Write between two and four sentences. Never exceed five sentences under any circumstances.
-- If multiple distinct errors are present, address each one within the same paragraph.
-- State what is happening and why. Focus on root cause and system behaviour.
-- If a command is provided, use it to inform your understanding of the context.
-- Your explanation must be correct for the host environment described above (distribution, kernel, init system, security model). Do not guess based on a different distro.
-%sInput:
 %s
+TASK
+Analyse the input below. Respond with ONLY a JSON object — no other text, no markdown, no explanation.
 
-REQUIRED — you MUST include this block at the very end of your response, after all prose, no exceptions:
----JSON---
-{"patterns": <integer: count of distinct error patterns or issues you identified>, "causes": <integer: count of distinct root causes you identified>}
----END---
-Example of a valid block: ---JSON---
-{"patterns": 2, "causes": 1}
----END---
-Do not skip this block. Do not add any text after ---END---.`, EnvironmentSection(env), cmdContext, input)
+The JSON object must have exactly these two keys, both with string values:
+{"what":"<prose string>","why":"<prose string>"}
+
+"what": one continuous prose string describing every distinct error or event in the input.
+"why": one continuous prose string explaining every root cause. Do not suggest fixes.
+
+Both values must be plain strings, not arrays.
+%s
+Input:
+%s`, EnvironmentSection(env), cmdContext, input)
 }

@@ -1,20 +1,21 @@
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
 package spinner
 
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 )
+
+const spinnerColor = "\x1b[38;5;151m"
+const resetColor = "\x1b[0m"
 
 var frames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 type Spinner struct {
 	stop chan struct{}
 	done chan struct{}
+	once sync.Once
 }
 
 func Start(label string) *Spinner {
@@ -28,10 +29,17 @@ func Start(label string) *Spinner {
 		for {
 			select {
 			case <-s.stop:
-				fmt.Fprintf(os.Stderr, "\r\033[K") // clear the line
+				fmt.Fprintf(os.Stderr, "\r\033[K")
 				return
 			default:
-				fmt.Fprintf(os.Stderr, "\r%s %s", frames[i%len(frames)], label)
+				fmt.Fprintf(
+					os.Stderr,
+					"\r%s%s%s %s",
+					spinnerColor,
+					frames[i%len(frames)],
+					resetColor,
+					label,
+				)
 				i++
 				time.Sleep(80 * time.Millisecond)
 			}
@@ -41,6 +49,8 @@ func Start(label string) *Spinner {
 }
 
 func (s *Spinner) Stop() {
-	close(s.stop)
-	<-s.done
+	s.once.Do(func() {
+		close(s.stop)
+		<-s.done
+	})
 }

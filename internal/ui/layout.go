@@ -286,13 +286,6 @@ func explainBullets(c ExplainContext) string {
 	return b.String()
 }
 
-func plural(n int, singular, pluralForm string) string {
-	if n == 1 {
-		return fmt.Sprintf("%d %s", n, singular)
-	}
-	return fmt.Sprintf("%d %s", n, pluralForm)
-}
-
 func orNone(s string) string {
 	if strings.TrimSpace(s) == "" {
 		return "(none)"
