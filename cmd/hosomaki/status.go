@@ -86,7 +86,6 @@ func runStatusFull(data ui.SnapshotData, p string) error {
 	sc := stream.NewArrayItemScanner(func(key, raw string) {
 		switch key {
 		case "overview":
-			// raw is a quoted JSON string — decode it.
 			var overview string
 			if err := json.Unmarshal([]byte(raw), &overview); err != nil {
 				return
@@ -134,6 +133,7 @@ func runStatusFull(data ui.SnapshotData, p string) error {
 	}
 
 	fmt.Print(ui.RenderStatusSummary(prompt.StatusResult{Anomalies: anomalies}))
+	fmt.Print(ui.Done())
 	return nil
 }
 
@@ -158,5 +158,6 @@ func runStatusBrief(data ui.SnapshotData, p string) error {
 	}
 
 	fmt.Print(ui.RenderStatusBrief(result))
+	fmt.Print(ui.Done())
 	return nil
 }

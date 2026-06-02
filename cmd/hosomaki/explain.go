@@ -154,7 +154,6 @@ func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
 	}
 
 	if len(entries) == 0 {
-		// Fallback: try full parse in case the model didn't use the array schema.
 		var result prompt.ExplainResult
 		if parseErr := ui.ParseExplainJSON(sc.Raw(), &result); parseErr == nil && len(result.Issues) > 0 {
 			for i, entry := range result.Issues {
@@ -166,6 +165,7 @@ func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
 		}
 	}
 
+	fmt.Print(ui.Done())
 	return nil
 }
 

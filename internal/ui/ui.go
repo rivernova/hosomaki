@@ -123,3 +123,7 @@ func sectionHeader(title string) string {
 func compactHeader(title string) string {
 	return fmt.Sprintf("\n%s%s%s\n\n", styleSection, title, styleReset)
 }
+
+func Done() string {
+	return fmt.Sprintf("%s✓ done%s\n", styleOK, styleReset)
+}

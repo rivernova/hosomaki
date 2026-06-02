@@ -143,6 +143,7 @@ func runDoctorFull(data ui.SnapshotData, p string) error {
 	}
 
 	fmt.Print(ui.RenderDoctorSummary(prompt.DoctorResult{Issues: issues, Actions: actions}))
+	fmt.Print(ui.Done())
 	return nil
 }
 
@@ -168,5 +169,6 @@ func runDoctorBrief(data ui.SnapshotData, p string) error {
 
 	fmt.Print(ui.RenderDoctorBrief(result))
 	fmt.Print(ui.RenderDoctorSummary(result))
+	fmt.Print(ui.Done())
 	return nil
 }
