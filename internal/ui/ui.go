@@ -21,16 +21,16 @@ const (
 	glyphWarn = "!"
 	glyphFail = "✗"
 
-	// Pastel palette
+	// pastel palette
 	styleReset       = "\x1b[0m"
-	styleTitle       = "\x1b[38;5;146m" // soft lavender
-	styleSection     = "\x1b[38;5;182m" // light lilac
-	styleMuted       = "\x1b[38;5;250m" // soft grey
-	styleOK          = "\x1b[38;5;121m" // mint pastel
-	styleWarn        = "\x1b[38;5;222m" // soft amber pastel
+	styleTitle       = "\x1b[38;5;110m" // steel blue pastel
+	styleSection     = "\x1b[38;5;109m" // desaturated blue-grey
+	styleMuted       = "\x1b[38;5;247m" // warm grey pastel
+	styleOK          = "\x1b[38;5;151m" // mint-teal pastel
+	styleWarn        = "\x1b[38;5;223m" // soft amber pastel
 	styleFail        = "\x1b[38;5;210m" // coral pastel
-	styleSeparator   = "\x1b[38;5;183m" // muted lilac
-	styleSummaryLine = "\x1b[38;5;139m" // deeper lavender
+	styleSeparator   = "\x1b[38;5;146m" // lavender-grey pastel
+	styleSummaryLine = "\x1b[38;5;67m"  // deep muted blue
 
 )
 
