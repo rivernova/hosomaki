@@ -11,11 +11,13 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// template for the prompt for the "explain" command
+// template for the explain command prompt
+
 type ExplainEntry struct {
 	What string `json:"what"`
 	Why  string `json:"why"`
 }
+
 type ExplainResult struct {
 	Issues []ExplainEntry `json:"issues"`
 }
@@ -30,19 +32,26 @@ func Explain(input, cmd string, env collector.Environment) string {
 
 %s
 TASK
-Analyse the input below. Respond with ONLY a JSON object — no other text, no markdown, no explanation.
+Analyse the input below. Return ONLY a JSON object — no prose, no markdown fences, no text outside the JSON.
 
-Identify every distinct error pattern or issue in the input. Return one entry per issue.
+Group the input into distinct issues. Each issue that shares a root cause or component belongs in one entry.
 
-The JSON must follow this exact structure:
-{"issues":[{"what":"<string>","why":"<string>"},{"what":"<string>","why":"<string>"}]}
+The JSON must use exactly these field names:
 
-Rules for each entry:
-- "what": a prose string describing this specific error or event. Be precise and reference the actual log lines.
-- "why": a prose string explaining the root cause of this specific issue. Do not suggest fixes.
-- Both values must be plain strings, not arrays or nested objects.
-- If there is only one issue, the array has one entry.
+SCHEMA
+{"issues":[{"what":"string","why":"string"}]}
+
+FIELD RULES
+- "what": 2–4 sentences. Describe precisely what is happening for this issue. Reference the specific
+  log lines, service names, error codes, or kernel messages that show it. Explain the observable
+  behaviour and its immediate effect on the system.
+- "why": 2–4 sentences. Explain the root cause of this specific issue. Reference system state,
+  configuration, hardware, or software factors that produced it. If the cause cannot be determined
+  from the input alone, state what is most likely and what evidence supports that conclusion.
+- Both values must be plain strings. Do not use arrays or nested objects.
+- Do not suggest fixes, commands to run, or remediation steps in either field.
 - Group related log lines into a single entry. Do not create one entry per log line.
+- If there is only one issue the array has one entry.
 %s
 Input:
 %s`, EnvironmentSection(env), cmdContext, input)

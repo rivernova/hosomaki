@@ -12,7 +12,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// template for prompt for status command
+// template for the status command prompt
 
 const maxTopProcessLines = 10
 
@@ -29,8 +29,10 @@ type StatusInput struct {
 
 type StatusAnomaly struct {
 	Severity string `json:"severity"`
-	Summary  string `json:"summary"`
+	Title    string `json:"title"`
+	Detail   string `json:"detail"`
 }
+
 type StatusResult struct {
 	Overview  string          `json:"overview"`
 	Anomalies []StatusAnomaly `json:"anomalies"`
@@ -46,17 +48,15 @@ func Status(s StatusInput, brief bool) string {
 
 %s
 TASK
-Analyse the system snapshot below and return a JSON object — and nothing else.
-No prose, no explanation, no markdown fences, no commentary. Pure JSON only.
+Analyse the system snapshot below. Return ONLY a JSON object — no prose, no markdown fences, no text outside the JSON.
 
-JSON SCHEMA:
-{
-  "summary": "<string: exactly one sentence, maximum 30 words, stating overall health and the most critical issue if any>"
-}
+The JSON must use exactly these field names:
 
-RULES
-- Return valid JSON and nothing else.
-- summary must be a single sentence of at most 30 words.
+SCHEMA
+{"summary": "string"}
+
+FIELD RULES
+- "summary": exactly one sentence, maximum 30 words. State overall health and the single most critical issue if any.
 
 System snapshot:
 %s`, EnvironmentSection(s.Environment), formatSnapshot(s))
@@ -66,26 +66,30 @@ System snapshot:
 
 %s
 TASK
-Analyse the system snapshot below and return a JSON object — and nothing else.
-No prose, no explanation, no markdown fences, no commentary. Pure JSON only.
+Analyse the system snapshot below. Return ONLY a JSON object — no prose, no markdown fences, no text outside the JSON.
 
-JSON SCHEMA:
+The JSON must use exactly these field names. Do not rename, abbreviate, or add fields.
+
+SCHEMA
 {
-  "overview":  "<string: 2–4 sentence prose paragraph covering uptime, memory, and disk health; must not mention any problems or anomalies>",
+  "overview": "string",
   "anomalies": [
     {
-      "severity": "<string: must be exactly 'failed' or 'warning'>",
-      "summary":  "<string: one short line describing the anomaly>"
+      "severity": "string",
+      "title": "string",
+      "detail": "string"
     }
   ]
 }
 
-RULES
-- Return valid JSON and nothing else. Do not wrap it in backticks or add any text outside the JSON.
-- overview must describe uptime, memory, and disk only. Never mention problems in overview.
-- anomalies lists every issue found: failed services, high memory/disk usage, concerning error patterns.
-- If no anomalies exist, return an empty array: "anomalies": [].
-- severity must be exactly "failed" (service is down / critical) or "warning" (degraded / non-critical).
+FIELD RULES
+- "overview": 3–5 sentences of prose covering uptime, memory, and disk. Do not mention any problems or anomalies here.
+- "anomalies": every issue, warning, or concern found in the snapshot.
+- "severity": the string "failed" for a downed or broken component, "warning" for degraded or concerning.
+- "title": a concise plain-text label for the anomaly, e.g. "postgresql.service has failed".
+- "detail": 2–4 sentences. Describe exactly what was observed (reference specific values or log lines),
+  explain why it is a problem, and state what impact it has or could have on the system.
+- If no anomalies exist return an empty array.
 
 System snapshot:
 %s`, EnvironmentSection(s.Environment), formatSnapshot(s))

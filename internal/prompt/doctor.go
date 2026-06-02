@@ -12,7 +12,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// template for prompt for doctor command
+// template for the doctor command prompt
 type DoctorInput struct {
 	CollectedAt    time.Time
 	Environment    collector.Environment
@@ -23,10 +23,10 @@ type DoctorInput struct {
 	RecentErrors   string
 	TopProcesses   string
 }
-
 type DoctorIssue struct {
 	Severity string `json:"severity"`
-	Summary  string `json:"summary"`
+	Title    string `json:"title"`
+	Detail   string `json:"detail"`
 }
 
 type DoctorAction struct {
@@ -42,47 +42,67 @@ type DoctorResult struct {
 type DoctorBriefResult = DoctorResult
 
 func Doctor(d DoctorInput, brief bool) string {
-	var volumeInstr string
+	var depthInstr string
 	if brief {
-		volumeInstr = `Include only the most critical issues and their matching actions. Maximum 3 issues and 3 actions. If the system is healthy, return empty arrays.`
+		depthInstr = `VOLUME AND DEPTH (brief mode)
+- Include only the 3 most critical issues. Omit minor warnings.
+- "title": one short label for the issue.
+- "detail": one sentence summarising the problem and likely cause.
+- "description": one sentence naming the exact command or file to check.
+- If the system is healthy return {"issues":[],"actions":[]}.`
 	} else {
-		volumeInstr = `Include every distinct issue you find. There is no maximum. If the system is healthy, return empty arrays.`
+		depthInstr = `VOLUME AND DEPTH (full mode)
+- Include every distinct issue you find. There is no maximum.
+- "title": a concise label used as a heading.
+- "detail": a thorough diagnostic paragraph (3–6 sentences). Explain what is wrong,
+  what the evidence in the snapshot shows, what the likely root cause is, and what
+  impact this has or could have on the system. Reference specific values, service
+  names, and log excerpts from the snapshot where relevant.
+- "description": a full paragraph (2–4 sentences) describing the remediation action.
+  Name the exact command to run or file to inspect. Explain what to look for and
+  what a successful outcome looks like. If multiple steps are needed, describe them
+  in sequence.
+- If the system is healthy return {"issues":[],"actions":[]}.`
 	}
 
 	return fmt.Sprintf(`You are a Linux system expert performing a full diagnostic of a live system.
 
 %s
 TASK
-Analyse the system snapshot below and return a JSON object — and nothing else.
-No prose, no explanation, no markdown fences, no commentary. Pure JSON only.
+Analyse the system snapshot below. Return ONLY a JSON object — no prose, no markdown fences, no text outside the JSON.
 
-JSON SCHEMA (you must follow this exactly):
+The JSON must use exactly these field names. Do not rename, abbreviate, or add fields.
+
+SCHEMA
 {
   "issues": [
     {
-      "severity": "<string: must be exactly 'failed' or 'warning'>",
-      "summary":  "<string: one short line naming the problem, e.g. 'nginx.service has failed'>"
+      "severity": "failed",
+      "title": "string",
+      "detail": "string"
     }
   ],
   "actions": [
     {
-      "description": "<string: one actionable sentence; name the exact command to run or file to inspect>",
-      "disruptive":  <boolean: true if this action could cause downtime, data loss, or is otherwise risky>
+      "description": "string",
+      "disruptive": false
     }
   ]
 }
 
-RULES
-- Return valid JSON and nothing else. Do not wrap it in backticks or add any text outside the JSON.
-- issues[i] and actions[i] must correspond: issue 0 is addressed by action 0, and so on.
-- If there are no issues return {"issues":[],"actions":[]}.
-- severity must be exactly the string "failed" (service is down / critical error) or "warning" (degraded / non-critical).
-- Every command in an action must be correct for the host environment described above.
-- If an action could cause downtime or data loss, set disruptive to true.
-- %s
+FIELD RULES
+- "severity": the string "failed" for a downed or broken component, "warning" for degraded or concerning.
+- "title": plain text label, no punctuation at the end.
+- "detail": see depth instructions below.
+- "description": see depth instructions below.
+- "disruptive": boolean true only if the action risks downtime or data loss.
+- issues[i] and actions[i] correspond 1-to-1: issue 0 is fixed by action 0.
+- All commands in "description" must be correct for the host environment above.
+
+%s
 
 System snapshot:
-%s`, EnvironmentSection(d.Environment), volumeInstr, formatDoctorSnapshot(d))
+%s`, EnvironmentSection(d.Environment), depthInstr, formatDoctorSnapshot(d))
 }
 
 func formatDoctorSnapshot(d DoctorInput) string {

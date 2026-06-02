@@ -12,7 +12,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/prompt"
 )
 
-// rendering functions. these take the structured results from the prompt package
+// functions to render the structured results from the prompt package
 
 func ParseJSON(raw string, v interface{}) error {
 	if s, ok := extractJSONObject(raw); ok {
@@ -20,6 +20,7 @@ func ParseJSON(raw string, v interface{}) error {
 			return nil
 		}
 	}
+
 	s := strings.TrimSpace(raw)
 	s = strings.TrimPrefix(s, "```json")
 	s = strings.TrimPrefix(s, "```")
@@ -57,12 +58,10 @@ func ParseExplainJSON(raw string, result *prompt.ExplainResult) error {
 	}
 
 	whatAliases := []string{
-		"what", "what_is_happening", "whats_happening",
-		"analysis", "description", "event", "events", "error", "errors",
+		"what",
 	}
 	whyAliases := []string{
-		"why", "why_it_is_happening", "whys_happening",
-		"cause", "causes", "reason", "reasons", "explanation", "root_cause",
+		"why",
 	}
 	extractEntry := func(em map[string]json.RawMessage) prompt.ExplainEntry {
 		var e prompt.ExplainEntry
@@ -218,11 +217,13 @@ func RenderStatus(result prompt.StatusResult) string {
 		overview = "(no overview)"
 	}
 	b.WriteString(Section("system overview", overview))
+
 	anomalyBody := renderAnomalies(result.Anomalies, "no anomalies detected")
 	b.WriteString(Section("anomalies", anomalyBody))
 
 	return b.String()
 }
+
 func RenderStatusBrief(result prompt.StatusBriefResult) string {
 	summary := strings.TrimSpace(result.Summary)
 	if summary == "" {
@@ -230,6 +231,7 @@ func RenderStatusBrief(result prompt.StatusBriefResult) string {
 	}
 	return Section("summary", summary)
 }
+
 func RenderStatusSummary(result prompt.StatusResult) string {
 	var b strings.Builder
 	critical, warnings := 0, 0
@@ -244,6 +246,7 @@ func RenderStatusSummary(result prompt.StatusResult) string {
 	b.WriteString(SummaryLine(plural(warnings, "warning", "warnings")))
 	return SectionSummary(b.String())
 }
+
 func RenderExplain(result prompt.ExplainResult) string {
 	if len(result.Issues) == 0 {
 		return Section("what is happening", "(no information)") +
@@ -283,15 +286,24 @@ func renderIssues(issues []prompt.DoctorIssue, emptyMsg string) string {
 	}
 	var b strings.Builder
 	for _, iss := range issues {
-		summary := strings.TrimSpace(iss.Summary)
-		if summary == "" {
+		title := strings.TrimSpace(iss.Title)
+		detail := strings.TrimSpace(iss.Detail)
+		if title == "" && detail == "" {
 			continue
+		}
+		label := title
+		if label == "" {
+			label = detail
+			detail = ""
 		}
 		switch iss.Severity {
 		case "failed":
-			b.WriteString(BulletFail(summary))
+			b.WriteString(BulletFail(label))
 		default:
-			b.WriteString(BulletWarn(summary))
+			b.WriteString(BulletWarn(label))
+		}
+		if detail != "" {
+			b.WriteString(indentProse(detail))
 		}
 	}
 	if b.Len() == 0 {
@@ -306,15 +318,24 @@ func renderAnomalies(anomalies []prompt.StatusAnomaly, emptyMsg string) string {
 	}
 	var b strings.Builder
 	for _, a := range anomalies {
-		summary := strings.TrimSpace(a.Summary)
-		if summary == "" {
+		title := strings.TrimSpace(a.Title)
+		detail := strings.TrimSpace(a.Detail)
+		if title == "" && detail == "" {
 			continue
+		}
+		label := title
+		if label == "" {
+			label = detail
+			detail = ""
 		}
 		switch a.Severity {
 		case "failed":
-			b.WriteString(BulletFail(summary))
+			b.WriteString(BulletFail(label))
 		default:
-			b.WriteString(BulletWarn(summary))
+			b.WriteString(BulletWarn(label))
+		}
+		if detail != "" {
+			b.WriteString(indentProse(detail))
 		}
 	}
 	if b.Len() == 0 {
@@ -341,6 +362,17 @@ func renderActions(actions []prompt.DoctorAction, emptyMsg string) string {
 	}
 	if b.Len() == 0 {
 		return BulletOK(emptyMsg)
+	}
+	return b.String()
+}
+
+func indentProse(text string) string {
+	const indent = "     "
+	var b strings.Builder
+	for _, line := range strings.Split(strings.TrimSpace(text), "\n") {
+		b.WriteString(indent)
+		b.WriteString(strings.TrimSpace(line))
+		b.WriteByte('\n')
 	}
 	return b.String()
 }
