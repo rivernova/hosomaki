@@ -6,17 +6,20 @@ package hosomaki
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rivernova/hosomaki/internal/collector"
 	"github.com/rivernova/hosomaki/internal/prompt"
 	"github.com/rivernova/hosomaki/internal/spinner"
+	"github.com/rivernova/hosomaki/internal/stream"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
 )
 
-// this file contains the implementation of the "status" command
+// status command implementation
 
 func newStatusCmd() *cobra.Command {
 	var brief bool
@@ -37,7 +40,6 @@ recent errors) and asks the AI to summarise what's going on.
 			if err != nil {
 				return fmt.Errorf("failed to collect system snapshot: %w", err)
 			}
-
 			data := ui.SnapshotData{
 				CollectedAt:    snap.CollectedAt,
 				Uptime:         snap.Uptime,
@@ -46,7 +48,6 @@ recent errors) and asks the AI to summarise what's going on.
 				FailedServices: snap.FailedServices,
 				RecentErrors:   snap.RecentErrors,
 			}
-
 			p := prompt.Status(prompt.StatusInput{
 				CollectedAt:    snap.CollectedAt,
 				Environment:    snap.Environment,
@@ -74,24 +75,65 @@ func runStatusFull(data ui.SnapshotData, p string) error {
 	fmt.Print(ui.StatusSystemSection(data))
 	fmt.Print(ui.StatusInsightsSection(data))
 
+	var (
+		anomalies            []prompt.StatusAnomaly
+		overviewPrinted      bool
+		anomalyHeaderPrinted bool
+	)
+
 	spin := spinner.Start("thinking…")
-	raw, err := provider.GenerateJSON(context.Background(), p, func() { spin.SetLabel("responding…") })
+
+	sc := stream.NewArrayItemScanner(func(key, raw string) {
+		switch key {
+		case "overview":
+			// raw is a quoted JSON string — decode it.
+			var overview string
+			if err := json.Unmarshal([]byte(raw), &overview); err != nil {
+				return
+			}
+			overview = strings.TrimSpace(overview)
+			if overview == "" {
+				return
+			}
+			spin.Stop()
+			fmt.Print(ui.StatusOverviewHeader())
+			fmt.Print(ui.RenderStatusOverviewLive(overview))
+			overviewPrinted = true
+
+		case "anomalies":
+			var a prompt.StatusAnomaly
+			if err := json.Unmarshal([]byte(raw), &a); err != nil {
+				return
+			}
+			anomalies = append(anomalies, a)
+			if !anomalyHeaderPrinted {
+				if !overviewPrinted {
+					spin.Stop()
+				}
+				fmt.Print(ui.StatusAnomaliesHeader())
+				anomalyHeaderPrinted = true
+			}
+			fmt.Print(ui.RenderStatusAnomalyLive(a, len(anomalies)))
+		}
+	})
+
+	_, err := provider.GenerateStream(context.Background(), p,
+		func() { spin.SetLabel("responding…") },
+		sc,
+	)
 	spin.Stop()
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return err
 	}
 
-	var result prompt.StatusResult
-	parseErr := ui.ParseJSON(raw, &result)
-	if parseErr != nil {
-		fmt.Fprintf(os.Stderr, "error: could not parse AI response: %v\n", parseErr)
-		fmt.Fprintf(os.Stderr, "raw response:\n%s\n", raw)
-		return parseErr
+	if !anomalyHeaderPrinted {
+		fmt.Print(ui.StatusAnomaliesHeader())
+		fmt.Print(ui.BulletOK("no anomalies detected"))
 	}
 
-	fmt.Print(ui.RenderStatus(result))
-	fmt.Print(ui.RenderStatusSummary(result))
+	fmt.Print(ui.RenderStatusSummary(prompt.StatusResult{Anomalies: anomalies}))
 	return nil
 }
 
@@ -109,8 +151,7 @@ func runStatusBrief(data ui.SnapshotData, p string) error {
 	}
 
 	var result prompt.StatusBriefResult
-	parseErr := ui.ParseJSON(raw, &result)
-	if parseErr != nil {
+	if parseErr := ui.ParseJSON(raw, &result); parseErr != nil {
 		fmt.Fprintf(os.Stderr, "error: could not parse AI response: %v\n", parseErr)
 		fmt.Fprintf(os.Stderr, "raw response:\n%s\n", raw)
 		return parseErr
