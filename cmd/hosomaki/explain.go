@@ -112,7 +112,7 @@ func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
 	fmt.Print(ui.ExplainContextSection(ctx))
 
 	spin := spinner.Start("thinking…")
-	raw, err := provider.GenerateJSON(context.Background(), p, spin.Stop)
+	raw, err := provider.GenerateJSON(context.Background(), p, func() { spin.SetLabel("responding…") })
 	spin.Stop()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -124,7 +124,8 @@ func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
 	}
 
 	var result prompt.ExplainResult
-	if parseErr := ui.ParseExplainJSON(raw, &result); parseErr != nil {
+	parseErr := ui.ParseExplainJSON(raw, &result)
+	if parseErr != nil {
 		fmt.Fprintf(os.Stderr, "error: could not parse AI response: %v\n", parseErr)
 		fmt.Fprintf(os.Stderr, "raw response:\n%s\n", raw)
 		return parseErr

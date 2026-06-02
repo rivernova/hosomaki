@@ -75,7 +75,7 @@ func runStatusFull(data ui.SnapshotData, p string) error {
 	fmt.Print(ui.StatusInsightsSection(data))
 
 	spin := spinner.Start("thinking…")
-	raw, err := provider.GenerateJSON(context.Background(), p, spin.Stop)
+	raw, err := provider.GenerateJSON(context.Background(), p, func() { spin.SetLabel("responding…") })
 	spin.Stop()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -83,7 +83,8 @@ func runStatusFull(data ui.SnapshotData, p string) error {
 	}
 
 	var result prompt.StatusResult
-	if parseErr := ui.ParseJSON(raw, &result); parseErr != nil {
+	parseErr := ui.ParseJSON(raw, &result)
+	if parseErr != nil {
 		fmt.Fprintf(os.Stderr, "error: could not parse AI response: %v\n", parseErr)
 		fmt.Fprintf(os.Stderr, "raw response:\n%s\n", raw)
 		return parseErr
@@ -100,7 +101,7 @@ func runStatusBrief(data ui.SnapshotData, p string) error {
 	fmt.Print(ui.StatusInsightsSectionBrief(data))
 
 	spin := spinner.Start("thinking…")
-	raw, err := provider.GenerateJSON(context.Background(), p, spin.Stop)
+	raw, err := provider.GenerateJSON(context.Background(), p, func() { spin.SetLabel("responding…") })
 	spin.Stop()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -108,7 +109,8 @@ func runStatusBrief(data ui.SnapshotData, p string) error {
 	}
 
 	var result prompt.StatusBriefResult
-	if parseErr := ui.ParseJSON(raw, &result); parseErr != nil {
+	parseErr := ui.ParseJSON(raw, &result)
+	if parseErr != nil {
 		fmt.Fprintf(os.Stderr, "error: could not parse AI response: %v\n", parseErr)
 		fmt.Fprintf(os.Stderr, "raw response:\n%s\n", raw)
 		return parseErr

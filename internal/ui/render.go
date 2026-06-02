@@ -12,10 +12,11 @@ import (
 	"github.com/rivernova/hosomaki/internal/prompt"
 )
 
-// functions to render the JSON results from the prompt
+// functions to render prompt results into terminal output from the prompts
 
 func ParseJSON(raw string, v interface{}) error {
 	if s, ok := extractJSONObject(raw); ok {
+		s = sanitiseJSON(s)
 		if err := json.Unmarshal([]byte(s), v); err == nil {
 			return nil
 		}
@@ -24,7 +25,44 @@ func ParseJSON(raw string, v interface{}) error {
 	s = strings.TrimPrefix(s, "```json")
 	s = strings.TrimPrefix(s, "```")
 	s = strings.TrimSuffix(strings.TrimSpace(s), "```")
-	return json.Unmarshal([]byte(strings.TrimSpace(s)), v)
+	s = sanitiseJSON(strings.TrimSpace(s))
+	return json.Unmarshal([]byte(s), v)
+}
+
+func sanitiseJSON(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	i := 0
+	for i < len(s) {
+		if s[i] != '\\' || i+1 >= len(s) {
+			b.WriteByte(s[i])
+			i++
+			continue
+		}
+		next := s[i+1]
+		switch next {
+		case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
+			b.WriteByte(s[i])
+			b.WriteByte(next)
+			i += 2
+		case 'u':
+			if i+5 < len(s) && isHex(s[i+2]) && isHex(s[i+3]) && isHex(s[i+4]) && isHex(s[i+5]) {
+				b.Write([]byte(s[i : i+6]))
+				i += 6
+			} else {
+				b.WriteString("\\\\")
+				i++
+			}
+		default:
+			b.WriteString("\\\\")
+			i++
+		}
+	}
+	return b.String()
+}
+
+func isHex(c byte) bool {
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
 }
 
 func ParseExplainJSON(raw string, result *prompt.ExplainResult) error {
