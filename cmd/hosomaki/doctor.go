@@ -6,17 +6,19 @@ package hosomaki
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
 	"github.com/rivernova/hosomaki/internal/collector"
 	"github.com/rivernova/hosomaki/internal/prompt"
 	"github.com/rivernova/hosomaki/internal/spinner"
+	"github.com/rivernova/hosomaki/internal/stream"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
 )
 
-// this file contains the implementation of the "doctor" command
+// doctor command implementation
 
 func newDoctorCmd() *cobra.Command {
 	var brief bool
@@ -44,7 +46,6 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 			if err != nil {
 				return fmt.Errorf("failed to collect system snapshot: %w", err)
 			}
-
 			data := ui.SnapshotData{
 				CollectedAt:    snap.CollectedAt,
 				Uptime:         snap.Uptime,
@@ -53,7 +54,6 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 				FailedServices: snap.FailedServices,
 				RecentErrors:   snap.RecentErrors,
 			}
-
 			p := prompt.Doctor(prompt.DoctorInput{
 				CollectedAt:    snap.CollectedAt,
 				Environment:    snap.Environment,
@@ -66,11 +66,9 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 			}, brief)
 
 			if brief {
-				printDoctorBrief(data, p)
-			} else {
-				printDoctorFull(data, p)
+				return runDoctorBrief(data, p)
 			}
-			return nil
+			return runDoctorFull(data, p)
 		},
 	}
 
@@ -78,48 +76,99 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 	return cmd
 }
 
-func printDoctorFull(data ui.SnapshotData, p string) {
+func runDoctorFull(data ui.SnapshotData, p string) error {
 	fmt.Print(ui.DoctorHeader())
 	fmt.Print(ui.DoctorSystemSection(data))
 	fmt.Print(ui.DoctorInsightsSection(data))
-	fmt.Print(ui.DoctorAIHeader())
 
-	sw := ui.NewSentinelWriter(os.Stdout)
-	spin := spinner.Start("diagnosing…")
-	_, err := provider.GenerateStream(context.Background(), p,
-		func() { spin.Stop() },
-		sw,
+	var (
+		issues              []prompt.DoctorIssue
+		actions             []prompt.DoctorAction
+		issueHeaderPrinted  bool
+		actionHeaderPrinted bool
+		currentKey          string
 	)
-	sw.Flush()
-	if err != nil {
-		spin.Stop()
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return
-	}
-	fmt.Println()
 
-	fmt.Print(ui.DoctorSummary(ui.ParseDoctorCounts(sw)))
+	spin := spinner.Start("diagnosing…")
+
+	sc := stream.NewArrayItemScanner(func(key, raw string) {
+		currentKey = key
+		switch key {
+		case "issues":
+			var iss prompt.DoctorIssue
+			if err := json.Unmarshal([]byte(raw), &iss); err != nil {
+				return
+			}
+			issues = append(issues, iss)
+			if !issueHeaderPrinted {
+				spin.Stop()
+				fmt.Print(ui.DoctorIssuesHeader())
+				issueHeaderPrinted = true
+			}
+			fmt.Print(ui.RenderDoctorIssueLive(iss, len(issues)))
+
+		case "actions":
+			var act prompt.DoctorAction
+			if err := json.Unmarshal([]byte(raw), &act); err != nil {
+				return
+			}
+			actions = append(actions, act)
+			if !actionHeaderPrinted {
+				fmt.Print(ui.DoctorActionsHeader())
+				actionHeaderPrinted = true
+			}
+			fmt.Print(ui.RenderDoctorActionLive(act, len(actions)))
+		}
+	})
+
+	_, err := provider.GenerateStream(context.Background(), p,
+		func() { spin.SetLabel("responding…") },
+		sc,
+	)
+	_ = currentKey
+	spin.Stop()
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return err
+	}
+
+	if !issueHeaderPrinted {
+		fmt.Print(ui.DoctorIssuesHeader())
+		fmt.Print(ui.BulletOK("no issues detected"))
+	}
+	if !actionHeaderPrinted {
+		fmt.Print(ui.DoctorActionsHeader())
+		fmt.Print(ui.BulletOK("no actions required"))
+	}
+
+	fmt.Print(ui.RenderDoctorSummary(prompt.DoctorResult{Issues: issues, Actions: actions}))
+	fmt.Print(ui.Done())
+	return nil
 }
 
-func printDoctorBrief(data ui.SnapshotData, p string) {
+func runDoctorBrief(data ui.SnapshotData, p string) error {
 	fmt.Print(ui.DoctorHeaderBrief())
 	fmt.Print(ui.DoctorSystemSectionBrief(data))
 	fmt.Print(ui.DoctorInsightsSectionBrief(data))
-	fmt.Print(ui.DoctorAIHeaderBrief())
 
-	sw := ui.NewSentinelWriter(os.Stdout)
 	spin := spinner.Start("diagnosing…")
-	_, err := provider.GenerateStream(context.Background(), p,
-		func() { spin.Stop() },
-		sw,
-	)
-	sw.Flush()
+	raw, err := provider.GenerateJSON(context.Background(), p, func() { spin.SetLabel("responding…") })
+	spin.Stop()
 	if err != nil {
-		spin.Stop()
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return
+		return err
 	}
-	fmt.Println()
 
-	fmt.Print(ui.DoctorSummaryBrief(ui.ParseDoctorCounts(sw)))
+	var result prompt.DoctorBriefResult
+	if parseErr := ui.ParseJSON(raw, &result); parseErr != nil {
+		fmt.Fprintf(os.Stderr, "error: could not parse AI response: %v\n", parseErr)
+		fmt.Fprintf(os.Stderr, "raw response:\n%s\n", raw)
+		return parseErr
+	}
+
+	fmt.Print(ui.RenderDoctorBrief(result))
+	fmt.Print(ui.RenderDoctorSummary(result))
+	fmt.Print(ui.Done())
+	return nil
 }

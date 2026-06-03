@@ -7,40 +7,75 @@ package spinner
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 )
 
+// simple terminal spinner implementation with label support
+
 var frames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
+const (
+	clearLine      = "\r\033[K"
+	tickerDuration = 80 * time.Millisecond
+	lavenderColor  = "\x1b[38;2;214;201;240m"
+	resetColor     = "\x1b[0m"
+)
+
 type Spinner struct {
-	stop chan struct{}
-	done chan struct{}
+	mu    sync.RWMutex
+	label string
+	stop  chan struct{}
+	done  chan struct{}
+	once  sync.Once
 }
 
 func Start(label string) *Spinner {
 	s := &Spinner{
-		stop: make(chan struct{}),
-		done: make(chan struct{}),
+		label: label,
+		stop:  make(chan struct{}),
+		done:  make(chan struct{}),
 	}
-	go func() {
-		defer close(s.done)
-		i := 0
-		for {
-			select {
-			case <-s.stop:
-				fmt.Fprintf(os.Stderr, "\r\033[K") // clear the line
-				return
-			default:
-				fmt.Fprintf(os.Stderr, "\r%s %s", frames[i%len(frames)], label)
-				i++
-				time.Sleep(80 * time.Millisecond)
-			}
-		}
-	}()
+
+	go s.run()
 	return s
 }
 
+func (s *Spinner) run() {
+	defer close(s.done)
+
+	ticker := time.NewTicker(tickerDuration)
+	defer ticker.Stop()
+
+	var frameIdx int
+
+	for {
+		select {
+		case <-s.stop:
+			fmt.Fprint(os.Stderr, clearLine)
+			return
+		case <-ticker.C:
+			s.mu.RLock()
+			currentLabel := s.label
+			s.mu.RUnlock()
+
+			frame := frames[frameIdx%len(frames)]
+			frameIdx++
+
+			fmt.Fprintf(os.Stderr, "\r%s%s %s%s", lavenderColor, frame, currentLabel, resetColor)
+		}
+	}
+}
+
+func (s *Spinner) SetLabel(label string) {
+	s.mu.Lock()
+	s.label = label
+	s.mu.Unlock()
+}
+
 func (s *Spinner) Stop() {
-	close(s.stop)
-	<-s.done
+	s.once.Do(func() {
+		close(s.stop)
+		<-s.done
+	})
 }

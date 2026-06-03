@@ -12,7 +12,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// template for prompt for status command
+// template for the status command prompt
 
 const maxTopProcessLines = 10
 
@@ -27,35 +27,72 @@ type StatusInput struct {
 	TopProcesses   string
 }
 
+type StatusAnomaly struct {
+	Severity string `json:"severity"`
+	Title    string `json:"title"`
+	Detail   string `json:"detail"`
+}
+
+type StatusResult struct {
+	Overview  string          `json:"overview"`
+	Anomalies []StatusAnomaly `json:"anomalies"`
+}
+
+type StatusBriefResult struct {
+	Summary string `json:"summary"`
+}
+
 func Status(s StatusInput, brief bool) string {
-	var style string
 	if brief {
-		style = `OUTPUT FORMAT — follow this exactly, no exceptions:
-- Output exactly ONE sentence. Hard limit: 30 words.
-- State overall health and name the single most critical issue if any exists.
-- NOTHING else. No introduction. No elaboration. No second sentence. Stop immediately after the period.`
-	} else {
-		style = "Write a paragraph of five to eight sentences summarising the overall health of this system. Cover uptime, memory, disk, failed services, and recent errors. Call out any anomalies or points of concern."
+		return fmt.Sprintf(`You are a Linux system expert reading a live system snapshot.
+
+%s
+TASK
+Analyse the system snapshot below. Return ONLY a JSON object — no prose, no markdown fences, no text outside the JSON.
+
+The JSON must use exactly these field names:
+
+SCHEMA
+{"summary": "string"}
+
+FIELD RULES
+- "summary": exactly one sentence, maximum 30 words. State overall health and the single most critical issue if any.
+
+System snapshot:
+%s`, EnvironmentSection(s.Environment), formatSnapshot(s))
 	}
 
 	return fmt.Sprintf(`You are a Linux system expert reading a live system snapshot.
 
-%sRULES — follow every one without exception:
-- Plain prose only. No markdown. No bullet points. No numbered lists. No headers. No bold. No italics.
-- Do not suggest fixes, commands to run, or remediation steps of any kind.
-- Do not open with a preamble. Do not close with an offer to help further.
-- %s
+%s
+TASK
+Analyse the system snapshot below. Return ONLY a JSON object — no prose, no markdown fences, no text outside the JSON.
+
+The JSON must use exactly these field names. Do not rename, abbreviate, or add fields.
+
+SCHEMA
+{
+  "overview": "string",
+  "anomalies": [
+    {
+      "severity": "string",
+      "title": "string",
+      "detail": "string"
+    }
+  ]
+}
+
+FIELD RULES
+- "overview": 3–5 sentences of prose covering uptime, memory, and disk. Do not mention any problems or anomalies here.
+- "anomalies": every issue, warning, or concern found in the snapshot.
+- "severity": the string "failed" for a downed or broken component, "warning" for degraded or concerning.
+- "title": a concise plain-text label for the anomaly, e.g. "postgresql.service has failed".
+- "detail": 2–4 sentences. Describe exactly what was observed (reference specific values or log lines),
+  explain why it is a problem, and state what impact it has or could have on the system.
+- If no anomalies exist return an empty array.
 
 System snapshot:
-%s
-REQUIRED — you MUST include this block at the very end of your response, after all prose, no exceptions:
----JSON---
-{"failed_services": <integer: count of failed services>, "warn_services": <integer: count of services with warnings or errors>, "patterns_detected": <integer: count of distinct issues or anomalies you observed>}
----END---
-Example of a valid block: ---JSON---
-{"failed_services": 0, "warn_services": 1, "patterns_detected": 3}
----END---
-Do not skip this block. Do not add any text after ---END---.`, EnvironmentSection(s.Environment), style, formatSnapshot(s))
+%s`, EnvironmentSection(s.Environment), formatSnapshot(s))
 }
 
 func formatSnapshot(s StatusInput) string {

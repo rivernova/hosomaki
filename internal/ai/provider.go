@@ -9,9 +9,10 @@ import (
 	"io"
 )
 
-// this file contains the definition of the AI provider interface, which abstracts over different AI backends
+// abstracts over different ai backends
 
 type Provider interface {
 	Generate(ctx context.Context, prompt string) (string, error)
 	GenerateStream(ctx context.Context, prompt string, onFirstToken func(), w io.Writer) (string, error)
+	GenerateJSON(ctx context.Context, prompt string, onFirstToken func()) (string, error)
 }

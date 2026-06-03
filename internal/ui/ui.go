@@ -23,14 +23,17 @@ const (
 
 	// pastel palette
 	styleReset       = "\x1b[0m"
-	styleTitle       = "\x1b[38;5;110m" // steel blue pastel
-	styleSection     = "\x1b[38;5;109m" // desaturated blue-grey
-	styleMuted       = "\x1b[38;5;247m" // warm grey pastel
-	styleOK          = "\x1b[38;5;151m" // mint-teal pastel
-	styleWarn        = "\x1b[38;5;223m" // soft amber pastel
-	styleFail        = "\x1b[38;5;210m" // coral pastel
-	styleSeparator   = "\x1b[38;5;146m" // lavender-grey pastel
-	styleSummaryLine = "\x1b[38;5;67m"  // deep muted blue
+	styleTitle       = "\x1b[38;5;183m" // soft lavender
+	styleSection     = "\x1b[38;5;153m" // powder blue
+	styleMuted       = "\x1b[38;5;146m" // muted lavender-grey
+	styleOK          = "\x1b[38;5;115m" // soft teal
+	styleWarn        = "\x1b[38;5;222m" // pastel gold
+	styleFail        = "\x1b[38;5;210m" // soft rose
+	styleSeparator   = "\x1b[38;5;189m" // pale lavender
+	styleSummaryLine = "\x1b[38;5;147m" // periwinkle
+	styleTitleOK     = "\x1b[38;5;158m" // pale mint
+	styleTitleWarn   = "\x1b[38;5;229m" // pale lemon
+	styleTitleFail   = "\x1b[38;5;217m" // pale rose
 
 )
 
@@ -97,6 +100,18 @@ func BulletFail(text string) string {
 	return fmt.Sprintf("%s%s%s %s\n", styleFail, glyphFail, styleReset, text)
 }
 
+func BulletTitleOK(text string) string {
+	return fmt.Sprintf("%s%s%s %s%s%s\n", styleOK, glyphOK, styleReset, styleTitleOK, text, styleReset)
+}
+
+func BulletTitleWarn(text string) string {
+	return fmt.Sprintf("%s%s%s %s%s%s\n", styleWarn, glyphWarn, styleReset, styleTitleWarn, text, styleReset)
+}
+
+func BulletTitleFail(text string) string {
+	return fmt.Sprintf("%s%s%s %s%s%s\n", styleFail, glyphFail, styleReset, styleTitleFail, text, styleReset)
+}
+
 func Separator() string {
 	return ""
 }
@@ -107,4 +122,8 @@ func sectionHeader(title string) string {
 
 func compactHeader(title string) string {
 	return fmt.Sprintf("\n%s%s%s\n\n", styleSection, title, styleReset)
+}
+
+func Done() string {
+	return fmt.Sprintf("%s✓ done%s\n", styleOK, styleReset)
 }

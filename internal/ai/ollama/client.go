@@ -106,6 +106,10 @@ func (c *Client) GenerateStream(ctx context.Context, prompt string, onFirstToken
 	return full.String(), nil
 }
 
+func (c *Client) GenerateJSON(ctx context.Context, prompt string, onFirstToken func()) (string, error) {
+	return c.GenerateStream(ctx, prompt, onFirstToken, nil)
+}
+
 type request struct {
 	Model  string `json:"model"`
 	Prompt string `json:"prompt"`

@@ -6,6 +6,7 @@ package hosomaki
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -15,11 +16,12 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 	"github.com/rivernova/hosomaki/internal/prompt"
 	"github.com/rivernova/hosomaki/internal/spinner"
+	"github.com/rivernova/hosomaki/internal/stream"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
 )
 
-// this file contains the implementation of the "explain" command
+// explain command implementation
 
 func newExplainCmd() *cobra.Command {
 	var (
@@ -29,12 +31,13 @@ func newExplainCmd() *cobra.Command {
 		file    string
 		lines   int
 		cmd_    string
+		debug   bool
 	)
 
 	cmd := &cobra.Command{
 		Use:   "explain [message]",
 		Short: "Explain log output or an error message in plain language",
-		Long: `Explain analyses log output and tells you what happened and what to do.
+		Long: `Explain analyses log output and tells you what happened and why.
 
 Without flags, it reads from stdin (pipe) or accepts a message as an argument:
   journalctl -p err -n 20 | hosomaki explain
@@ -57,7 +60,6 @@ by the shell integration):
 
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := collector.LogOptions{Lines: lines}
-
 			bootChanged := cmd.Flags().Changed("boot")
 
 			input, err := resolveInput(resolveParams{
@@ -91,8 +93,7 @@ by the shell integration):
 			env := collector.Env()
 			p := prompt.Explain(input, cmd_, env)
 
-			printExplainFull(ctx, p)
-			return nil
+			return runExplain(ctx, p, debug)
 		},
 	}
 
@@ -102,32 +103,70 @@ by the shell integration):
 	cmd.Flags().StringVarP(&file, "file", "f", "", "explain errors from a log file")
 	cmd.Flags().IntVarP(&lines, "lines", "n", 0, "number of log lines to read (default varies by source)")
 	cmd.Flags().StringVar(&cmd_, "cmd", "", "the command that produced this output (set automatically by shell integration)")
+	cmd.Flags().BoolVar(&debug, "debug", false, "print raw model response to stderr before rendering")
 	cmd.Flags().Lookup("boot").NoOptDefVal = "0"
 
 	return cmd
 }
 
-func printExplainFull(ctx ui.ExplainContext, p string) {
+func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
 	fmt.Print(ui.ExplainHeader())
 	fmt.Print(ui.ExplainContextSection(ctx))
-	fmt.Print(ui.ExplainExplanationSection(ctx))
-	fmt.Print(ui.ExplainAIHeader())
 
-	sw := ui.NewSentinelWriter(os.Stdout)
-	spin := spinner.Start("thinking…")
-	_, err := provider.GenerateStream(context.Background(), p,
-		func() { spin.Stop() },
-		sw,
+	var (
+		entries     []prompt.ExplainEntry
+		spinStopped bool
 	)
-	sw.Flush()
-	if err != nil {
-		spin.Stop()
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return
-	}
-	fmt.Println()
 
-	fmt.Print(ui.ExplainSummary(ui.ParseExplainCounts(sw)))
+	spin := spinner.Start("thinking…")
+
+	sc := stream.NewArrayItemScanner(func(key, raw string) {
+		if key != "issues" {
+			return
+		}
+		var entry prompt.ExplainEntry
+		if err := json.Unmarshal([]byte(raw), &entry); err != nil {
+			return
+		}
+		entries = append(entries, entry)
+
+		if !spinStopped {
+			spin.Stop()
+			spinStopped = true
+		}
+
+		fmt.Print(ui.RenderExplainEntryLive(entry, len(entries), true))
+	})
+
+	_, err := provider.GenerateStream(context.Background(), p,
+		func() { spin.SetLabel("responding…") },
+		sc,
+	)
+	spin.Stop()
+
+	if debug {
+		fmt.Fprintf(os.Stderr, "\n--- raw model response ---\n%s\n--- end ---\n\n", sc.Raw())
+	}
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return err
+	}
+
+	if len(entries) == 0 {
+		var result prompt.ExplainResult
+		if parseErr := ui.ParseExplainJSON(sc.Raw(), &result); parseErr == nil && len(result.Issues) > 0 {
+			for i, entry := range result.Issues {
+				fmt.Print(ui.RenderExplainEntryLive(entry, i+1, len(result.Issues) > 1))
+			}
+		} else {
+			fmt.Print(ui.Section("what is happening", "(no information)"))
+			fmt.Print(ui.Section("why it is happening", "(no information)"))
+		}
+	}
+
+	fmt.Print(ui.Done())
+	return nil
 }
 
 func resolveSourceLabel(p resolveParams) string {
@@ -178,7 +217,6 @@ func resolveInput(p resolveParams) (string, error) {
 	if p.file != "" {
 		sources++
 	}
-
 	if sources > 1 {
 		return "", fmt.Errorf("only one of --service, --boot, --dmesg, --file may be used at a time")
 	}
@@ -186,27 +224,22 @@ func resolveInput(p resolveParams) (string, error) {
 	switch {
 	case p.service != "":
 		return collector.ServiceLogs(p.service, p.opts)
-
 	case p.bootChanged:
 		bootIndex, err := strconv.Atoi(p.boot)
 		if err != nil {
 			return "", fmt.Errorf("invalid boot index %q: must be an integer", p.boot)
 		}
 		return collector.BootLogs(bootIndex, p.opts)
-
 	case p.dmesg:
 		return collector.DmesgLogs(p.opts)
-
 	case p.file != "":
 		return collector.FileLogs(p.file, p.opts)
-
 	case len(p.args) > 0:
 		input := strings.TrimSpace(strings.Join(p.args, " "))
 		if input == "" {
 			return "", fmt.Errorf("message was empty — provide a non-empty message")
 		}
 		return input, nil
-
 	case isStdinPiped():
 		raw, err := io.ReadAll(os.Stdin)
 		if err != nil {
@@ -217,7 +250,6 @@ func resolveInput(p resolveParams) (string, error) {
 			return "", fmt.Errorf("stdin was empty — pipe some log output or provide a message as argument")
 		}
 		return input, nil
-
 	default:
 		return "", fmt.Errorf(
 			"no input provided\n\n" +

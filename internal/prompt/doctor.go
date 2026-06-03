@@ -12,8 +12,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// template for prompt for doctor command
-
+// template for the doctor command prompt
 type DoctorInput struct {
 	CollectedAt    time.Time
 	Environment    collector.Environment
@@ -24,51 +23,86 @@ type DoctorInput struct {
 	RecentErrors   string
 	TopProcesses   string
 }
+type DoctorIssue struct {
+	Severity string `json:"severity"`
+	Title    string `json:"title"`
+	Detail   string `json:"detail"`
+}
+
+type DoctorAction struct {
+	Description string `json:"description"`
+	Disruptive  bool   `json:"disruptive"`
+}
+
+type DoctorResult struct {
+	Issues  []DoctorIssue  `json:"issues"`
+	Actions []DoctorAction `json:"actions"`
+}
+
+type DoctorBriefResult = DoctorResult
 
 func Doctor(d DoctorInput, brief bool) string {
-	var style string
+	var depthInstr string
 	if brief {
-		style = `OUTPUT FORMAT — follow this exactly, no exceptions:
-- Write one sentence per detected issue. Maximum 5 sentences total. Stop after the 5th sentence no matter what.
-- Each sentence must name the issue and the single most important fix. Hard limit: 20 words per sentence.
-- No introduction. No explanation. No preamble. No closing remarks. No blank lines. Only the sentences, one per line.
-- If nothing is wrong, write exactly: "System is healthy."`
+		depthInstr = `VOLUME AND DEPTH (brief mode)
+- Include only the 3 most critical issues. Omit minor warnings.
+- "title": one short label for the issue.
+- "detail": one sentence summarising the problem and likely cause.
+- "description": one sentence naming the exact command or file to check.
+- If the system is healthy return {"issues":[],"actions":[]}.`
 	} else {
-		style = `Write a structured plain-prose diagnosis.
-
-For each issue you detect, write a short paragraph that covers three things in order:
-1. What is wrong and what the likely cause is.
-2. The concrete action or actions the user should take to fix or investigate it (for example: a command to run, a file to inspect, a configuration value to change).
-3. If any suggested action is potentially disruptive or irreversible, say so explicitly.
-
-Separate each issue paragraph with a blank line.
-If multiple issues are related or share a root cause, group them in the same paragraph.
-After all issues, write a final short paragraph summarising the overall health of the system.
-If nothing is wrong, write a single short paragraph confirming the system is healthy and why you think so.`
+		depthInstr = `VOLUME AND DEPTH (full mode)
+- Include every distinct issue you find. There is no maximum.
+- "title": a concise label used as a heading.
+- "detail": a thorough diagnostic paragraph (3–6 sentences). Explain what is wrong,
+  what the evidence in the snapshot shows, what the likely root cause is, and what
+  impact this has or could have on the system. Reference specific values, service
+  names, and log excerpts from the snapshot where relevant.
+- "description": a full paragraph (2–4 sentences) describing the remediation action.
+  Name the exact command to run or file to inspect. Explain what to look for and
+  what a successful outcome looks like. If multiple steps are needed, describe them
+  in sequence.
+- If the system is healthy return {"issues":[],"actions":[]}.`
 	}
 
 	return fmt.Sprintf(`You are a Linux system expert performing a full diagnostic of a live system.
 
-%sRULES — follow every one without exception:
-- Plain prose only. No markdown. No bullet points. No numbered lists. No headers. No bold. No italics.
-- Unlike a status report, you MUST suggest concrete next steps for every problem you find.
-- Suggested actions must be specific: name the exact command to run, the file to edit, or the configuration key to change.
-- Every command you suggest MUST be correct for the host environment described above (distribution, package manager, init system).
-- If SELinux is enforcing or AppArmor is enabled on the host, factor that in when explaining permission-related errors.
-- If an action could cause data loss, downtime, or is otherwise risky, explicitly state that it is potentially disruptive before describing it.
-- Do not open with a preamble. Do not close with an offer to help further.
-- %s
+%s
+TASK
+Analyse the system snapshot below. Return ONLY a JSON object — no prose, no markdown fences, no text outside the JSON.
+
+The JSON must use exactly these field names. Do not rename, abbreviate, or add fields.
+
+SCHEMA
+{
+  "issues": [
+    {
+      "severity": "failed",
+      "title": "string",
+      "detail": "string"
+    }
+  ],
+  "actions": [
+    {
+      "description": "string",
+      "disruptive": false
+    }
+  ]
+}
+
+FIELD RULES
+- "severity": the string "failed" for a downed or broken component, "warning" for degraded or concerning.
+- "title": plain text label, no punctuation at the end.
+- "detail": see depth instructions below.
+- "description": see depth instructions below.
+- "disruptive": boolean true only if the action risks downtime or data loss.
+- issues[i] and actions[i] correspond 1-to-1: issue 0 is fixed by action 0.
+- All commands in "description" must be correct for the host environment above.
+
+%s
 
 System snapshot:
-%s
-REQUIRED — you MUST include this block at the very end of your response, after all prose, no exceptions:
----JSON---
-{"anomalies": <integer: number of distinct issues you identified>, "actions": <integer: number of distinct commands or actions you suggested>}
----END---
-Example of a valid block: ---JSON---
-{"anomalies": 3, "actions": 5}
----END---
-Do not skip this block. Do not add any text after ---END---.`, EnvironmentSection(d.Environment), style, formatDoctorSnapshot(d))
+%s`, EnvironmentSection(d.Environment), depthInstr, formatDoctorSnapshot(d))
 }
 
 func formatDoctorSnapshot(d DoctorInput) string {
