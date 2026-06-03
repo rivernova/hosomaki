@@ -11,23 +11,23 @@ import (
 	"time"
 )
 
-// simple terminal spinner implementation with support for dynamic labels and RGB colors
+// simple terminal spinner implementation with label support
 
 var frames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 const (
 	clearLine      = "\r\033[K"
-	resetColor     = "\x1b[0m"
 	tickerDuration = 80 * time.Millisecond
+	lavenderColor  = "\x1b[38;2;214;201;240m"
+	resetColor     = "\x1b[0m"
 )
 
 type Spinner struct {
-	mu          sync.RWMutex
-	label       string
-	colorEscSeq string
-	stop        chan struct{}
-	done        chan struct{}
-	once        sync.Once
+	mu    sync.RWMutex
+	label string
+	stop  chan struct{}
+	done  chan struct{}
+	once  sync.Once
 }
 
 func Start(label string) *Spinner {
@@ -38,12 +38,6 @@ func Start(label string) *Spinner {
 	}
 
 	go s.run()
-	return s
-}
-
-func StartWithRGB(label string, r, g, b int) *Spinner {
-	s := Start(label)
-	s.SetRGB(r, g, b)
 	return s
 }
 
@@ -63,17 +57,12 @@ func (s *Spinner) run() {
 		case <-ticker.C:
 			s.mu.RLock()
 			currentLabel := s.label
-			currentColor := s.colorEscSeq
 			s.mu.RUnlock()
 
 			frame := frames[frameIdx%len(frames)]
 			frameIdx++
 
-			if currentColor == "" {
-				fmt.Fprintf(os.Stderr, "\r%s %s", frame, currentLabel)
-			} else {
-				fmt.Fprintf(os.Stderr, "\r%s%s %s%s", currentColor, frame, currentLabel, resetColor)
-			}
+			fmt.Fprintf(os.Stderr, "\r%s%s %s%s", lavenderColor, frame, currentLabel, resetColor)
 		}
 	}
 }
@@ -81,12 +70,6 @@ func (s *Spinner) run() {
 func (s *Spinner) SetLabel(label string) {
 	s.mu.Lock()
 	s.label = label
-	s.mu.Unlock()
-}
-
-func (s *Spinner) SetRGB(r, g, b int) {
-	s.mu.Lock()
-	s.colorEscSeq = fmt.Sprintf("\x1b[38;2;%d;%d;%dm", r, g, b)
 	s.mu.Unlock()
 }
 
