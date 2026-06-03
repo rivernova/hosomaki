@@ -95,12 +95,10 @@ func ParseExplainJSON(raw string, result *prompt.ExplainResult) error {
 	}
 
 	whatAliases := []string{
-		"what", "what_is_happening", "whats_happening",
-		"analysis", "description", "event", "events", "error", "errors",
+		"what",
 	}
 	whyAliases := []string{
-		"why", "why_it_is_happening", "whys_happening",
-		"cause", "causes", "reason", "reasons", "explanation", "root_cause",
+		"why",
 	}
 	extractEntry := func(em map[string]json.RawMessage) prompt.ExplainEntry {
 		var e prompt.ExplainEntry
