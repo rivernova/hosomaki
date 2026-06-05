@@ -14,6 +14,28 @@ It uses a local model via [Ollama](https://ollama.com) and never sends anything 
 
 ---
 
+## Data Privacy & Security
+
+Hosomaki is designed around a simple principle: your logs should remain yours.
+
+Before any data reaches the local language model, Hosomaki applies a strict sanitisation layer directly on your system. This layer aggressively detects and removes sensitive material coming from your system.
+
+Sanitisation is not an optional feature, it is the first and mandatory step of the pipeline. Its purpose is to ensure sensitive information never leaves your machine or enters the model context.
+
+## Data Flow & Processing Pipeline
+
+Hosomaki is designed to reliably transform unstructured system logs into structured terminal output.
+
+- **Input Sanitisation**: Sensitive information is removed before any model interaction occurs.
+- **LLM Generation**: Hosomaki instructs the LLM to produce strictly structured JSON responses.
+- **Schema Validation & JSON Repair**: If the model returns malformed JSON or missing fields, Hosomaki attempts automatic repair to restore structure.
+- **Final Validation or Fallback**:If the output cannot be safely validated, Hosomaki switches to a predefined fallback response instead of crashing or printing corrupted output.
+
+## Architecture Overview
+<p align="center">
+  <img src="assets/hosomaki_diagram.png" alt="Diagram"/>
+</p>
+
 ## Commands
 
 ### `explain`
