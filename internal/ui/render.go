@@ -5,260 +5,33 @@
 package ui
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/rivernova/hosomaki/internal/prompt"
 )
 
-// functions to render prompt results into terminal output from the prompts
-
-func ParseJSON(raw string, v interface{}) error {
-	if s, ok := extractJSONObject(raw); ok {
-		s = sanitiseJSON(s)
-		if err := json.Unmarshal([]byte(s), v); err == nil {
-			return nil
-		}
-	}
-	s := strings.TrimSpace(raw)
-	s = strings.TrimPrefix(s, "```json")
-	s = strings.TrimPrefix(s, "```")
-	s = strings.TrimSuffix(strings.TrimSpace(s), "```")
-	s = sanitiseJSON(strings.TrimSpace(s))
-	return json.Unmarshal([]byte(s), v)
-}
-
-func sanitiseJSON(s string) string {
-	var b strings.Builder
-	b.Grow(len(s))
-	i := 0
-	for i < len(s) {
-		if s[i] != '\\' || i+1 >= len(s) {
-			b.WriteByte(s[i])
-			i++
-			continue
-		}
-		next := s[i+1]
-		switch next {
-		case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
-			b.WriteByte(s[i])
-			b.WriteByte(next)
-			i += 2
-		case 'u':
-			if i+5 < len(s) && isHex(s[i+2]) && isHex(s[i+3]) && isHex(s[i+4]) && isHex(s[i+5]) {
-				b.Write([]byte(s[i : i+6]))
-				i += 6
-			} else {
-				b.WriteString("\\\\")
-				i++
-			}
-		default:
-			b.WriteString("\\\\")
-			i++
-		}
-	}
-	return b.String()
-}
-
-func isHex(c byte) bool {
-	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
-}
-
-func ParseExplainJSON(raw string, result *prompt.ExplainResult) error {
-	objStr, ok := extractJSONObject(raw)
-	if !ok {
-		return fmt.Errorf("no JSON object found in model response")
-	}
-
-	var m map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(objStr), &m); err != nil {
-		return fmt.Errorf("could not parse model response as JSON object: %w", err)
-	}
-
-	coerceString := func(msg json.RawMessage) string {
-		var s string
-		if err := json.Unmarshal(msg, &s); err == nil {
-			return strings.TrimSpace(s)
-		}
-		var arr []string
-		if err := json.Unmarshal(msg, &arr); err == nil {
-			parts := make([]string, 0, len(arr))
-			for _, item := range arr {
-				if t := strings.TrimSpace(item); t != "" {
-					parts = append(parts, t)
-				}
-			}
-			return strings.Join(parts, " ")
-		}
-		return ""
-	}
-
-	whatAliases := []string{
-		"what",
-	}
-	whyAliases := []string{
-		"why",
-	}
-	extractEntry := func(em map[string]json.RawMessage) prompt.ExplainEntry {
-		var e prompt.ExplainEntry
-		for _, k := range whatAliases {
-			if msg, ok := em[k]; ok {
-				if v := coerceString(msg); v != "" {
-					e.What = v
-					break
-				}
-			}
-		}
-		for _, k := range whyAliases {
-			if msg, ok := em[k]; ok {
-				if v := coerceString(msg); v != "" {
-					e.Why = v
-					break
-				}
-			}
-		}
-		if e.What == "" || e.Why == "" {
-			keys := make([]string, 0, len(em))
-			for k := range em {
-				keys = append(keys, k)
-			}
-			sortStrings(keys)
-			var vals []string
-			for _, k := range keys {
-				if v := coerceString(em[k]); v != "" {
-					vals = append(vals, v)
-					if len(vals) == 2 {
-						break
-					}
-				}
-			}
-			if e.What == "" && len(vals) > 0 {
-				e.What = vals[0]
-			}
-			if e.Why == "" && len(vals) > 1 {
-				e.Why = vals[1]
-			}
-		}
-		return e
-	}
-
-	if issuesRaw, ok := m["issues"]; ok {
-		var rawEntries []json.RawMessage
-		if err := json.Unmarshal(issuesRaw, &rawEntries); err == nil {
-			for _, entryRaw := range rawEntries {
-				var em map[string]json.RawMessage
-				if err := json.Unmarshal(entryRaw, &em); err != nil {
-					continue
-				}
-				if e := extractEntry(em); e.What != "" || e.Why != "" {
-					result.Issues = append(result.Issues, e)
-				}
-			}
-			if len(result.Issues) > 0 {
-				return nil
-			}
-		}
-	}
-
-	e := extractEntry(m)
-	if e.What != "" || e.Why != "" {
-		result.Issues = []prompt.ExplainEntry{e}
-	}
-	return nil
-}
-
-func sortStrings(s []string) {
-	for i := 1; i < len(s); i++ {
-		for j := i; j > 0 && s[j] < s[j-1]; j-- {
-			s[j], s[j-1] = s[j-1], s[j]
-		}
-	}
-}
-
-func extractJSONObject(s string) (string, bool) {
-	start := strings.Index(s, "{")
-	if start == -1 {
-		return "", false
-	}
-	depth := 0
-	inString := false
-	escape := false
-	for i := start; i < len(s); i++ {
-		ch := s[i]
-		if escape {
-			escape = false
-			continue
-		}
-		if ch == '\\' && inString {
-			escape = true
-			continue
-		}
-		if ch == '"' {
-			inString = !inString
-			continue
-		}
-		if inString {
-			continue
-		}
-		switch ch {
-		case '{':
-			depth++
-		case '}':
-			depth--
-			if depth == 0 {
-				return s[start : i+1], true
-			}
-		}
-	}
-	return "", false
-}
-
-func RenderDoctor(result prompt.DoctorResult) string {
-	var b strings.Builder
-
-	issueBody := renderIssues(result.Issues, "no issues detected")
-	b.WriteString(Section("issues", issueBody))
-
-	actionBody := renderActions(result.Actions, "no actions required")
-	b.WriteString(Section("suggested actions", actionBody))
-
-	return b.String()
-}
+// renderers for prompt results
 
 func RenderDoctorBrief(result prompt.DoctorBriefResult) string {
-	return RenderDoctor(result)
+	return renderIssues(result.Issues, "no issues detected") +
+		renderActions(result.Actions, "no actions required")
 }
 
 func RenderDoctorSummary(result prompt.DoctorResult) string {
-	var b strings.Builder
 	disruptive := 0
 	for _, act := range result.Actions {
 		if act.Disruptive {
 			disruptive++
 		}
 	}
+	var b strings.Builder
 	b.WriteString(SummaryLine(plural(len(result.Issues), "issue found", "issues found")))
 	b.WriteString(SummaryLine(plural(len(result.Actions), "action suggested", "actions suggested")))
 	if disruptive > 0 {
 		b.WriteString(SummaryLine(plural(disruptive, "action flagged as disruptive", "actions flagged as disruptive")))
 	}
 	return SectionSummary(b.String())
-}
-
-func RenderStatus(result prompt.StatusResult) string {
-	var b strings.Builder
-
-	overview := strings.TrimSpace(result.Overview)
-	if overview == "" {
-		overview = "(no overview)"
-	}
-	b.WriteString(Section("system overview", overview))
-
-	anomalyBody := renderAnomalies(result.Anomalies, "no anomalies detected")
-	b.WriteString(Section("anomalies", anomalyBody))
-
-	return b.String()
 }
 
 func RenderStatusBrief(result prompt.StatusBriefResult) string {
@@ -270,7 +43,6 @@ func RenderStatusBrief(result prompt.StatusBriefResult) string {
 }
 
 func RenderStatusSummary(result prompt.StatusResult) string {
-	var b strings.Builder
 	critical, warnings := 0, 0
 	for _, a := range result.Anomalies {
 		if a.Severity == "failed" {
@@ -279,42 +51,14 @@ func RenderStatusSummary(result prompt.StatusResult) string {
 			warnings++
 		}
 	}
+	var b strings.Builder
 	b.WriteString(SummaryLine(plural(critical, "critical issue", "critical issues")))
 	b.WriteString(SummaryLine(plural(warnings, "warning", "warnings")))
 	return SectionSummary(b.String())
 }
 
-func RenderExplain(result prompt.ExplainResult) string {
-	if len(result.Issues) == 0 {
-		return Section("what is happening", "(no information)") +
-			Section("why it is happening", "(no information)")
-	}
-
-	multi := len(result.Issues) > 1
-	var b strings.Builder
-	for i, entry := range result.Issues {
-		what := strings.TrimSpace(entry.What)
-		why := strings.TrimSpace(entry.Why)
-		if what == "" {
-			what = "(no information)"
-		}
-		if why == "" {
-			why = "(no information)"
-		}
-
-		var whatTitle, whyTitle string
-		if multi {
-			whatTitle = fmt.Sprintf("issue %d — what is happening", i+1)
-			whyTitle = fmt.Sprintf("issue %d — why it is happening", i+1)
-		} else {
-			whatTitle = "what is happening"
-			whyTitle = "why it is happening"
-		}
-
-		b.WriteString(Section(whatTitle, what))
-		b.WriteString(Section(whyTitle, why))
-	}
-	return b.String()
+func RenderExplainSummary(result prompt.ExplainResult) string {
+	return SummaryLine(plural(len(result.Issues), "issue identified", "issues identified"))
 }
 
 func renderIssues(issues []prompt.DoctorIssue, emptyMsg string) string {
@@ -323,57 +67,7 @@ func renderIssues(issues []prompt.DoctorIssue, emptyMsg string) string {
 	}
 	var b strings.Builder
 	for _, iss := range issues {
-		title := strings.TrimSpace(iss.Title)
-		detail := strings.TrimSpace(iss.Detail)
-		if title == "" && detail == "" {
-			continue
-		}
-		label := title
-		if label == "" {
-			label = detail
-			detail = ""
-		}
-		switch iss.Severity {
-		case "failed":
-			b.WriteString(BulletTitleFail(label))
-		default:
-			b.WriteString(BulletTitleWarn(label))
-		}
-		if detail != "" {
-			b.WriteString(indentProse(detail))
-		}
-	}
-	if b.Len() == 0 {
-		return BulletOK(emptyMsg)
-	}
-	return b.String()
-}
-
-func renderAnomalies(anomalies []prompt.StatusAnomaly, emptyMsg string) string {
-	if len(anomalies) == 0 {
-		return BulletOK(emptyMsg)
-	}
-	var b strings.Builder
-	for _, a := range anomalies {
-		title := strings.TrimSpace(a.Title)
-		detail := strings.TrimSpace(a.Detail)
-		if title == "" && detail == "" {
-			continue
-		}
-		label := title
-		if label == "" {
-			label = detail
-			detail = ""
-		}
-		switch a.Severity {
-		case "failed":
-			b.WriteString(BulletTitleFail(label))
-		default:
-			b.WriteString(BulletTitleWarn(label))
-		}
-		if detail != "" {
-			b.WriteString(indentProse(detail))
-		}
+		b.WriteString(RenderDoctorIssueLive(iss, 0))
 	}
 	if b.Len() == 0 {
 		return BulletOK(emptyMsg)
@@ -387,15 +81,7 @@ func renderActions(actions []prompt.DoctorAction, emptyMsg string) string {
 	}
 	var b strings.Builder
 	for _, act := range actions {
-		desc := strings.TrimSpace(act.Description)
-		if desc == "" {
-			continue
-		}
-		if act.Disruptive {
-			b.WriteString(BulletFail(fmt.Sprintf("[disruptive] %s", desc)))
-		} else {
-			b.WriteString(BulletOK(desc))
-		}
+		b.WriteString(RenderDoctorActionLive(act, 0))
 	}
 	if b.Len() == 0 {
 		return BulletOK(emptyMsg)
@@ -405,8 +91,10 @@ func renderActions(actions []prompt.DoctorAction, emptyMsg string) string {
 
 func indentProse(text string) string {
 	const indent = "     "
+	lines := strings.Split(strings.TrimSpace(text), "\n")
 	var b strings.Builder
-	for _, line := range strings.Split(strings.TrimSpace(text), "\n") {
+	b.Grow(len(text) + len(indent)*len(lines))
+	for _, line := range lines {
 		b.WriteString(indent)
 		b.WriteString(strings.TrimSpace(line))
 		b.WriteByte('\n')

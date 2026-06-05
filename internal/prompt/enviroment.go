@@ -11,7 +11,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// this file contains logic for rendering the host environment into a prompt
+// logic for rendering the host environment into a prompt
 // section that is included silently in every command
 func EnvironmentSection(e collector.Environment) string {
 	var b strings.Builder

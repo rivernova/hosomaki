@@ -10,8 +10,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/rivernova/hosomaki/internal/ai"
 	"github.com/rivernova/hosomaki/internal/collector"
 	"github.com/rivernova/hosomaki/internal/prompt"
+	"github.com/rivernova/hosomaki/internal/sanitiser"
 	"github.com/rivernova/hosomaki/internal/spinner"
 	"github.com/rivernova/hosomaki/internal/stream"
 	"github.com/rivernova/hosomaki/internal/ui"
@@ -54,15 +56,16 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 				FailedServices: snap.FailedServices,
 				RecentErrors:   snap.RecentErrors,
 			}
+			san := sanitiser.Default()
 			p := prompt.Doctor(prompt.DoctorInput{
 				CollectedAt:    snap.CollectedAt,
 				Environment:    snap.Environment,
 				Uptime:         snap.Uptime,
 				Memory:         snap.Memory,
 				Disk:           snap.Disk,
-				FailedServices: snap.FailedServices,
-				RecentErrors:   snap.RecentErrors,
-				TopProcesses:   snap.TopProcesses,
+				FailedServices: san.Sanitise(snap.FailedServices),
+				RecentErrors:   san.Sanitise(snap.RecentErrors),
+				TopProcesses:   san.Sanitise(snap.TopProcesses),
 			}, brief)
 
 			if brief {
@@ -76,6 +79,14 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 	return cmd
 }
 
+func doctorBriefPipeline() ai.Pipeline[prompt.DoctorBriefResult] {
+	return ai.NewPipeline(
+		provider,
+		ai.NewSchema(prompt.SchemaDoctorBrief),
+		ai.StructValidator[prompt.DoctorBriefResult]{},
+	)
+}
+
 func runDoctorFull(data ui.SnapshotData, p string) error {
 	fmt.Print(ui.DoctorHeader())
 	fmt.Print(ui.DoctorSystemSection(data))
@@ -86,13 +97,11 @@ func runDoctorFull(data ui.SnapshotData, p string) error {
 		actions             []prompt.DoctorAction
 		issueHeaderPrinted  bool
 		actionHeaderPrinted bool
-		currentKey          string
 	)
 
 	spin := spinner.Start("diagnosing…")
 
 	sc := stream.NewArrayItemScanner(func(key, raw string) {
-		currentKey = key
 		switch key {
 		case "issues":
 			var iss prompt.DoctorIssue
@@ -125,7 +134,6 @@ func runDoctorFull(data ui.SnapshotData, p string) error {
 		func() { spin.SetLabel("responding…") },
 		sc,
 	)
-	_ = currentKey
 	spin.Stop()
 
 	if err != nil {
@@ -153,18 +161,17 @@ func runDoctorBrief(data ui.SnapshotData, p string) error {
 	fmt.Print(ui.DoctorInsightsSectionBrief(data))
 
 	spin := spinner.Start("diagnosing…")
-	raw, err := provider.GenerateJSON(context.Background(), p, func() { spin.SetLabel("responding…") })
+
+	result, err := doctorBriefPipeline().Run(
+		context.Background(),
+		p,
+		func() { spin.SetLabel("responding…") },
+	)
 	spin.Stop()
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return err
-	}
-
-	var result prompt.DoctorBriefResult
-	if parseErr := ui.ParseJSON(raw, &result); parseErr != nil {
-		fmt.Fprintf(os.Stderr, "error: could not parse AI response: %v\n", parseErr)
-		fmt.Fprintf(os.Stderr, "raw response:\n%s\n", raw)
-		return parseErr
 	}
 
 	fmt.Print(ui.RenderDoctorBrief(result))

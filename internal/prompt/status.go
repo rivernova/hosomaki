@@ -56,7 +56,8 @@ SCHEMA
 {"summary": "string"}
 
 FIELD RULES
-- "summary": exactly one sentence, maximum 30 words. State overall health and the single most critical issue if any.
+- "summary": exactly ONE sentence, maximum 30 words. State overall health and the single most critical issue if any.
+  Do not suggest fixes or remediation steps.
 
 System snapshot:
 %s`, EnvironmentSection(s.Environment), formatSnapshot(s))
@@ -83,7 +84,9 @@ SCHEMA
 }
 
 FIELD RULES
-- "overview": 3–5 sentences of prose covering uptime, memory, and disk. Do not mention any problems or anomalies here.
+- "overview": five to eight sentences of prose covering uptime, memory, disk, and process load.
+  Describe what the snapshot shows — do not mention any anomalies or problems here.
+  Do not suggest fixes or remediation steps.
 - "anomalies": every issue, warning, or concern found in the snapshot.
 - "severity": the string "failed" for a downed or broken component, "warning" for degraded or concerning.
 - "title": a concise plain-text label for the anomaly, e.g. "postgresql.service has failed".

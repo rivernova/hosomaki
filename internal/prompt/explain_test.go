@@ -60,7 +60,7 @@ func TestExplainIncludesEnvironmentContext(t *testing.T) {
 
 func TestExplainInstructsModelToUseEnvironment(t *testing.T) {
 	p := Explain("some error", "", collector.Environment{DistroID: "arch"})
-	if !strings.Contains(p, "host environment") {
+	if !strings.Contains(p, "Host environment") {
 		t.Error("Explain() should instruct the model to use the host environment")
 	}
 }
@@ -77,7 +77,7 @@ func TestExplainPromptRequestsJSON(t *testing.T) {
 
 func TestExplainPromptPureJSONInstruction(t *testing.T) {
 	p := Explain("some error", "", collector.Environment{})
-	if !strings.Contains(p, "Pure JSON only") {
+	if !strings.Contains(p, "Return ONLY a JSON object") {
 		t.Error("Explain() prompt must instruct the model to return pure JSON")
 	}
 }

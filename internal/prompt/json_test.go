@@ -12,6 +12,8 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
+// unit tests for JSON sentinel presence in prompts and prompt style instructions
+
 func TestDoctorFullPromptContainsJSONSentinel(t *testing.T) {
 	p := Doctor(DoctorInput{CollectedAt: time.Now()}, false)
 	if !strings.Contains(p, "---JSON---") {

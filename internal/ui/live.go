@@ -11,15 +11,10 @@ import (
 	"github.com/rivernova/hosomaki/internal/prompt"
 )
 
-// render prompt results into terminal output
+// live rendering of prompt sections
 
-func DoctorIssuesHeader() string {
-	return sectionHeader("issues")
-}
-
-func DoctorActionsHeader() string {
-	return sectionHeader("suggested actions")
-}
+func DoctorIssuesHeader() string  { return sectionHeader("issues") }
+func DoctorActionsHeader() string { return sectionHeader("suggested actions") }
 
 func RenderDoctorIssueLive(iss prompt.DoctorIssue, _ int) string {
 	title := strings.TrimSpace(iss.Title)
@@ -32,17 +27,16 @@ func RenderDoctorIssueLive(iss prompt.DoctorIssue, _ int) string {
 		label = detail
 		detail = ""
 	}
-	var b strings.Builder
-	switch iss.Severity {
-	case "failed":
-		b.WriteString(BulletTitleFail(label))
-	default:
-		b.WriteString(BulletTitleWarn(label))
+	var bullet string
+	if iss.Severity == "failed" {
+		bullet = BulletTitleFail(label)
+	} else {
+		bullet = BulletTitleWarn(label)
 	}
-	if detail != "" {
-		b.WriteString(indentProse(detail))
+	if detail == "" {
+		return bullet
 	}
-	return b.String()
+	return bullet + indentProse(detail)
 }
 
 func RenderDoctorActionLive(act prompt.DoctorAction, _ int) string {
@@ -50,22 +44,14 @@ func RenderDoctorActionLive(act prompt.DoctorAction, _ int) string {
 	if desc == "" {
 		return ""
 	}
-	var b strings.Builder
 	if act.Disruptive {
-		b.WriteString(BulletFail(fmt.Sprintf("[disruptive] %s", desc)))
-	} else {
-		b.WriteString(BulletOK(desc))
+		return BulletFail(fmt.Sprintf("[disruptive] %s", desc))
 	}
-	return b.String()
+	return BulletOK(desc)
 }
 
-func StatusOverviewHeader() string {
-	return sectionHeader("system overview")
-}
-
-func StatusAnomaliesHeader() string {
-	return sectionHeader("anomalies")
-}
+func StatusOverviewHeader() string  { return sectionHeader("system overview") }
+func StatusAnomaliesHeader() string { return sectionHeader("anomalies") }
 
 func RenderStatusOverviewLive(overview string) string {
 	t := strings.TrimSpace(overview)
@@ -86,17 +72,16 @@ func RenderStatusAnomalyLive(a prompt.StatusAnomaly, _ int) string {
 		label = detail
 		detail = ""
 	}
-	var b strings.Builder
-	switch a.Severity {
-	case "failed":
-		b.WriteString(BulletTitleFail(label))
-	default:
-		b.WriteString(BulletTitleWarn(label))
+	var bullet string
+	if a.Severity == "failed" {
+		bullet = BulletTitleFail(label)
+	} else {
+		bullet = BulletTitleWarn(label)
 	}
-	if detail != "" {
-		b.WriteString(indentProse(detail))
+	if detail == "" {
+		return bullet
 	}
-	return b.String()
+	return bullet + indentProse(detail)
 }
 
 func ExplainIssueHeader(index int) string {
@@ -106,23 +91,16 @@ func ExplainIssueHeader(index int) string {
 func RenderExplainEntryLive(entry prompt.ExplainEntry, index int, multi bool) string {
 	what := strings.TrimSpace(entry.What)
 	why := strings.TrimSpace(entry.Why)
-	if what == "" && why == "" {
-		return ""
-	}
 	if what == "" {
 		what = "(no information)"
 	}
 	if why == "" {
 		why = "(no information)"
 	}
-
-	var b strings.Builder
 	if multi {
-		b.WriteString(Section(fmt.Sprintf("issue %d — what is happening", index), what))
-		b.WriteString(Section(fmt.Sprintf("issue %d — why it is happening", index), why))
-	} else {
-		b.WriteString(Section("what is happening", what))
-		b.WriteString(Section("why it is happening", why))
+		return Section(fmt.Sprintf("issue %d — what is happening", index), what) +
+			Section(fmt.Sprintf("issue %d — why it is happening", index), why)
 	}
-	return b.String()
+	return Section("what is happening", what) +
+		Section("why it is happening", why)
 }

@@ -11,8 +11,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/rivernova/hosomaki/internal/ai"
 	"github.com/rivernova/hosomaki/internal/collector"
 	"github.com/rivernova/hosomaki/internal/prompt"
+	"github.com/rivernova/hosomaki/internal/sanitiser"
 	"github.com/rivernova/hosomaki/internal/spinner"
 	"github.com/rivernova/hosomaki/internal/stream"
 	"github.com/rivernova/hosomaki/internal/ui"
@@ -48,15 +50,16 @@ recent errors) and asks the AI to summarise what's going on.
 				FailedServices: snap.FailedServices,
 				RecentErrors:   snap.RecentErrors,
 			}
+			san := sanitiser.Default()
 			p := prompt.Status(prompt.StatusInput{
 				CollectedAt:    snap.CollectedAt,
 				Environment:    snap.Environment,
 				Uptime:         snap.Uptime,
 				Memory:         snap.Memory,
 				Disk:           snap.Disk,
-				FailedServices: snap.FailedServices,
-				RecentErrors:   snap.RecentErrors,
-				TopProcesses:   snap.TopProcesses,
+				FailedServices: san.Sanitise(snap.FailedServices),
+				RecentErrors:   san.Sanitise(snap.RecentErrors),
+				TopProcesses:   san.Sanitise(snap.TopProcesses),
 			}, brief)
 
 			if brief {
@@ -68,6 +71,14 @@ recent errors) and asks the AI to summarise what's going on.
 
 	cmd.Flags().BoolVar(&brief, "brief", false, "one-sentence summary instead of a paragraph")
 	return cmd
+}
+
+func statusBriefPipeline() ai.Pipeline[prompt.StatusBriefResult] {
+	return ai.NewPipeline(
+		provider,
+		ai.NewSchema(prompt.SchemaStatusBrief),
+		ai.StructValidator[prompt.StatusBriefResult]{},
+	)
 }
 
 func runStatusFull(data ui.SnapshotData, p string) error {
@@ -143,18 +154,17 @@ func runStatusBrief(data ui.SnapshotData, p string) error {
 	fmt.Print(ui.StatusInsightsSectionBrief(data))
 
 	spin := spinner.Start("thinking…")
-	raw, err := provider.GenerateJSON(context.Background(), p, func() { spin.SetLabel("responding…") })
+
+	result, err := statusBriefPipeline().Run(
+		context.Background(),
+		p,
+		func() { spin.SetLabel("responding…") },
+	)
 	spin.Stop()
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return err
-	}
-
-	var result prompt.StatusBriefResult
-	if parseErr := ui.ParseJSON(raw, &result); parseErr != nil {
-		fmt.Fprintf(os.Stderr, "error: could not parse AI response: %v\n", parseErr)
-		fmt.Fprintf(os.Stderr, "raw response:\n%s\n", raw)
-		return parseErr
 	}
 
 	fmt.Print(ui.RenderStatusBrief(result))

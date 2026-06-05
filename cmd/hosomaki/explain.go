@@ -13,8 +13,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/rivernova/hosomaki/internal/ai"
 	"github.com/rivernova/hosomaki/internal/collector"
 	"github.com/rivernova/hosomaki/internal/prompt"
+	"github.com/rivernova/hosomaki/internal/sanitiser"
 	"github.com/rivernova/hosomaki/internal/spinner"
 	"github.com/rivernova/hosomaki/internal/stream"
 	"github.com/rivernova/hosomaki/internal/ui"
@@ -25,13 +27,14 @@ import (
 
 func newExplainCmd() *cobra.Command {
 	var (
-		service string
-		bootStr string
-		dmesg   bool
-		file    string
-		lines   int
-		cmd_    string
-		debug   bool
+		service  string
+		bootStr  string
+		dmesg    bool
+		file     string
+		lines    int
+		cmd_     string
+		debug    bool
+		noStream bool
 	)
 
 	cmd := &cobra.Command{
@@ -52,9 +55,14 @@ With flags, it collects the logs for you — no copy-pasting needed:
   hosomaki explain --dmesg
   hosomaki explain --file /var/log/nginx/error.log
 
-The --cmd flag provides the originating command as context (set automatically
-by the shell integration):
-  echo "$out" | hosomaki explain --cmd "docker compose up"`,
+All input is sanitised locally before being sent to the LLM — sensitive
+identifiers (paths, IPs, hex digests, package versions) are replaced with
+placeholders to prevent LLM safety filters from blocking the analysis.
+
+By default explain streams each issue to the terminal as soon as the model
+produces it. Pass --no-stream to use the validate/repair pipeline instead,
+which is slower but guarantees a structurally valid response or a clear
+error message.`,
 
 		Args: cobra.ArbitraryArgs,
 
@@ -62,7 +70,7 @@ by the shell integration):
 			opts := collector.LogOptions{Lines: lines}
 			bootChanged := cmd.Flags().Changed("boot")
 
-			input, err := resolveInput(resolveParams{
+			rawInput, err := resolveInput(resolveParams{
 				args:        args,
 				service:     service,
 				boot:        bootStr,
@@ -84,16 +92,20 @@ by the shell integration):
 				file:        file,
 			})
 
-			ctx := ui.ExplainContext{
+			explainCtx := ui.ExplainContext{
 				Source: source,
 				Cmd:    strings.TrimSpace(cmd_),
 				Lines:  lines,
 			}
 
 			env := collector.Env()
-			p := prompt.Explain(input, cmd_, env)
+			sanitised := sanitiser.Default().Sanitise(rawInput)
+			generationPrompt := prompt.Explain(sanitised, cmd_, env)
 
-			return runExplain(ctx, p, debug)
+			if noStream {
+				return runExplainPipeline(explainCtx, generationPrompt, debug)
+			}
+			return runExplainStream(explainCtx, generationPrompt)
 		},
 	}
 
@@ -104,18 +116,19 @@ by the shell integration):
 	cmd.Flags().IntVarP(&lines, "lines", "n", 0, "number of log lines to read (default varies by source)")
 	cmd.Flags().StringVar(&cmd_, "cmd", "", "the command that produced this output (set automatically by shell integration)")
 	cmd.Flags().BoolVar(&debug, "debug", false, "print raw model response to stderr before rendering")
+	cmd.Flags().BoolVar(&noStream, "no-stream", false, "disable live streaming; use validate/repair pipeline instead")
 	cmd.Flags().Lookup("boot").NoOptDefVal = "0"
 
 	return cmd
 }
 
-func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
+func runExplainStream(ctx ui.ExplainContext, p string) error {
 	fmt.Print(ui.ExplainHeader())
 	fmt.Print(ui.ExplainContextSection(ctx))
 
 	var (
-		entries     []prompt.ExplainEntry
-		spinStopped bool
+		count         int
+		headerPrinted bool
 	)
 
 	spin := spinner.Start("thinking…")
@@ -128,45 +141,76 @@ func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
 		if err := json.Unmarshal([]byte(raw), &entry); err != nil {
 			return
 		}
-		entries = append(entries, entry)
-
-		if !spinStopped {
+		count++
+		if !headerPrinted {
 			spin.Stop()
-			spinStopped = true
+			headerPrinted = true
 		}
-
-		fmt.Print(ui.RenderExplainEntryLive(entry, len(entries), true))
+		fmt.Print(ui.RenderExplainEntryLive(entry, count, true))
 	})
 
-	_, err := provider.GenerateStream(context.Background(), p,
+	_, err := provider.GenerateStream(
+		context.Background(),
+		p,
 		func() { spin.SetLabel("responding…") },
 		sc,
 	)
 	spin.Stop()
-
-	if debug {
-		fmt.Fprintf(os.Stderr, "\n--- raw model response ---\n%s\n--- end ---\n\n", sc.Raw())
-	}
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return err
 	}
 
-	if len(entries) == 0 {
-		var result prompt.ExplainResult
-		if parseErr := ui.ParseExplainJSON(sc.Raw(), &result); parseErr == nil && len(result.Issues) > 0 {
-			for i, entry := range result.Issues {
-				fmt.Print(ui.RenderExplainEntryLive(entry, i+1, len(result.Issues) > 1))
-			}
-		} else {
-			fmt.Print(ui.Section("what is happening", "(no information)"))
-			fmt.Print(ui.Section("why it is happening", "(no information)"))
+	if count == 0 {
+		fmt.Print(ui.ExplainEmptyResult())
+	}
+
+	fmt.Print(ui.Done())
+	return nil
+}
+
+func runExplainPipeline(ctx ui.ExplainContext, p string, debug bool) error {
+	fmt.Print(ui.ExplainHeader())
+	fmt.Print(ui.ExplainContextSection(ctx))
+
+	spin := spinner.Start("thinking…")
+	pipe := explainPipeline()
+	if debug {
+		pipe = pipe.WithDebug(os.Stderr)
+	}
+
+	result, err := pipe.Run(
+		context.Background(),
+		p,
+		func() { spin.SetLabel("responding…") },
+	)
+	spin.Stop()
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return err
+	}
+
+	if len(result.Issues) == 0 {
+		fmt.Print(ui.ExplainEmptyResult())
+	} else {
+		multi := len(result.Issues) > 1
+		for i, entry := range result.Issues {
+			fmt.Print(ui.RenderExplainEntryLive(entry, i+1, multi))
 		}
 	}
 
 	fmt.Print(ui.Done())
 	return nil
+}
+
+func explainPipeline() ai.Pipeline[prompt.ExplainResult] {
+	return ai.NewPipeline(
+		provider,
+		ai.NewSchema(prompt.SchemaExplain),
+		ai.StructValidator[prompt.ExplainResult]{},
+	)
 }
 
 func resolveSourceLabel(p resolveParams) string {

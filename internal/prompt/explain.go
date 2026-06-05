@@ -11,8 +11,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// template for the explain command prompt
-
+// template for the prompt for the explain command
 type ExplainEntry struct {
 	What string `json:"what"`
 	Why  string `json:"why"`
@@ -28,31 +27,44 @@ func Explain(input, cmd string, env collector.Environment) string {
 		cmdContext = fmt.Sprintf("\nThe output below was produced by running: %s\n", c)
 	}
 
-	return fmt.Sprintf(`You are a Linux system expert. You will be given log output or an error message.
+	return fmt.Sprintf(`You are a Linux system expert. You will be given log output that has been pre-processed for safety.
 
 %s
+INPUT FORMAT
+The log has been sanitised. You will see:
+  - Line categories: <ERROR>, <WARN>, <INFO>, <DEBUG>, <TRANSACTION>, <SCRIPTLET>.
+  - Placeholders: <URL>, <PATH>, <CONFIG_PATH>, <LOG_PATH>, <CACHE_PATH>,
+    <LIB_PATH>, <HOME_PATH>, <HEX>, <UUID>, <IPV4>, <IPV6>, <MAC>,
+    <REPO>, <REPO_CACHE>, <VERSION>.
+Treat placeholders as opaque identifiers. Do not invent real values.
+%s
 TASK
-Analyse the input below. Return ONLY a JSON object — no prose, no markdown fences, no text outside the JSON.
+Examine the input. Identify only lines tagged <ERROR>, <WARN>, or <SCRIPTLET>,
+plus any <INFO>/<TRANSACTION>/<DEBUG> lines that are clearly part of the same
+incident. Group related lines into distinct issues.
 
-Group the input into distinct issues. Each issue that shares a root cause or component belongs in one entry.
+If the input contains NO <ERROR> and NO <WARN> lines and no failed transactions
+or scriptlets, return EXACTLY {"issues": []} and nothing else. A healthy log
+is a valid input — do not invent issues.
 
-The JSON must use exactly these field names:
+OUTPUT
+Return ONLY a JSON object — no prose, no markdown fences, no text outside the JSON.
 
 SCHEMA
 {"issues":[{"what":"string","why":"string"}]}
 
 FIELD RULES
-- "what": 2–4 sentences. Describe precisely what is happening for this issue. Reference the specific
-  log lines, service names, error codes, or kernel messages that show it. Explain the observable
-  behaviour and its immediate effect on the system.
-- "why": 2–4 sentences. Explain the root cause of this specific issue. Reference system state,
-  configuration, hardware, or software factors that produced it. If the cause cannot be determined
-  from the input alone, state what is most likely and what evidence supports that conclusion.
+- "what": 2–4 sentences. Describe precisely what is happening for this issue.
+  Reference the specific line categories or placeholders that show it.
+  Explain the observable behaviour and its immediate effect on the system.
+- "why": 2–4 sentences. Explain the root cause of this specific issue.
+  Reference system state, configuration, hardware, or software factors.
+  If the cause cannot be determined from the input alone, state what is most
+  likely and what evidence supports that conclusion.
 - Both values must be plain strings. Do not use arrays or nested objects.
 - Do not suggest fixes, commands to run, or remediation steps in either field.
-- Group related log lines into a single entry. Do not create one entry per log line.
-- If there is only one issue the array has one entry.
-%s
+- Group related log lines into a single entry. Do not create one entry per line.
+
 Input:
 %s`, EnvironmentSection(env), cmdContext, input)
 }
