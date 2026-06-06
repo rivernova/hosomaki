@@ -23,11 +23,12 @@ const (
 )
 
 type Spinner struct {
-	mu    sync.RWMutex
-	label string
-	stop  chan struct{}
-	done  chan struct{}
-	once  sync.Once
+	mu      sync.RWMutex
+	label   string
+	stop    chan struct{}
+	done    chan struct{}
+	once    sync.Once
+	stopped bool
 }
 
 func Start(label string) *Spinner {
@@ -36,7 +37,6 @@ func Start(label string) *Spinner {
 		stop:  make(chan struct{}),
 		done:  make(chan struct{}),
 	}
-
 	go s.run()
 	return s
 }
@@ -83,5 +83,14 @@ func (s *Spinner) Stop() {
 	s.once.Do(func() {
 		close(s.stop)
 		<-s.done
+		s.mu.Lock()
+		s.stopped = true
+		s.mu.Unlock()
 	})
+}
+
+func (s *Spinner) Stopped() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.stopped
 }

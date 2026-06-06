@@ -106,8 +106,7 @@ func (c *Client) generate(ctx context.Context, prompt, format string, onFirstTok
 		}
 
 		if w != nil {
-			_, err := fmt.Fprint(w, chunk.Response)
-			if err != nil {
+			if _, err := fmt.Fprint(w, chunk.Response); err != nil {
 				return "", err
 			}
 		}

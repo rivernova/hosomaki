@@ -6,6 +6,7 @@ package hosomaki
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -85,8 +86,8 @@ func statusBriefPipeline() ai.Pipeline[prompt.StatusBriefResult] {
 	)
 }
 
-func statusFullPipeline() ai.Pipeline[prompt.StatusResult] {
-	return ai.NewPipeline(
+func statusFullStreamPipeline() ai.StreamPipeline[prompt.StatusResult] {
+	return ai.NewStreamPipeline(
 		provider,
 		ai.NewSchema(prompt.SchemaStatusFull),
 		ai.StructValidator[prompt.StatusResult]{},
@@ -99,42 +100,70 @@ func runStatusFull(data ui.SnapshotData, p string, debug bool) error {
 	fmt.Print(ui.StatusInsightsSection(data))
 
 	spin := spinner.Start("thinking…")
-	pipe := statusFullPipeline()
+	pipe := statusFullStreamPipeline()
 	if debug {
 		pipe = pipe.WithDebug(os.Stderr)
 	}
 
+	anomalyIndex := 0
+	overviewPrinted := false
+
 	result, err := pipe.Run(
 		context.Background(),
 		p,
-		ai.RunOptions{
+		ai.StreamOptions{
 			OnFirstToken:  func() { spin.SetLabel("responding…") },
 			OnRepairStart: func(n int) { spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n)) },
+			OnItem: func(key, raw string) {
+				switch key {
+				case "overview":
+					var s string
+					if err := json.Unmarshal([]byte(raw), &s); err != nil {
+						return
+					}
+					s = strings.TrimSpace(s)
+					if s == "" {
+						return
+					}
+					spin.Stop()
+					overviewPrinted = true
+					fmt.Print(ui.StatusOverviewHeader())
+					fmt.Print(ui.RenderStatusOverviewLive(s))
+
+				case "anomalies":
+					var a prompt.StatusAnomaly
+					if err := json.Unmarshal([]byte(raw), &a); err != nil {
+						return
+					}
+					if !overviewPrinted {
+						spin.Stop()
+						overviewPrinted = true
+					}
+					if anomalyIndex == 0 {
+						fmt.Print(ui.StatusAnomaliesHeader())
+					}
+					fmt.Print(ui.RenderStatusAnomalyLive(a, anomalyIndex+1))
+					anomalyIndex++
+				}
+			},
 		},
 	)
-	spin.Stop()
+
+	if !spin.Stopped() {
+		spin.Stop()
+	}
 
 	if err != nil {
-		_, err := fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		if err != nil {
-			return err
+		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		if ferr != nil {
+			return ferr
 		}
 		return err
 	}
 
-	overview := strings.TrimSpace(result.Overview)
-	if overview != "" {
-		fmt.Print(ui.StatusOverviewHeader())
-		fmt.Print(ui.RenderStatusOverviewLive(overview))
-	}
-
-	fmt.Print(ui.StatusAnomaliesHeader())
-	if len(result.Anomalies) == 0 {
+	if anomalyIndex == 0 {
+		fmt.Print(ui.StatusAnomaliesHeader())
 		fmt.Print(ui.BulletOK("no anomalies detected"))
-	} else {
-		for i, a := range result.Anomalies {
-			fmt.Print(ui.RenderStatusAnomalyLive(a, i+1))
-		}
 	}
 
 	fmt.Print(ui.RenderStatusSummary(result))
@@ -164,9 +193,9 @@ func runStatusBrief(data ui.SnapshotData, p string, debug bool) error {
 	spin.Stop()
 
 	if err != nil {
-		_, err := fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		if err != nil {
-			return err
+		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		if ferr != nil {
+			return ferr
 		}
 		return err
 	}
