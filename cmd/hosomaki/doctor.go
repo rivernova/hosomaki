@@ -181,7 +181,6 @@ func runDoctorBrief(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	fmt.Print(ui.RenderDoctorBrief(result))
-	fmt.Print(ui.RenderDoctorSummary(result))
 	fmt.Print(ui.Done())
 	return nil
 }

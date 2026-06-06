@@ -53,18 +53,18 @@ func TestDoctorBriefStyle(t *testing.T) {
 	brief := Doctor(input, true)
 	full := Doctor(input, false)
 
-	if !strings.Contains(brief, "one sentence") {
+	if !strings.Contains(brief, "ONE sentence") {
 		t.Error("Doctor() brief prompt should contain one-sentence instruction")
 	}
 
-	if strings.Contains(brief, "structured plain-prose") {
-		t.Error("Doctor() brief prompt should not contain full-mode instructions")
+	if strings.Contains(brief, "issues[i] and actions[i]") {
+		t.Error("Doctor() brief prompt should not contain full-mode issue/action pairing instructions")
 	}
 
 	if !strings.Contains(full, "concrete action") {
 		t.Error("Doctor() full prompt should instruct model to provide concrete actions")
 	}
-	if strings.Contains(full, "one sentence") {
+	if strings.Contains(full, "ONE sentence") {
 		t.Error("Doctor() full prompt should not contain brief-mode instructions")
 	}
 }
