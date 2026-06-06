@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-// unit testing stream pipeline
+// unit testing for streaming
 
 type streamStubProvider struct {
 	responses []string
@@ -164,8 +164,6 @@ func TestStreamPipeline_ErrorOnStreamGeneration(t *testing.T) {
 }
 
 func TestStreamPipeline_RepairOnInvalidResponse(t *testing.T) {
-	const originalTask = "STREAM_TASK_MARKER"
-
 	firstStreamed := false
 	p := &streamFuncProvider{
 		stream: func(_ string, w io.Writer) (string, error) {
@@ -180,14 +178,14 @@ func TestStreamPipeline_RepairOnInvalidResponse(t *testing.T) {
 			return resp, nil
 		},
 		repair: func(prompt string) (string, error) {
-			if !strings.Contains(prompt, originalTask) {
-				return "", errors.New("repair prompt missing original task")
+			if !strings.Contains(prompt, streamSchemaStr) {
+				return "", errors.New("repair prompt missing schema")
 			}
 			return `{"items":[{"name":"repaired"}]}`, nil
 		},
 	}
 
-	result, err := newStreamPipe(p).Run(context.Background(), originalTask, StreamOptions{})
+	result, err := newStreamPipe(p).Run(context.Background(), "task", StreamOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error after repair: %v", err)
 	}
@@ -305,8 +303,38 @@ func TestStreamPipeline_ExhaustsAllRepairAttempts(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error after exhausting repair attempts")
 	}
+
 	want := 1 + MaxRepairAttempts
 	if p.calls != want {
 		t.Fatalf("expected %d provider calls, got %d", want, p.calls)
+	}
+}
+
+func TestStreamPipeline_EmptyResponseTriggersContextualRepair(t *testing.T) {
+	const originalTask = "STREAM_TASK_MARKER"
+
+	p := &streamFuncProvider{
+		stream: func(_ string, w io.Writer) (string, error) {
+
+			resp := "{}"
+			if w != nil {
+				_, _ = io.WriteString(w, resp)
+			}
+			return resp, nil
+		},
+		repair: func(prompt string) (string, error) {
+			if !strings.Contains(prompt, originalTask) {
+				return "", errors.New("contextual repair prompt must include the original task")
+			}
+			return `{"items":[{"name":"recovered"}]}`, nil
+		},
+	}
+
+	result, err := newStreamPipe(p).Run(context.Background(), originalTask, StreamOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error after contextual repair: %v", err)
+	}
+	if len(result.Items) == 0 || result.Items[0].Name != "recovered" {
+		t.Fatalf("unexpected result: %+v", result)
 	}
 }
