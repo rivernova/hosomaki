@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// simple terminal spinner implementation with label support
+// simple spinner logic with label feature
 
 var frames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
@@ -23,7 +23,7 @@ const (
 )
 
 type Spinner struct {
-	mu    sync.RWMutex
+	mu    sync.Mutex
 	label string
 	stop  chan struct{}
 	done  chan struct{}
@@ -36,7 +36,6 @@ func Start(label string) *Spinner {
 		stop:  make(chan struct{}),
 		done:  make(chan struct{}),
 	}
-
 	go s.run()
 	return s
 }
@@ -52,23 +51,17 @@ func (s *Spinner) run() {
 	for {
 		select {
 		case <-s.stop:
-			_, err := fmt.Fprint(os.Stderr, clearLine)
-			if err != nil {
-				return
-			}
+			s.mu.Lock()
+			_, _ = fmt.Fprint(os.Stderr, clearLine)
+			s.mu.Unlock()
 			return
 		case <-ticker.C:
-			s.mu.RLock()
-			currentLabel := s.label
-			s.mu.RUnlock()
-
+			s.mu.Lock()
+			label := s.label
 			frame := frames[frameIdx%len(frames)]
+			_, _ = fmt.Fprintf(os.Stderr, "\r%s%s %s%s", lavenderColor, frame, label, resetColor)
+			s.mu.Unlock()
 			frameIdx++
-
-			_, err := fmt.Fprintf(os.Stderr, "\r%s%s %s%s", lavenderColor, frame, currentLabel, resetColor)
-			if err != nil {
-				return
-			}
 		}
 	}
 }
@@ -76,6 +69,12 @@ func (s *Spinner) run() {
 func (s *Spinner) SetLabel(label string) {
 	s.mu.Lock()
 	s.label = label
+	s.mu.Unlock()
+}
+
+func (s *Spinner) ClearLine() {
+	s.mu.Lock()
+	_, _ = fmt.Fprint(os.Stderr, clearLine)
 	s.mu.Unlock()
 }
 

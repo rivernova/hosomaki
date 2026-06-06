@@ -23,8 +23,18 @@ func (s *stubProvider) Generate(_ context.Context, _ string) (string, error) {
 	return s.next(), nil
 }
 
-func (s *stubProvider) GenerateStream(_ context.Context, _ string, _ func(), _ io.Writer) (string, error) {
-	return s.next(), nil
+func (s *stubProvider) GenerateStream(_ context.Context, _ string, onFirstToken func(), w io.Writer) (string, error) {
+	resp := s.next()
+	if onFirstToken != nil && resp != "" {
+		onFirstToken()
+	}
+	if w != nil {
+		_, err := io.WriteString(w, resp)
+		if err != nil {
+			return "", err
+		}
+	}
+	return resp, nil
 }
 
 func (s *stubProvider) GenerateJSON(_ context.Context, _ string, onFirstToken func()) (string, error) {
@@ -259,7 +269,7 @@ func TestPipeline_OnFirstTokenNotFiredOnRepair(t *testing.T) {
 
 func TestPipeline_OnRepairStartFiresPerAttempt(t *testing.T) {
 	p := &stubProvider{responses: []string{`{"count":1,"items":[]}`}}
-	attempts := []int{}
+	var attempts []int
 	_, _ = newPipeline(p).Run(context.Background(), "prompt", RunOptions{
 		OnRepairStart: func(n int) { attempts = append(attempts, n) },
 	})

@@ -5,7 +5,7 @@ package sanitiser
 
 import "strings"
 
-// uses the rules for sanitising the collected data
+// uses the rules for sanitizing the collected data
 
 type Rule interface {
 	Name() string
@@ -85,6 +85,7 @@ func (s *Sanitiser) Sanitise(input string) string {
 	}
 	return strings.TrimSpace(out)
 }
+
 func (s *Sanitiser) Rules() []Rule {
 	out := make([]Rule, len(s.rules))
 	copy(out, s.rules)

@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-//  log collection logic
+// log collection logic
 
 type LogOptions struct {
 	Lines int

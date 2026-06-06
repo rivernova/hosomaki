@@ -81,10 +81,6 @@ func RenderStatusAnomalyLive(a prompt.StatusAnomaly, _ int) string {
 	return bullet + indentProse(detail)
 }
 
-func ExplainIssueHeader(index int) string {
-	return sectionHeader(fmt.Sprintf("issue %d", index))
-}
-
 func RenderExplainEntryLive(entry prompt.ExplainEntry, index int, multi bool) string {
 	what := strings.TrimSpace(entry.What)
 	why := strings.TrimSpace(entry.Why)

@@ -6,6 +6,7 @@ package hosomaki
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -99,8 +100,8 @@ anything is printed.`,
 	return cmd
 }
 
-func explainPipeline() ai.Pipeline[prompt.ExplainResult] {
-	return ai.NewPipeline(
+func explainStreamPipeline() ai.StreamPipeline[prompt.ExplainResult] {
+	return ai.NewStreamPipeline(
 		provider,
 		ai.NewSchema(prompt.SchemaExplain),
 		ai.StructValidator[prompt.ExplainResult]{},
@@ -112,36 +113,65 @@ func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
 	fmt.Print(ui.ExplainContextSection(ctx))
 
 	spin := spinner.Start("thinking…")
-	pipe := explainPipeline()
+	pipe := explainStreamPipeline()
 	if debug {
 		pipe = pipe.WithDebug(os.Stderr)
+	}
+
+	// buffer
+	var pending *prompt.ExplainEntry
+	emitted := 0
+
+	flush := func(entry prompt.ExplainEntry, multi bool) {
+		spin.ClearLine()
+		emitted++
+		fmt.Print(ui.RenderExplainEntryLive(entry, emitted, multi))
 	}
 
 	result, err := pipe.Run(
 		context.Background(),
 		p,
-		ai.RunOptions{
+		ai.StreamOptions{
 			OnFirstToken:  func() { spin.SetLabel("responding…") },
 			OnRepairStart: func(n int) { spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n)) },
+			OnItem: func(key, raw string) {
+				if key != "issues" {
+					return
+				}
+				var entry prompt.ExplainEntry
+				if jsonErr := json.Unmarshal([]byte(raw), &entry); jsonErr != nil {
+					return
+				}
+				if pending == nil {
+					pending = &entry
+					return
+				}
+
+				first := *pending
+				pending = nil
+				flush(first, true)
+				flush(entry, true)
+			},
 		},
 	)
+
 	spin.Stop()
 
 	if err != nil {
-		_, err := fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		if err != nil {
-			return err
+		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		if ferr != nil {
+			return ferr
 		}
 		return err
 	}
 
-	if len(result.Issues) == 0 {
+	// flush buffer
+	if pending != nil {
+		flush(*pending, len(result.Issues) > 1)
+	}
+
+	if emitted == 0 {
 		fmt.Print(ui.ExplainEmptyResult())
-	} else {
-		multi := len(result.Issues) > 1
-		for i, entry := range result.Issues {
-			fmt.Print(ui.RenderExplainEntryLive(entry, i+1, multi))
-		}
 	}
 
 	fmt.Print(ui.Done())

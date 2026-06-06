@@ -6,6 +6,7 @@ package hosomaki
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -83,8 +84,8 @@ All output is validated and repaired automatically before being printed.
 	return cmd
 }
 
-func doctorPipeline() ai.Pipeline[prompt.DoctorResult] {
-	return ai.NewPipeline(
+func doctorFullStreamPipeline() ai.StreamPipeline[prompt.DoctorResult] {
+	return ai.NewStreamPipeline(
 		provider,
 		ai.NewSchema(prompt.SchemaDoctorFull),
 		ai.StructValidator[prompt.DoctorResult]{},
@@ -105,45 +106,67 @@ func runDoctorFull(data ui.SnapshotData, p string, debug bool) error {
 	fmt.Print(ui.DoctorInsightsSection(data))
 
 	spin := spinner.Start("diagnosing…")
-	pipe := doctorPipeline()
+	pipe := doctorFullStreamPipeline()
 	if debug {
 		pipe = pipe.WithDebug(os.Stderr)
 	}
+	
+	issueCount := 0
+	actionCount := 0
 
 	result, err := pipe.Run(
 		context.Background(),
 		p,
-		ai.RunOptions{
+		ai.StreamOptions{
 			OnFirstToken:  func() { spin.SetLabel("responding…") },
 			OnRepairStart: func(n int) { spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n)) },
+			OnItem: func(key, raw string) {
+				switch key {
+				case "issues":
+					var iss prompt.DoctorIssue
+					if jsonErr := json.Unmarshal([]byte(raw), &iss); jsonErr != nil {
+						return
+					}
+					spin.ClearLine()
+					if issueCount == 0 {
+						fmt.Print(ui.DoctorIssuesHeader())
+					}
+					fmt.Print(ui.RenderDoctorIssueLive(iss, issueCount+1))
+					issueCount++
+
+				case "actions":
+					var act prompt.DoctorAction
+					if jsonErr := json.Unmarshal([]byte(raw), &act); jsonErr != nil {
+						return
+					}
+					spin.ClearLine()
+					if actionCount == 0 {
+						fmt.Print(ui.DoctorActionsHeader())
+					}
+					fmt.Print(ui.RenderDoctorActionLive(act, actionCount+1))
+					actionCount++
+				}
+			},
 		},
 	)
+
 	spin.Stop()
 
 	if err != nil {
-		_, err := fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		if err != nil {
-			return err
+		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		if ferr != nil {
+			return ferr
 		}
 		return err
 	}
 
-	fmt.Print(ui.DoctorIssuesHeader())
-	if len(result.Issues) == 0 {
+	if issueCount == 0 {
+		fmt.Print(ui.DoctorIssuesHeader())
 		fmt.Print(ui.BulletOK("no issues detected"))
-	} else {
-		for i, iss := range result.Issues {
-			fmt.Print(ui.RenderDoctorIssueLive(iss, i+1))
-		}
 	}
-
-	fmt.Print(ui.DoctorActionsHeader())
-	if len(result.Actions) == 0 {
+	if actionCount == 0 {
+		fmt.Print(ui.DoctorActionsHeader())
 		fmt.Print(ui.BulletOK("no actions required"))
-	} else {
-		for i, act := range result.Actions {
-			fmt.Print(ui.RenderDoctorActionLive(act, i+1))
-		}
 	}
 
 	fmt.Print(ui.RenderDoctorSummary(result))
@@ -173,9 +196,9 @@ func runDoctorBrief(data ui.SnapshotData, p string, debug bool) error {
 	spin.Stop()
 
 	if err != nil {
-		_, err := fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		if err != nil {
-			return err
+		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		if ferr != nil {
+			return ferr
 		}
 		return err
 	}
