@@ -18,20 +18,17 @@ It uses a local model via [Ollama](https://ollama.com) and never sends anything 
 
 Hosomaki is designed around a simple principle: your logs should remain yours.
 
-Before any data reaches the local language model, Hosomaki applies a strict sanitisation layer directly on your system. This layer aggressively detects and removes sensitive material from your logs before they ever enter the model context.
+Before any data reaches the local language model, Hosomaki applies a strict sanitisation layer directly on your system. This layer aggressively detects and removes sensitive material, like IP addresses, paths, UUIDs, credentials, hostnames, from your logs before they ever enter the model context.
 
-Sanitisation is not an optional feature, it is the first and mandatory step of every pipeline. Its purpose is to ensure sensitive information never enters the model context.
-
+Sanitisation is not an optional feature. It is the first and mandatory step of every pipeline.
 
 ## Data Flow & Processing Pipeline
-
-Hosomaki is designed to reliably transform unstructured system logs into structured terminal output.
 
 <p align="center">
   <img src="assets/hosomaki_flowchart.svg" alt="Dataflow"/>
 </p>
 
-Every command waits for the full response, then validates and repairs before rendering. This guarantees a structurally valid result or an explicit error message.
+Each command sanitises its input locally, sends it to the local model, then validates and repairs the response against a strict schema before rendering. 
 
 ## Commands
 
@@ -44,11 +41,11 @@ Understands what's going on. Adapts to whatever you throw at it.
 journalctl -p err -n 20 | hosomaki explain
 dmesg | tail -50         | hosomaki explain
 
-# By systemd service. hosomaki fetches the logs for you
+# By systemd service — hosomaki fetches the logs for you
 hosomaki explain --service nginx
 hosomaki explain --service postgresql --lines 100
 
-# Errors from a specific boot. Useful after a crash
+# Errors from a specific boot — useful after a crash
 hosomaki explain --boot
 hosomaki explain --boot -1        # the boot before that
 
@@ -69,29 +66,31 @@ hosomaki explain "kernel: OOM killer activated on process nginx"
 |---|---|---|
 | `--debug` | `false` | print raw model response to stderr |
 
-
 ### `status`
 
-Quick health snapshot. Collects uptime, memory, disk, failed services, and recent errors, then summarises everything.
+Quick health snapshot.
 
 ```bash
-hosomaki status           # paragraph summary
+hosomaki status           # paragraph summary with anomaly list
+hosomaki status --brief   # single sentence
 ```
+
 **Flags:**
 
 | Flag | Default | Description |
 |---|---|---|
 | `--debug` | `false` | print raw model response to stderr |
-| `--brief` | `false` | single-sentence summary|
+| `--brief` | `false` | single-sentence summary |
 
 ### `doctor`
 
-Full system diagnosis with concrete suggested actions. Unlike `status`, which only describes what it sees, for each detected issue it explains the likely cause and proposes specific actions like commands to run, files to inspect, configuration values to change.
+Full system diagnosis with concrete suggested actions. Unlike `status`, which only describes what it sees, `doctor` goes further.
 
-If a suggested action is potentially disruptive or irreversible, the output says so explicitly. Doctor never modifies the system itself.
+If a suggested action is potentially disruptive or irreversible, the output says so explicitly.
 
 ```bash
 hosomaki doctor           # full diagnosis with suggested actions
+hosomaki doctor --brief   # one-sentence summary of health and top action
 ```
 
 **Flags:**
@@ -99,7 +98,7 @@ hosomaki doctor           # full diagnosis with suggested actions
 | Flag | Default | Description |
 |---|---|---|
 | `--debug` | `false` | print raw model response to stderr |
-| `--brief` | `false` | single-sentence summary|
+| `--brief` | `false` | one-sentence summary |
 
 ### `shell-integration`
 
@@ -158,13 +157,13 @@ docker run -d -p 11434:11434 --name ollama ollama/ollama
 ### Pull a model
 
 ```bash
-ollama pull llama3
+ollama pull llama3.1
 ```
 
-Any model works. If using Docker:
+Any model works. Larger models produce better results; smaller models are faster. If using Docker:
 
 ```bash
-docker exec -it ollama ollama pull llama3
+docker exec -it ollama ollama pull llama3.1
 ```
 
 ### Install Hosomaki
@@ -189,7 +188,7 @@ cp config.example.yml ~/.config/hosomaki/config.yaml
 ai:
   provider: ollama
   endpoint: http://localhost:11434
-  model: llama3
+  model: llama3.1:8b
   timeout: 120s        # increase for slow hardware or large models
 output:
   color: true
