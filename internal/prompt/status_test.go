@@ -9,6 +9,8 @@ import (
 	"testing"
 )
 
+// unit tests for status prompt generation, focused on ensuring the JSON sentinel is present in all prompts and prompt styles
+
 func TestLimitLinesTruncatesLongInput(t *testing.T) {
 	lines := []string{
 		"line 1",

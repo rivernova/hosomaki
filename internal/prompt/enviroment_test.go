@@ -11,6 +11,8 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
+// unit testing for the enviroment passing to the LLM
+
 func TestEnvironmentSectionContainsKeyFields(t *testing.T) {
 	env := collector.Environment{
 		DistroID:         "fedora",

@@ -12,9 +12,9 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// template for the status command prompt
+// prompt logic for the status command
 
-const maxTopProcessLines = 10
+const maxTopProcessLines = 15 // this should be enough
 
 type StatusInput struct {
 	CollectedAt    time.Time
@@ -26,7 +26,6 @@ type StatusInput struct {
 	RecentErrors   string
 	TopProcesses   string
 }
-
 type StatusAnomaly struct {
 	Severity string `json:"severity"`
 	Title    string `json:"title"`
@@ -53,13 +52,14 @@ Analyse the system snapshot below. Return ONLY a JSON object — no prose, no ma
 The JSON must use exactly these field names:
 
 SCHEMA
-{"summary": "string"}
+%s
 
 FIELD RULES
-- "summary": exactly one sentence, maximum 30 words. State overall health and the single most critical issue if any.
+- "summary": exactly ONE sentence, maximum 30 words. State overall health and the single most critical issue if any.
+  Do not suggest fixes or remediation steps.
 
 System snapshot:
-%s`, EnvironmentSection(s.Environment), formatSnapshot(s))
+%s`, EnvironmentSection(s.Environment), SchemaStatusBrief, formatSnapshot(s))
 	}
 
 	return fmt.Sprintf(`You are a Linux system expert reading a live system snapshot.
@@ -71,19 +71,12 @@ Analyse the system snapshot below. Return ONLY a JSON object — no prose, no ma
 The JSON must use exactly these field names. Do not rename, abbreviate, or add fields.
 
 SCHEMA
-{
-  "overview": "string",
-  "anomalies": [
-    {
-      "severity": "string",
-      "title": "string",
-      "detail": "string"
-    }
-  ]
-}
+%s
 
 FIELD RULES
-- "overview": 3–5 sentences of prose covering uptime, memory, and disk. Do not mention any problems or anomalies here.
+- "overview": five to eight sentences of prose covering uptime, memory, disk, and process load.
+  Describe what the snapshot shows — do not mention any anomalies or problems here.
+  Do not suggest fixes or remediation steps.
 - "anomalies": every issue, warning, or concern found in the snapshot.
 - "severity": the string "failed" for a downed or broken component, "warning" for degraded or concerning.
 - "title": a concise plain-text label for the anomaly, e.g. "postgresql.service has failed".
@@ -92,7 +85,7 @@ FIELD RULES
 - If no anomalies exist return an empty array.
 
 System snapshot:
-%s`, EnvironmentSection(s.Environment), formatSnapshot(s))
+%s`, EnvironmentSection(s.Environment), SchemaStatusFull, formatSnapshot(s))
 }
 
 func formatSnapshot(s StatusInput) string {

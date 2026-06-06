@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// this file contains tests for the Doctor prompt generation logic
+// unit testing for doctor prompt generation logic
 
 func TestDoctorContainsSnapshot(t *testing.T) {
 	input := DoctorInput{
@@ -57,12 +57,10 @@ func TestDoctorBriefStyle(t *testing.T) {
 		t.Error("Doctor() brief prompt should contain one-sentence instruction")
 	}
 
-	// brief prompt must not contain the multi-paragraph instruction keywords
 	if strings.Contains(brief, "structured plain-prose") {
 		t.Error("Doctor() brief prompt should not contain full-mode instructions")
 	}
 
-	// full prompt must contain actionable instruction
 	if !strings.Contains(full, "concrete action") {
 		t.Error("Doctor() full prompt should instruct model to provide concrete actions")
 	}

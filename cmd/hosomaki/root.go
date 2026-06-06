@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// this file contains the root command and global state
+// root command and global state
 
 var (
 	cfgFile string

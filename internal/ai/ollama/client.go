@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+// minimal ollama client
+
 type Client struct {
 	endpoint   string
 	model      string
@@ -35,9 +37,18 @@ func (c *Client) Generate(ctx context.Context, prompt string) (string, error) {
 }
 
 func (c *Client) GenerateStream(ctx context.Context, prompt string, onFirstToken func(), w io.Writer) (string, error) {
+	return c.generate(ctx, prompt, "", onFirstToken, w)
+}
+
+func (c *Client) GenerateJSON(ctx context.Context, prompt string, onFirstToken func()) (string, error) {
+	return c.generate(ctx, prompt, "json", onFirstToken, nil)
+}
+
+func (c *Client) generate(ctx context.Context, prompt, format string, onFirstToken func(), w io.Writer) (string, error) {
 	body, err := json.Marshal(request{
 		Model:  c.model,
 		Prompt: prompt,
+		Format: format,
 		Stream: true,
 	})
 	if err != nil {
@@ -106,13 +117,10 @@ func (c *Client) GenerateStream(ctx context.Context, prompt string, onFirstToken
 	return full.String(), nil
 }
 
-func (c *Client) GenerateJSON(ctx context.Context, prompt string, onFirstToken func()) (string, error) {
-	return c.GenerateStream(ctx, prompt, onFirstToken, nil)
-}
-
 type request struct {
 	Model  string `json:"model"`
 	Prompt string `json:"prompt"`
+	Format string `json:"format,omitempty"`
 	Stream bool   `json:"stream"`
 }
 

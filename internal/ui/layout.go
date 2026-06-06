@@ -52,29 +52,6 @@ func StatusInsightsSectionBrief(d SnapshotData) string {
 	return SectionCompact("insights", insightBullets(d))
 }
 
-func StatusAIHeader() string {
-	return sectionHeader("ai analysis")
-}
-
-func StatusAIHeaderBrief() string {
-	return compactHeader("ai")
-}
-
-func StatusSummary(d SnapshotData, c StatusCounts) string {
-	var b strings.Builder
-	b.WriteString(SummaryLine(plural(c.FailedServices, "service failing", "services failing")))
-	b.WriteString(SummaryLine(plural(c.WarnServices, "service with warnings", "services with warnings")))
-	b.WriteString(SummaryLine(plural(c.PatternsDetected, "pattern or issue detected", "patterns or issues detected")))
-	return SectionSummary(b.String())
-}
-
-func StatusSummaryBrief(d SnapshotData, c StatusCounts) string {
-	var b strings.Builder
-	b.WriteString(SummaryLine(plural(c.FailedServices, "service failing", "services failing")))
-	b.WriteString(SummaryLine(plural(c.PatternsDetected, "pattern or issue detected", "patterns or issues detected")))
-	return SectionSummary(b.String())
-}
-
 func DoctorHeader() string {
 	return Title("doctor")
 }
@@ -99,49 +76,12 @@ func DoctorInsightsSectionBrief(d SnapshotData) string {
 	return SectionCompact("insights", insightBullets(d))
 }
 
-func DoctorAIHeader() string {
-	return sectionHeader("ai analysis")
-}
-
-func DoctorAIHeaderBrief() string {
-	return compactHeader("ai")
-}
-
-func DoctorSummary(c DoctorCounts) string {
-	var b strings.Builder
-	b.WriteString(SummaryLine(plural(c.Anomalies, "anomaly detected", "anomalies detected")))
-	b.WriteString(SummaryLine(plural(c.Actions, "action suggested", "actions suggested")))
-	return SectionSummary(b.String())
-}
-
-func DoctorSummaryBrief(c DoctorCounts) string {
-	var b strings.Builder
-	b.WriteString(SummaryLine(plural(c.Anomalies, "anomaly detected", "anomalies detected")))
-	b.WriteString(SummaryLine(plural(c.Actions, "action suggested", "actions suggested")))
-	return SectionSummary(b.String())
-}
-
 func ExplainHeader() string {
 	return Title("explain")
 }
 
 func ExplainContextSection(c ExplainContext) string {
 	return Section("context", explainContextKV(c))
-}
-
-func ExplainExplanationSection(c ExplainContext) string {
-	return Section("explanation", explainBullets(c))
-}
-
-func ExplainAIHeader() string {
-	return sectionHeader("ai analysis")
-}
-
-func ExplainSummary(c ExplainCounts) string {
-	var b strings.Builder
-	b.WriteString(SummaryLine(plural(c.Patterns, "pattern or issue detected", "patterns or issues detected")))
-	b.WriteString(SummaryLine(plural(c.Causes, "probable cause", "probable causes")))
-	return SectionSummary(b.String())
 }
 
 func systemKV(d SnapshotData) string {
@@ -272,20 +212,6 @@ func explainContextKV(c ExplainContext) string {
 	return b.String()
 }
 
-func explainBullets(c ExplainContext) string {
-	var b strings.Builder
-	if c.Cmd != "" {
-		b.WriteString(BulletOK(fmt.Sprintf("originating command: %s", c.Cmd)))
-	}
-	if c.Source != "" {
-		b.WriteString(BulletOK(fmt.Sprintf("input source: %s", c.Source)))
-	}
-	if c.Lines > 0 {
-		b.WriteString(BulletWarn(fmt.Sprintf("reading last %d lines", c.Lines)))
-	}
-	return b.String()
-}
-
 func orNone(s string) string {
 	if strings.TrimSpace(s) == "" {
 		return "(none)"
@@ -301,4 +227,12 @@ func nonEmptyLines(s string) []string {
 		}
 	}
 	return out
+}
+
+func ExplainEmptyResult() string {
+	return Section(
+		"result",
+		BulletOK("no errors or warnings found in the provided log")+
+			BulletOK("the log appears to be informational or debug output only"),
+	)
 }

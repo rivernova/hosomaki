@@ -9,6 +9,8 @@ import (
 	"testing"
 )
 
+// unit testing for explain command setup
+
 func TestResolveInputMessageArgument(t *testing.T) {
 	got, err := resolveInput(resolveParams{
 		args: []string{" kernel:", "OOM", "killer "},

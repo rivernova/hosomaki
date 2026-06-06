@@ -6,13 +6,11 @@ package ai
 
 import (
 	"context"
-	"io"
 )
 
-// abstracts over different ai backends
+// interface for ai providers
 
 type Provider interface {
 	Generate(ctx context.Context, prompt string) (string, error)
-	GenerateStream(ctx context.Context, prompt string, onFirstToken func(), w io.Writer) (string, error)
 	GenerateJSON(ctx context.Context, prompt string, onFirstToken func()) (string, error)
 }

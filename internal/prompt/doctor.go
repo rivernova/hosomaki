@@ -12,7 +12,8 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// template for the doctor command prompt
+// prompt logic for the doctor command
+
 type DoctorInput struct {
 	CollectedAt    time.Time
 	Environment    collector.Environment
@@ -23,6 +24,7 @@ type DoctorInput struct {
 	RecentErrors   string
 	TopProcesses   string
 }
+
 type DoctorIssue struct {
 	Severity string `json:"severity"`
 	Title    string `json:"title"`
@@ -58,10 +60,10 @@ func Doctor(d DoctorInput, brief bool) string {
   what the evidence in the snapshot shows, what the likely root cause is, and what
   impact this has or could have on the system. Reference specific values, service
   names, and log excerpts from the snapshot where relevant.
-- "description": a full paragraph (2–4 sentences) describing the remediation action.
-  Name the exact command to run or file to inspect. Explain what to look for and
+- "description": a full paragraph (2–4 sentences) describing the concrete action to
+  take. Name the exact command to run or file to inspect. Explain what to look for and
   what a successful outcome looks like. If multiple steps are needed, describe them
-  in sequence.
+  in sequence. If the action is potentially disruptive or irreversible, say so first.
 - If the system is healthy return {"issues":[],"actions":[]}.`
 	}
 
@@ -74,35 +76,24 @@ Analyse the system snapshot below. Return ONLY a JSON object — no prose, no ma
 The JSON must use exactly these field names. Do not rename, abbreviate, or add fields.
 
 SCHEMA
-{
-  "issues": [
-    {
-      "severity": "failed",
-      "title": "string",
-      "detail": "string"
-    }
-  ],
-  "actions": [
-    {
-      "description": "string",
-      "disruptive": false
-    }
-  ]
-}
+%s
 
 FIELD RULES
 - "severity": the string "failed" for a downed or broken component, "warning" for degraded or concerning.
 - "title": plain text label, no punctuation at the end.
 - "detail": see depth instructions below.
-- "description": see depth instructions below.
+- "description": see depth instructions below. To resolve each issue, suggest concrete next steps.
 - "disruptive": boolean true only if the action risks downtime or data loss.
 - issues[i] and actions[i] correspond 1-to-1: issue 0 is fixed by action 0.
 - All commands in "description" must be correct for the host environment above.
 
+OUTPUT FORMAT
+No markdown. No bullet points. No numbered lists. No headers. All string values are plain prose.
+
 %s
 
 System snapshot:
-%s`, EnvironmentSection(d.Environment), depthInstr, formatDoctorSnapshot(d))
+%s`, EnvironmentSection(d.Environment), SchemaDoctorFull, depthInstr, formatDoctorSnapshot(d))
 }
 
 func formatDoctorSnapshot(d DoctorInput) string {
