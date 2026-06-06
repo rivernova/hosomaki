@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// validates the raw JSON string with syntatic, structural and semantic checks
+// validation logic for JSON output schemas from LLM providers
 
 type ValidationResult struct {
 	structuralErrors []string
@@ -48,7 +48,7 @@ type StructValidator[T any] struct {
 func (v StructValidator[T]) Validate(raw string) *ValidationResult {
 	result := &ValidationResult{}
 
-	// structure
+	// syntactic
 	var value T
 	if err := json.Unmarshal([]byte(raw), &value); err != nil {
 		result.structuralErrors = append(result.structuralErrors,
@@ -56,6 +56,7 @@ func (v StructValidator[T]) Validate(raw string) *ValidationResult {
 		return result
 	}
 
+	// structural
 	var rawMap map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(raw), &rawMap); err != nil {
 		result.structuralErrors = append(result.structuralErrors,
@@ -89,6 +90,8 @@ func validateStruct(t reflect.Type, rawMap map[string]json.RawMessage, path stri
 		return
 	}
 
+	expected := make(map[string]struct{}, t.NumField())
+
 	for i := range t.NumField() {
 		field := t.Field(i)
 		if !field.IsExported() {
@@ -99,6 +102,7 @@ func validateStruct(t reflect.Type, rawMap map[string]json.RawMessage, path stri
 		if jsonName == "-" {
 			continue
 		}
+		expected[jsonName] = struct{}{}
 
 		fieldPath := jsonName
 		if path != "" {
@@ -114,7 +118,24 @@ func validateStruct(t reflect.Type, rawMap map[string]json.RawMessage, path stri
 			continue
 		}
 
+		if !omitempty && strings.TrimSpace(string(rawVal)) == "null" && field.Type.Kind() != reflect.Slice {
+			result.structuralErrors = append(result.structuralErrors,
+				fmt.Sprintf("field %q cannot be null", fieldPath))
+			continue
+		}
+
 		validateField(field.Type, rawVal, fieldPath, result)
+	}
+
+	for key := range rawMap {
+		if _, ok := expected[key]; !ok {
+			fieldPath := key
+			if path != "" {
+				fieldPath = path + "." + key
+			}
+			result.structuralErrors = append(result.structuralErrors,
+				fmt.Sprintf("unexpected field %q", fieldPath))
+		}
 	}
 }
 
@@ -131,11 +152,6 @@ func validateField(ft reflect.Type, rawVal json.RawMessage, path string, result 
 		if err := json.Unmarshal(rawVal, &s); err != nil {
 			result.structuralErrors = append(result.structuralErrors,
 				fmt.Sprintf("field %q: expected string, got %s", path, jsonKindOf(trimmed)))
-			return
-		}
-		if strings.TrimSpace(s) == "" {
-			result.structuralErrors = append(result.structuralErrors,
-				fmt.Sprintf("field %q: string value must not be empty", path))
 		}
 
 	case reflect.Bool:

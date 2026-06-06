@@ -12,7 +12,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// this file contains the implementation of the "shell-integration" command
+// "shell-integration" command.
+// shell function that wraps commands and explains failures automatically
 
 var shellSnippets = map[string]snippet{
 	"bash": {

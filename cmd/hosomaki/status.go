@@ -6,7 +6,6 @@ package hosomaki
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -16,21 +15,25 @@ import (
 	"github.com/rivernova/hosomaki/internal/prompt"
 	"github.com/rivernova/hosomaki/internal/sanitiser"
 	"github.com/rivernova/hosomaki/internal/spinner"
-	"github.com/rivernova/hosomaki/internal/stream"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
 )
 
-// status command implementation
+// status command logic
 
 func newStatusCmd() *cobra.Command {
-	var brief bool
+	var (
+		brief bool
+		debug bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show an AI summary of current system health",
 		Long: `Collects a snapshot of the system (uptime, memory, disk, failed services,
 recent errors) and asks the AI to summarise what's going on.
+
+All output is validated and repaired automatically before being printed.
 
   hosomaki status           # paragraph summary with anomaly list
   hosomaki status --brief   # single sentence`,
@@ -51,7 +54,7 @@ recent errors) and asks the AI to summarise what's going on.
 				RecentErrors:   snap.RecentErrors,
 			}
 			san := sanitiser.Default()
-			p := prompt.Status(prompt.StatusInput{
+			input := prompt.StatusInput{
 				CollectedAt:    snap.CollectedAt,
 				Environment:    snap.Environment,
 				Uptime:         snap.Uptime,
@@ -60,16 +63,17 @@ recent errors) and asks the AI to summarise what's going on.
 				FailedServices: san.Sanitise(snap.FailedServices),
 				RecentErrors:   san.Sanitise(snap.RecentErrors),
 				TopProcesses:   san.Sanitise(snap.TopProcesses),
-			}, brief)
+			}
 
 			if brief {
-				return runStatusBrief(data, p)
+				return runStatusBrief(data, prompt.Status(input, true), debug)
 			}
-			return runStatusFull(data, p)
+			return runStatusFull(data, prompt.Status(input, false), debug)
 		},
 	}
 
 	cmd.Flags().BoolVar(&brief, "brief", false, "one-sentence summary instead of a paragraph")
+	cmd.Flags().BoolVar(&debug, "debug", false, "print raw model response to stderr")
 	return cmd
 }
 
@@ -81,55 +85,32 @@ func statusBriefPipeline() ai.Pipeline[prompt.StatusBriefResult] {
 	)
 }
 
-func runStatusFull(data ui.SnapshotData, p string) error {
+func statusFullPipeline() ai.Pipeline[prompt.StatusResult] {
+	return ai.NewPipeline(
+		provider,
+		ai.NewSchema(prompt.SchemaStatusFull),
+		ai.StructValidator[prompt.StatusResult]{},
+	)
+}
+
+func runStatusFull(data ui.SnapshotData, p string, debug bool) error {
 	fmt.Print(ui.StatusHeader())
 	fmt.Print(ui.StatusSystemSection(data))
 	fmt.Print(ui.StatusInsightsSection(data))
 
-	var (
-		anomalies            []prompt.StatusAnomaly
-		overviewPrinted      bool
-		anomalyHeaderPrinted bool
-	)
-
 	spin := spinner.Start("thinking…")
+	pipe := statusFullPipeline()
+	if debug {
+		pipe = pipe.WithDebug(os.Stderr)
+	}
 
-	sc := stream.NewArrayItemScanner(func(key, raw string) {
-		switch key {
-		case "overview":
-			var overview string
-			if err := json.Unmarshal([]byte(raw), &overview); err != nil {
-				return
-			}
-			overview = strings.TrimSpace(overview)
-			if overview == "" {
-				return
-			}
-			spin.Stop()
-			fmt.Print(ui.StatusOverviewHeader())
-			fmt.Print(ui.RenderStatusOverviewLive(overview))
-			overviewPrinted = true
-
-		case "anomalies":
-			var a prompt.StatusAnomaly
-			if err := json.Unmarshal([]byte(raw), &a); err != nil {
-				return
-			}
-			anomalies = append(anomalies, a)
-			if !anomalyHeaderPrinted {
-				if !overviewPrinted {
-					spin.Stop()
-				}
-				fmt.Print(ui.StatusAnomaliesHeader())
-				anomalyHeaderPrinted = true
-			}
-			fmt.Print(ui.RenderStatusAnomalyLive(a, len(anomalies)))
-		}
-	})
-
-	_, err := provider.GenerateStream(context.Background(), p,
-		func() { spin.SetLabel("responding…") },
-		sc,
+	result, err := pipe.Run(
+		context.Background(),
+		p,
+		ai.RunOptions{
+			OnFirstToken:  func() { spin.SetLabel("responding…") },
+			OnRepairStart: func(n int) { spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n)) },
+		},
 	)
 	spin.Stop()
 
@@ -138,27 +119,44 @@ func runStatusFull(data ui.SnapshotData, p string) error {
 		return err
 	}
 
-	if !anomalyHeaderPrinted {
-		fmt.Print(ui.StatusAnomaliesHeader())
-		fmt.Print(ui.BulletOK("no anomalies detected"))
+	overview := strings.TrimSpace(result.Overview)
+	if overview != "" {
+		fmt.Print(ui.StatusOverviewHeader())
+		fmt.Print(ui.RenderStatusOverviewLive(overview))
 	}
 
-	fmt.Print(ui.RenderStatusSummary(prompt.StatusResult{Anomalies: anomalies}))
+	fmt.Print(ui.StatusAnomaliesHeader())
+	if len(result.Anomalies) == 0 {
+		fmt.Print(ui.BulletOK("no anomalies detected"))
+	} else {
+		for i, a := range result.Anomalies {
+			fmt.Print(ui.RenderStatusAnomalyLive(a, i+1))
+		}
+	}
+
+	fmt.Print(ui.RenderStatusSummary(result))
 	fmt.Print(ui.Done())
 	return nil
 }
 
-func runStatusBrief(data ui.SnapshotData, p string) error {
+func runStatusBrief(data ui.SnapshotData, p string, debug bool) error {
 	fmt.Print(ui.StatusHeaderBrief())
 	fmt.Print(ui.StatusSystemSectionBrief(data))
 	fmt.Print(ui.StatusInsightsSectionBrief(data))
 
 	spin := spinner.Start("thinking…")
+	pipe := statusBriefPipeline()
+	if debug {
+		pipe = pipe.WithDebug(os.Stderr)
+	}
 
-	result, err := statusBriefPipeline().Run(
+	result, err := pipe.Run(
 		context.Background(),
 		p,
-		func() { spin.SetLabel("responding…") },
+		ai.RunOptions{
+			OnFirstToken:  func() { spin.SetLabel("responding…") },
+			OnRepairStart: func(n int) { spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n)) },
+		},
 	)
 	spin.Stop()
 

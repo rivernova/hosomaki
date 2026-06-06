@@ -11,11 +11,8 @@ import (
 	"github.com/rivernova/hosomaki/internal/prompt"
 )
 
-// live rendering of prompt sections
-
 func DoctorIssuesHeader() string  { return sectionHeader("issues") }
 func DoctorActionsHeader() string { return sectionHeader("suggested actions") }
-
 func RenderDoctorIssueLive(iss prompt.DoctorIssue, _ int) string {
 	title := strings.TrimSpace(iss.Title)
 	detail := strings.TrimSpace(iss.Detail)

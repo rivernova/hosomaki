@@ -19,9 +19,9 @@ const (
 var snapshot = struct {
 	uptimeArgs         []string
 	memoryArgs         []string
-	diskShell          string // needs shell: multiple --output flags and -x exclusions
+	diskShell          string // multiple --output flags and -x exclusions
 	failedServicesArgs []string
-	recentErrorsShell  string // needs shell: 2>/dev/null redirection
+	recentErrorsShell  string // 2>/dev/null redirection
 	topProcessesArgs   []string
 }{
 	uptimeArgs:         []string{"-p"},

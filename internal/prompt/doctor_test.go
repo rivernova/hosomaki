@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// unit tests for Doctor prompt generation logic
+// unit testing for doctor prompt generation logic
 
 func TestDoctorContainsSnapshot(t *testing.T) {
 	input := DoctorInput{

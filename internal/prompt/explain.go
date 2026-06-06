@@ -11,7 +11,8 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// template for the prompt for the explain command
+// prompt logic for the explain command
+
 type ExplainEntry struct {
 	What string `json:"what"`
 	Why  string `json:"why"`
@@ -35,7 +36,7 @@ The log has been sanitised. You will see:
   - Line categories: <ERROR>, <WARN>, <INFO>, <DEBUG>, <TRANSACTION>, <SCRIPTLET>.
   - Placeholders: <URL>, <PATH>, <CONFIG_PATH>, <LOG_PATH>, <CACHE_PATH>,
     <LIB_PATH>, <HOME_PATH>, <HEX>, <UUID>, <IPV4>, <IPV6>, <MAC>,
-    <REPO>, <REPO_CACHE>, <VERSION>.
+    <EMAIL>, <REPO_CACHE>, <VERSION>.
 Treat placeholders as opaque identifiers. Do not invent real values.
 %s
 TASK
@@ -51,7 +52,7 @@ OUTPUT
 Return ONLY a JSON object — no prose, no markdown fences, no text outside the JSON.
 
 SCHEMA
-{"issues":[{"what":"string","why":"string"}]}
+%s
 
 FIELD RULES
 - "what": 2–4 sentences. Describe precisely what is happening for this issue.
@@ -66,5 +67,5 @@ FIELD RULES
 - Group related log lines into a single entry. Do not create one entry per line.
 
 Input:
-%s`, EnvironmentSection(env), cmdContext, input)
+%s`, EnvironmentSection(env), cmdContext, SchemaExplain, input)
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// unit test for explain
+// unit test for explain prompt logic
 
 func TestExplainWithoutCmd(t *testing.T) {
 	p := Explain("some error output", "", collector.Environment{})

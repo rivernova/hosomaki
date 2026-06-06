@@ -10,6 +10,8 @@ import (
 	"testing"
 )
 
+// unit testing for doctor command setup
+
 func TestDoctorCmdRegistered(t *testing.T) {
 	found := false
 	for _, sub := range rootCmd.Commands() {

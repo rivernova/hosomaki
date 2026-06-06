@@ -9,10 +9,11 @@ import (
 	"testing"
 )
 
-// uni tests for the sanitiser
+// unit testing for the sanitiser
 
 func TestSanitise_EmptyInput(t *testing.T) {
-	if got := Default().Sanitise(""); got != "" {
+	got := Default().Sanitise("")
+	if got != "" {
 		t.Fatalf("empty input should produce empty output, got: %q", got)
 	}
 }
@@ -27,19 +28,30 @@ func TestSanitise_Deterministic(t *testing.T) {
 	}
 }
 
+func TestSanitise_DeterministicUnderLoad(t *testing.T) {
+	const input = `2026-01-01T00:00:00Z [42] ERROR Failed to bind 0.0.0.0:80 from /home/alice/app /var/cache/x/y`
+	s := Default()
+	reference := s.Sanitise(input)
+	for range 100 {
+		if got := s.Sanitise(input); got != reference {
+			t.Fatalf("non-deterministic output:\n  reference: %q\n  got:       %q", reference, got)
+		}
+	}
+}
+
 func TestSanitise_NoOpSanitiser(t *testing.T) {
 	const input = "any text whatsoever"
-	if got := New().Sanitise(input); got != input {
+	got := New().Sanitise(input)
+	if got != input {
 		t.Fatalf("no-op sanitiser changed input: %q -> %q", input, got)
 	}
 }
 
 func TestStripTimestamps_ISO8601(t *testing.T) {
 	in := "2026-06-02T20:08:18+0000 hello"
-	want := "hello"
 	got := strings.TrimSpace(StripTimestamps{}.Apply(in))
-	if got != want {
-		t.Fatalf("got %q, want %q", got, want)
+	if got != "hello" {
+		t.Fatalf("got %q, want %q", got, "hello")
 	}
 }
 
@@ -59,6 +71,25 @@ func TestStripTimestamps_PidTag(t *testing.T) {
 	}
 }
 
+func TestStripSyslogHostnames(t *testing.T) {
+	in := "myhost-prod sshd[1234]: Accepted password"
+	got := StripSyslogHostnames{}.Apply(in)
+	if strings.Contains(got, "myhost-prod") {
+		t.Fatalf("hostname not stripped, got: %q", got)
+	}
+	if !strings.Contains(got, "sshd") || !strings.Contains(got, "Accepted password") {
+		t.Fatalf("program name or message lost, got: %q", got)
+	}
+}
+
+func TestStripSyslogHostnames_NoMatch(t *testing.T) {
+	in := "some prose without colons"
+	got := StripSyslogHostnames{}.Apply(in)
+	if got != in {
+		t.Fatalf("unrelated line was modified: %q -> %q", in, got)
+	}
+}
+
 func TestMaskURLs_HTTP(t *testing.T) {
 	in := "fetched from https://download.fedoraproject.org/pub/x.rpm"
 	got := MaskURLs{}.Apply(in)
@@ -72,6 +103,25 @@ func TestMaskURLs_Rsync(t *testing.T) {
 	got := MaskURLs{}.Apply(in)
 	if !strings.Contains(got, "<URL>") {
 		t.Fatalf("rsync URL not masked: %q", got)
+	}
+}
+
+func TestMaskURLs_WithCredentials(t *testing.T) {
+	in := "trying https://user:s3cret@host.example.com/path"
+	got := MaskURLs{}.Apply(in)
+	if strings.Contains(got, "user") || strings.Contains(got, "s3cret") {
+		t.Fatalf("credentials leaked through URL mask: %q", got)
+	}
+}
+
+func TestMaskEmails(t *testing.T) {
+	in := "user alice@example.org logged in"
+	got := MaskEmails{}.Apply(in)
+	if strings.Contains(got, "alice@example.org") {
+		t.Fatalf("email not masked: %q", got)
+	}
+	if !strings.Contains(got, "<EMAIL>") {
+		t.Fatalf("missing <EMAIL> placeholder: %q", got)
 	}
 }
 
@@ -91,11 +141,46 @@ func TestMaskIPv6(t *testing.T) {
 	}
 }
 
+func TestMaskIPv6_DoesNotMatchCxxScope(t *testing.T) {
+	in := "in std::vector::iterator we crashed"
+	got := MaskIPv6{}.Apply(in)
+	if strings.Contains(got, "<IPV6>") {
+		t.Fatalf("C++ scope resolution misclassified as IPv6: %q", got)
+	}
+}
+
+func TestMaskIPv6_ValidAddressForms(t *testing.T) {
+	cases := []string{
+		"2001:db8::1",
+		"::1",
+		"fe80::1ff:fe23:4567:890a",
+		"2001:0db8:0000:0000:0000:ff00:0042:8329",
+	}
+	for _, addr := range cases {
+		in := "addr " + addr + " here"
+		got := MaskIPv6{}.Apply(in)
+		if !strings.Contains(got, "<IPV6>") {
+			t.Errorf("IPv6 %q not masked, got: %q", addr, got)
+		}
+	}
+}
+
 func TestMaskMACAddresses(t *testing.T) {
 	in := "device aa:bb:cc:dd:ee:ff registered"
 	got := MaskMACAddresses{}.Apply(in)
 	if strings.Contains(got, "aa:bb:cc:dd:ee:ff") {
 		t.Fatalf("MAC not masked: %q", got)
+	}
+}
+
+func TestDefault_MACBeforeIPv6(t *testing.T) {
+	in := "device aa:bb:cc:dd:ee:ff up"
+	got := Default().Sanitise(in)
+	if !strings.Contains(got, "<MAC>") {
+		t.Fatalf("MAC should be tagged <MAC>, got: %q", got)
+	}
+	if strings.Contains(got, "<IPV6>") {
+		t.Fatalf("MAC was misclassified as IPv6, got: %q", got)
 	}
 }
 
@@ -116,10 +201,10 @@ func TestMaskHexAddresses_PrefixedHex(t *testing.T) {
 }
 
 func TestMaskHexAddresses_ShortHexPreserved(t *testing.T) {
-	in := "version abc1"
+	in := "container abc1234 exited"
 	got := MaskHexAddresses{}.Apply(in)
-	if !strings.Contains(got, "abc1") {
-		t.Fatalf("short hex should not be masked, got: %q", got)
+	if !strings.Contains(got, "abc1234") {
+		t.Fatalf("short hex was masked unexpectedly, got: %q", got)
 	}
 }
 
@@ -150,6 +235,23 @@ func TestMaskAbsolutePaths_Categories(t *testing.T) {
 	}
 }
 
+func TestMaskAbsolutePaths_BareDirectories(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{"changed to /etc directory", "<CONFIG_PATH>"},
+		{"logs under /var/log", "<LOG_PATH>"},
+		{"cache rooted at /var/cache", "<CACHE_PATH>"},
+	}
+	for _, tc := range tests {
+		got := MaskAbsolutePaths{}.Apply(tc.in)
+		if !strings.Contains(got, tc.want) {
+			t.Errorf("%q: expected %q, got: %q", tc.in, tc.want, got)
+		}
+	}
+}
+
 func TestMaskHomePaths(t *testing.T) {
 	in := "config at /home/alice/.bashrc"
 	got := MaskHomePaths{}.Apply(in)
@@ -161,6 +263,14 @@ func TestMaskHomePaths(t *testing.T) {
 	}
 }
 
+func TestMaskHomePaths_Root(t *testing.T) {
+	in := "config at /root/.bashrc"
+	got := MaskHomePaths{}.Apply(in)
+	if strings.Contains(got, "/root") {
+		t.Fatalf("/root not masked: %q", got)
+	}
+}
+
 func TestNormalisePackageNVR(t *testing.T) {
 	in := "installing kernel-6.10.7-200.fc40.x86_64"
 	got := NormalisePackageNVR{}.Apply(in)
@@ -169,10 +279,57 @@ func TestNormalisePackageNVR(t *testing.T) {
 	}
 }
 
+func TestClassifyLines_Error(t *testing.T) {
+	got := ClassifyLines{}.Apply("could not load module: fatal error")
+	if !strings.HasPrefix(got, "<ERROR>") {
+		t.Fatalf("expected <ERROR> prefix, got: %q", got)
+	}
+}
+
+func TestClassifyLines_Warning(t *testing.T) {
+	got := ClassifyLines{}.Apply("Warning: deprecated option")
+	if !strings.HasPrefix(got, "<WARN>") {
+		t.Fatalf("expected <WARN> prefix, got: %q", got)
+	}
+}
+
+func TestClassifyLines_Transaction(t *testing.T) {
+	got := ClassifyLines{}.Apply("Installed: foo-bar-1.0")
+	if !strings.HasPrefix(got, "<TRANSACTION>") {
+		t.Fatalf("expected <TRANSACTION> prefix, got: %q", got)
+	}
+}
+
+func TestClassifyLines_Info(t *testing.T) {
+	got := ClassifyLines{}.Apply("starting service")
+	if !strings.HasPrefix(got, "<INFO>") {
+		t.Fatalf("expected <INFO> prefix, got: %q", got)
+	}
+}
+
+func TestClassifyLines_ErrorBeforeTransaction(t *testing.T) {
+	got := ClassifyLines{}.Apply("installed: foo failed to register")
+	if !strings.HasPrefix(got, "<ERROR>") {
+		t.Fatalf("error keyword must win over transaction keyword, got: %q", got)
+	}
+}
+
+func TestClassifyLines_PreservesBlankLines(t *testing.T) {
+	in := "first\n\nsecond"
+	got := ClassifyLines{}.Apply(in)
+	lines := strings.Split(got, "\n")
+	if len(lines) != 3 {
+		t.Fatalf("expected 3 lines, got %d: %v", len(lines), lines)
+	}
+	if lines[1] != "" {
+		t.Fatalf("blank line not preserved, got: %q", lines[1])
+	}
+}
+
 func TestCollapseRepeats(t *testing.T) {
 	in := "<INFO> a\n<INFO> a\n<INFO> a\n<INFO> b"
 	got := CollapseRepeats{}.Apply(in)
-	if !strings.Contains(got, "(repeated 3 times)") {
+	if !strings.Contains(got, "[x3]") {
 		t.Fatalf("repeats not collapsed, got: %q", got)
 	}
 	if !strings.Contains(got, "<INFO> b") {
@@ -181,11 +338,56 @@ func TestCollapseRepeats(t *testing.T) {
 }
 
 func TestCollapseRepeats_SingleLine(t *testing.T) {
-	in := "only one"
-	got := CollapseRepeats{}.Apply(in)
+	got := CollapseRepeats{}.Apply("only one")
 	if got != "only one" {
 		t.Fatalf("single line corrupted: %q", got)
 	}
+}
+
+func TestDefault_RuleOrder_PathsBeforeHex(t *testing.T) {
+	rules := Default().Rules()
+	pathIdx, hexIdx := -1, -1
+	for i, r := range rules {
+		switch r.Name() {
+		case "mask-paths":
+			pathIdx = i
+		case "mask-hex":
+			hexIdx = i
+		}
+	}
+	if pathIdx == -1 || hexIdx == -1 {
+		t.Fatalf("expected mask-paths and mask-hex rules in Default, got: %v", ruleNames(rules))
+	}
+	if pathIdx >= hexIdx {
+		t.Fatalf("mask-paths (index %d) must come before mask-hex (index %d)", pathIdx, hexIdx)
+	}
+}
+
+func TestDefault_RuleOrder_MACBeforeIPv6(t *testing.T) {
+	rules := Default().Rules()
+	macIdx, ipv6Idx := -1, -1
+	for i, r := range rules {
+		switch r.Name() {
+		case "mask-mac":
+			macIdx = i
+		case "mask-ipv6":
+			ipv6Idx = i
+		}
+	}
+	if macIdx == -1 || ipv6Idx == -1 {
+		t.Fatalf("expected mask-mac and mask-ipv6 rules in Default")
+	}
+	if macIdx >= ipv6Idx {
+		t.Fatalf("mask-mac (index %d) must come before mask-ipv6 (index %d)", macIdx, ipv6Idx)
+	}
+}
+
+func ruleNames(rules []Rule) []string {
+	out := make([]string, len(rules))
+	for i, r := range rules {
+		out[i] = r.Name()
+	}
+	return out
 }
 
 const realDNF5Sample = `2026-06-02T20:08:18+0000 [39054] DEBUG [librepo]   rsync://rpmfusion.ip-connect.info/rpmfusion/free/fedora/updates/44/x86_64/repodata/repomd.xml
@@ -196,7 +398,6 @@ const realDNF5Sample = `2026-06-02T20:08:18+0000 [39054] DEBUG [librepo]   rsync
 
 func TestDefault_StripsAllSensitiveTokens(t *testing.T) {
 	got := Default().Sanitise(realDNF5Sample)
-
 	mustNotContain := []string{
 		"2026-06-02T20:08:18+0000",
 		"rsync://", "http://", "rpmfusion.ip-connect.info",
@@ -213,14 +414,35 @@ func TestDefault_StripsAllSensitiveTokens(t *testing.T) {
 
 func TestDefault_PreservesSemanticStructure(t *testing.T) {
 	got := Default().Sanitise(realDNF5Sample)
-
-	mustContain := []string{
-		"<URL>", "<HEX>", "DNF5 finished",
-		"<DEBUG>", "<INFO>",
-	}
+	mustContain := []string{"<URL>", "<HEX>", "DNF5 finished", "<DEBUG>", "<INFO>"}
 	for _, token := range mustContain {
 		if !strings.Contains(got, token) {
 			t.Errorf("expected sanitised output to contain %q, got:\n%s", token, got)
 		}
 	}
+}
+
+func FuzzSanitise(f *testing.F) {
+	seeds := []string{
+		"",
+		"a",
+		"::::::",
+		"std::vector::iterator",
+		"/etc/passwd",
+		"aa:bb:cc:dd:ee:ff",
+		"2026-01-01T00:00:00Z [42] ERROR something",
+		strings.Repeat("a:", 1000),
+	}
+	for _, s := range seeds {
+		f.Add(s)
+	}
+	s := Default()
+	f.Fuzz(func(t *testing.T, in string) {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("panic on input %q: %v", in, r)
+			}
+		}()
+		_ = s.Sanitise(in)
+	})
 }

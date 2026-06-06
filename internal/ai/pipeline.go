@@ -10,6 +10,8 @@ import (
 	"io"
 )
 
+// validation and repair pipeline for JSON outputs
+
 const MaxRepairAttempts = 3
 
 type Pipeline[T any] struct {
@@ -34,16 +36,13 @@ func (p Pipeline[T]) WithDebug(w io.Writer) Pipeline[T] {
 	return p
 }
 
-// Run executes the full pipeline:
-//
-//  1. Call provider.GenerateJSON with the generation prompt.  onFirstToken
-//     fires on the first streamed token so the caller's spinner can react.
-//  2. Validate the result.  Return immediately if valid.
-//  3. If invalid, choose the repair strategy based on failure kind and call
-//     the provider again.  Re-validate.  Repeat up to MaxRepairAttempts times.
-//  4. If still invalid after all attempts, return a descriptive error.
-func (p Pipeline[T]) Run(ctx context.Context, generationPrompt string, onFirstToken func()) (T, error) {
-	raw, err := p.provider.GenerateJSON(ctx, generationPrompt, onFirstToken)
+type RunOptions struct {
+	OnFirstToken  func()
+	OnRepairStart func(attempt int)
+}
+
+func (p Pipeline[T]) Run(ctx context.Context, generationPrompt string, opts RunOptions) (T, error) {
+	raw, err := p.provider.GenerateJSON(ctx, generationPrompt, opts.OnFirstToken)
 	if err != nil {
 		var zero T
 		return zero, fmt.Errorf("pipeline: generate: %w", err)
@@ -58,10 +57,20 @@ func (p Pipeline[T]) Run(ctx context.Context, generationPrompt string, onFirstTo
 	}
 
 	current := raw
+	lastVR := vr
+
 	for attempt := range MaxRepairAttempts {
-		repairPrompt := p.selectRepairPrompt(vr, generationPrompt, current)
+		if err := ctx.Err(); err != nil {
+			var zero T
+			return zero, fmt.Errorf("pipeline: cancelled before repair attempt %d: %w", attempt+1, err)
+		}
+		if opts.OnRepairStart != nil {
+			opts.OnRepairStart(attempt + 1)
+		}
+
+		repairPrompt := p.selectRepairPrompt(lastVR, generationPrompt, current)
 		p.debugf("[pipeline] repair attempt %d (%s) — prompt:\n%s\n",
-			attempt+1, repairKind(vr), repairPrompt)
+			attempt+1, repairKind(lastVR), repairPrompt)
 
 		repaired, err := p.provider.GenerateJSON(ctx, repairPrompt, nil)
 		if err != nil {
@@ -69,11 +78,11 @@ func (p Pipeline[T]) Run(ctx context.Context, generationPrompt string, onFirstTo
 			return zero, fmt.Errorf("pipeline: repair attempt %d: %w", attempt+1, err)
 		}
 
-		vr = p.validator.Validate(repaired)
+		lastVR = p.validator.Validate(repaired)
 		p.debugf("[pipeline] repair %d response (%d bytes):\n%s\n[pipeline] validation: %s\n",
-			attempt+1, len(repaired), repaired, validationSummary(vr))
+			attempt+1, len(repaired), repaired, validationSummary(lastVR))
 
-		if vr.Valid() {
+		if lastVR.Valid() {
 			return p.mustDecode(repaired)
 		}
 
@@ -84,7 +93,7 @@ func (p Pipeline[T]) Run(ctx context.Context, generationPrompt string, onFirstTo
 	return zero, fmt.Errorf(
 		"pipeline: output still invalid after %d repair attempt(s): %w",
 		MaxRepairAttempts,
-		p.validator.Validate(current),
+		lastVR,
 	)
 }
 
@@ -92,7 +101,29 @@ func (p Pipeline[T]) selectRepairPrompt(vr *ValidationResult, generationPrompt, 
 	if vr.StructurallyValid() {
 		return p.repairer.BuildSemanticRepairPrompt(p.schema, generationPrompt, vr.SemanticErrors())
 	}
+	if isEssentiallyEmpty(current) {
+		return p.repairer.BuildStructuralRepairPromptWithContext(
+			p.schema, current, vr.StructuralErrors(), generationPrompt,
+		)
+	}
 	return p.repairer.BuildStructuralRepairPrompt(p.schema, current, vr.StructuralErrors())
+}
+
+func isEssentiallyEmpty(raw string) bool {
+	trimmed := stripWhitespace(raw)
+	return trimmed == "" || trimmed == "{}" || trimmed == "null" || trimmed == "[]"
+}
+
+func stripWhitespace(s string) string {
+	var b []byte
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
+			continue
+		}
+		b = append(b, c)
+	}
+	return string(b)
 }
 
 func (p Pipeline[T]) mustDecode(raw string) (T, error) {

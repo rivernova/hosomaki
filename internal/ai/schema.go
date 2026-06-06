@@ -6,7 +6,7 @@ package ai
 
 import "fmt"
 
-// wrapper aroun the raw schema string to prevent accidental misuse
+// required structure for JSON outputs
 
 type Schema struct {
 	raw string

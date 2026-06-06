@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-// unit test for the pipeline
+// unit testing for the Pipeline type and its repair logic
 
 type stubProvider struct {
 	responses []string
@@ -41,20 +41,6 @@ func (s *stubProvider) next() string {
 		return s.responses[len(s.responses)-1]
 	}
 	return s.responses[idx]
-}
-
-type recordingProvider struct {
-	response string
-	prompts  []string
-}
-
-func (r *recordingProvider) Generate(_ context.Context, _ string) (string, error) { return "", nil }
-func (r *recordingProvider) GenerateStream(_ context.Context, _ string, _ func(), _ io.Writer) (string, error) {
-	return "", nil
-}
-func (r *recordingProvider) GenerateJSON(_ context.Context, prompt string, _ func()) (string, error) {
-	r.prompts = append(r.prompts, prompt)
-	return r.response, nil
 }
 
 type errProvider struct{ err error }
@@ -90,6 +76,18 @@ func (c *conditionalErrProvider) GenerateJSON(_ context.Context, _ string, onFir
 	return "", c.repairErr
 }
 
+type funcProvider struct {
+	fn func(prompt string) (string, error)
+}
+
+func (f *funcProvider) Generate(_ context.Context, _ string) (string, error) { return "", nil }
+func (f *funcProvider) GenerateStream(_ context.Context, _ string, _ func(), _ io.Writer) (string, error) {
+	return "", nil
+}
+func (f *funcProvider) GenerateJSON(_ context.Context, prompt string, _ func()) (string, error) {
+	return f.fn(prompt)
+}
+
 type pipelineItem struct {
 	Label  string `json:"label"`
 	Active bool   `json:"active"`
@@ -114,7 +112,7 @@ func newPipelineWithCheck(p Provider, check func(pipelineSchema) []string) Pipel
 
 func TestPipeline_ValidOnFirstGeneration(t *testing.T) {
 	p := &stubProvider{responses: []string{`{"name":"ok","count":1,"items":[]}`}}
-	v, err := newPipeline(p).Run(context.Background(), "prompt", nil)
+	v, err := newPipeline(p).Run(context.Background(), "prompt", RunOptions{})
 	if err != nil {
 		t.Fatalf("expected success, got: %v", err)
 	}
@@ -131,7 +129,7 @@ func TestPipeline_StructuralRepairOnFirstAttempt(t *testing.T) {
 		`{"count":1,"items":[]}`,
 		`{"name":"fixed","count":1,"items":[]}`,
 	}}
-	v, err := newPipeline(p).Run(context.Background(), "prompt", nil)
+	v, err := newPipeline(p).Run(context.Background(), "prompt", RunOptions{})
 	if err != nil {
 		t.Fatalf("expected success after structural repair, got: %v", err)
 	}
@@ -143,32 +141,52 @@ func TestPipeline_StructuralRepairOnFirstAttempt(t *testing.T) {
 	}
 }
 
+func TestPipeline_EmptyResponseTriggersContextualRepair(t *testing.T) {
+	const originalTask = "ANALYSE_THIS_LOG_X12345"
+	calls := 0
+	p := &funcProvider{
+		fn: func(prompt string) (string, error) {
+			calls++
+			if calls == 1 {
+				return "{}", nil
+			}
+			if !strings.Contains(prompt, originalTask) {
+				return "", errors.New("repair prompt missing original task")
+			}
+			return `{"name":"recovered","count":1,"items":[]}`, nil
+		},
+	}
+	v, err := newPipeline(p).Run(context.Background(), originalTask, RunOptions{})
+	if err != nil {
+		t.Fatalf("expected success after contextual repair, got: %v", err)
+	}
+	if v.Name != "recovered" {
+		t.Fatalf("unexpected name: %q", v.Name)
+	}
+}
+
 func TestPipeline_SemanticRepairUsesOriginalPrompt(t *testing.T) {
+	const originalPrompt = "analyse this log and return items"
+	calls := 0
+	rp := &funcProvider{
+		fn: func(prompt string) (string, error) {
+			calls++
+			if calls == 1 {
+				return `{"name":"ok","count":0,"items":[]}`, nil
+			}
+			if !strings.Contains(prompt, originalPrompt) {
+				return "", errors.New("repair prompt missing original task")
+			}
+			return `{"name":"ok","count":0,"items":[{"label":"real","active":true}]}`, nil
+		},
+	}
 	check := func(s pipelineSchema) []string {
 		if len(s.Items) == 0 {
 			return []string{"items must not be empty"}
 		}
 		return nil
 	}
-	v := StructValidator[pipelineSchema]{SemanticCheck: check}
-
-	const originalPrompt = "analyse this log and return items"
-	callCount := 0
-	repairProvider := &funcProvider{
-		fn: func(prompt string) (string, error) {
-			callCount++
-			if callCount == 1 {
-				return `{"name":"ok","count":0,"items":[]}`, nil
-			}
-			if !strings.Contains(prompt, originalPrompt) {
-				return "", errors.New("repair prompt did not contain original task")
-			}
-			return `{"name":"ok","count":0,"items":[{"label":"real","active":true}]}`, nil
-		},
-	}
-
-	result, err := NewPipeline(repairProvider, NewSchema(pipelineSchemaStr), v).
-		Run(context.Background(), originalPrompt, nil)
+	result, err := newPipelineWithCheck(rp, check).Run(context.Background(), originalPrompt, RunOptions{})
 	if err != nil {
 		t.Fatalf("expected success after semantic repair, got: %v", err)
 	}
@@ -177,33 +195,11 @@ func TestPipeline_SemanticRepairUsesOriginalPrompt(t *testing.T) {
 	}
 }
 
-func TestPipeline_SemanticCheckTriggersRepair(t *testing.T) {
-	p := &stubProvider{responses: []string{
-		`{"name":"ok","count":0,"items":[]}`,
-		`{"name":"ok","count":0,"items":[{"label":"a","active":true}]}`,
-	}}
-	v, err := newPipelineWithCheck(p, func(s pipelineSchema) []string {
-		if len(s.Items) == 0 {
-			return []string{"items must not be empty"}
-		}
-		return nil
-	}).Run(context.Background(), "prompt", nil)
-	if err != nil {
-		t.Fatalf("expected success after semantic repair, got: %v", err)
-	}
-	if len(v.Items) == 0 {
-		t.Fatal("expected non-empty Items after semantic repair")
-	}
-	if p.callIdx != 2 {
-		t.Fatalf("expected 2 provider calls, got %d", p.callIdx)
-	}
-}
-
 func TestPipeline_ExhaustsAllRepairAttempts(t *testing.T) {
 	p := &stubProvider{responses: []string{`{"count":1,"items":[]}`}}
-	_, err := newPipeline(p).Run(context.Background(), "prompt", nil)
+	_, err := newPipeline(p).Run(context.Background(), "prompt", RunOptions{})
 	if err == nil {
-		t.Fatal("expected error after exhausting repair attempts, got nil")
+		t.Fatal("expected error after exhausting repair attempts")
 	}
 	if p.callIdx != 1+MaxRepairAttempts {
 		t.Fatalf("expected %d provider calls, got %d", 1+MaxRepairAttempts, p.callIdx)
@@ -212,7 +208,7 @@ func TestPipeline_ExhaustsAllRepairAttempts(t *testing.T) {
 
 func TestPipeline_ErrorOnGeneration(t *testing.T) {
 	provErr := errors.New("network unavailable")
-	_, err := newPipeline(&errProvider{err: provErr}).Run(context.Background(), "prompt", nil)
+	_, err := newPipeline(&errProvider{err: provErr}).Run(context.Background(), "prompt", RunOptions{})
 	if !errors.Is(err, provErr) {
 		t.Fatalf("expected wrapped provErr, got: %v", err)
 	}
@@ -224,7 +220,7 @@ func TestPipeline_ErrorOnRepairCall(t *testing.T) {
 		firstResponse: `{"count":1,"items":[]}`,
 		repairErr:     provErr,
 	}
-	_, err := newPipeline(p).Run(context.Background(), "prompt", nil)
+	_, err := newPipeline(p).Run(context.Background(), "prompt", RunOptions{})
 	if !errors.Is(err, provErr) {
 		t.Fatalf("expected wrapped provErr, got: %v", err)
 	}
@@ -233,12 +229,14 @@ func TestPipeline_ErrorOnRepairCall(t *testing.T) {
 func TestPipeline_OnFirstTokenFiredOnInitialGeneration(t *testing.T) {
 	p := &stubProvider{responses: []string{`{"name":"ok","count":1,"items":[]}`}}
 	fired := false
-	_, err := newPipeline(p).Run(context.Background(), "prompt", func() { fired = true })
+	_, err := newPipeline(p).Run(context.Background(), "prompt", RunOptions{
+		OnFirstToken: func() { fired = true },
+	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !fired {
-		t.Fatal("onFirstToken was not fired during initial generation")
+		t.Fatal("OnFirstToken was not fired during initial generation")
 	}
 }
 
@@ -248,23 +246,64 @@ func TestPipeline_OnFirstTokenNotFiredOnRepair(t *testing.T) {
 		`{"name":"fixed","count":1,"items":[]}`,
 	}}
 	fireCount := 0
-	_, err := newPipeline(p).Run(context.Background(), "prompt", func() { fireCount++ })
+	_, err := newPipeline(p).Run(context.Background(), "prompt", RunOptions{
+		OnFirstToken: func() { fireCount++ },
+	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if fireCount != 1 {
-		t.Fatalf("onFirstToken fired %d times, want exactly 1", fireCount)
+		t.Fatalf("OnFirstToken fired %d times, want exactly 1", fireCount)
+	}
+}
+
+func TestPipeline_OnRepairStartFiresPerAttempt(t *testing.T) {
+	p := &stubProvider{responses: []string{`{"count":1,"items":[]}`}}
+	attempts := []int{}
+	_, _ = newPipeline(p).Run(context.Background(), "prompt", RunOptions{
+		OnRepairStart: func(n int) { attempts = append(attempts, n) },
+	})
+	if len(attempts) != MaxRepairAttempts {
+		t.Fatalf("expected %d OnRepairStart fires, got %d", MaxRepairAttempts, len(attempts))
+	}
+	for i, n := range attempts {
+		if n != i+1 {
+			t.Fatalf("attempt #%d reported as %d", i+1, n)
+		}
+	}
+}
+
+func TestPipeline_ContextCancellationStopsRepair(t *testing.T) {
+	calls := 0
+	ctx, cancel := context.WithCancel(context.Background())
+	p := &funcProvider{
+		fn: func(_ string) (string, error) {
+			calls++
+			if calls == 1 {
+				cancel()
+				return `{"count":1,"items":[]}`, nil
+			}
+			t.Fatal("provider called after context cancellation")
+			return "", nil
+		},
+	}
+	_, err := newPipeline(p).Run(ctx, "prompt", RunOptions{})
+	if err == nil {
+		t.Fatal("expected cancellation error")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected wrapped context.Canceled, got: %v", err)
 	}
 }
 
 func TestPipeline_ErrorMessageContainsValidationErrors(t *testing.T) {
 	p := &stubProvider{responses: []string{`{"count":1,"items":[]}`}}
-	_, err := newPipeline(p).Run(context.Background(), "prompt", nil)
+	_, err := newPipeline(p).Run(context.Background(), "prompt", RunOptions{})
 	if err == nil {
 		t.Fatal("expected error")
 	}
 	if !strings.Contains(err.Error(), "name") {
-		t.Fatalf("error message should mention the failing field 'name', got: %q", err.Error())
+		t.Fatalf("error must mention the failing field 'name', got: %q", err.Error())
 	}
 }
 
@@ -315,10 +354,21 @@ func TestRepairer_StructuralPromptContainsAllErrors(t *testing.T) {
 	}
 }
 
+func TestRepairer_StructuralWithContextContainsOriginalTask(t *testing.T) {
+	r := Repairer{}
+	schema := NewSchema(`{"issues":[]}`)
+	prompt := r.BuildStructuralRepairPromptWithContext(
+		schema, `{}`, []string{`field "issues" is missing`}, "original-task-marker",
+	)
+	if !strings.Contains(prompt, "original-task-marker") {
+		t.Fatalf("contextual structural prompt missing original task, got:\n%s", prompt)
+	}
+}
+
 func TestRepairer_SemanticPromptContainsOriginalPrompt(t *testing.T) {
 	r := Repairer{}
 	schema := NewSchema(`{"issues":[]}`)
-	const originalTask = "analyse /var/log/dnf5.log and find errors"
+	const originalTask = "analyse log and find errors"
 	prompt := r.BuildSemanticRepairPrompt(schema, originalTask, []string{"issues must not be empty"})
 	if !strings.Contains(prompt, originalTask) {
 		t.Fatalf("semantic repair prompt must contain the original task, got:\n%s", prompt)
@@ -346,14 +396,22 @@ func TestRepairer_SemanticPromptContainsSemanticErrors(t *testing.T) {
 	}
 }
 
-type funcProvider struct {
-	fn func(prompt string) (string, error)
-}
-
-func (f *funcProvider) Generate(_ context.Context, _ string) (string, error) { return "", nil }
-func (f *funcProvider) GenerateStream(_ context.Context, _ string, _ func(), _ io.Writer) (string, error) {
-	return "", nil
-}
-func (f *funcProvider) GenerateJSON(_ context.Context, prompt string, _ func()) (string, error) {
-	return f.fn(prompt)
+func TestIsEssentiallyEmpty(t *testing.T) {
+	tests := []struct {
+		in   string
+		want bool
+	}{
+		{"", true},
+		{"{}", true},
+		{" { } ", true},
+		{"null", true},
+		{"[]", true},
+		{`{"x":1}`, false},
+		{`{"x":null}`, false},
+	}
+	for _, tc := range tests {
+		if got := isEssentiallyEmpty(tc.in); got != tc.want {
+			t.Errorf("isEssentiallyEmpty(%q) = %v, want %v", tc.in, got, tc.want)
+		}
+	}
 }

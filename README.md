@@ -18,23 +18,20 @@ It uses a local model via [Ollama](https://ollama.com) and never sends anything 
 
 Hosomaki is designed around a simple principle: your logs should remain yours.
 
-Before any data reaches the local language model, Hosomaki applies a strict sanitisation layer directly on your system. This layer aggressively detects and removes sensitive material coming from your system.
+Before any data reaches the local language model, Hosomaki applies a strict sanitisation layer directly on your system. This layer aggressively detects and removes sensitive material from your logs before they ever enter the model context.
 
-Sanitisation is not an optional feature, it is the first and mandatory step of the pipeline. Its purpose is to ensure sensitive information never leaves your machine or enters the model context.
+Sanitisation is not an optional feature, it is the first and mandatory step of every pipeline. Its purpose is to ensure sensitive information never enters the model context.
+
 
 ## Data Flow & Processing Pipeline
 
 Hosomaki is designed to reliably transform unstructured system logs into structured terminal output.
 
-- **Input Sanitisation**: Sensitive information is removed before any model interaction occurs.
-- **LLM Generation**: Hosomaki instructs the LLM to produce strictly structured JSON responses.
-- **Schema Validation & JSON Repair**: If the model returns malformed JSON or missing fields, Hosomaki attempts automatic repair to restore structure.
-- **Final Validation or Fallback**:If the output cannot be safely validated, Hosomaki switches to a predefined fallback response instead of crashing or printing corrupted output.
-
-## Architecture Overview
 <p align="center">
-  <img src="assets/hosomaki_diagram.png" alt="Diagram"/>
+  <img src="assets/hosomaki_flowchart.svg" alt="Dataflow"/>
 </p>
+
+Every command waits for the full response, then validates and repairs before rendering. This guarantees a structurally valid result or an explicit error message.
 
 ## Commands
 
@@ -66,14 +63,26 @@ hosomaki explain --file /var/log/syslog
 hosomaki explain "kernel: OOM killer activated on process nginx"
 ```
 
+**Flags:**
+
+| Flag | Default | Description |
+|---|---|---|
+| `--debug` | `false` | print raw model response to stderr |
+
+
 ### `status`
 
 Quick health snapshot. Collects uptime, memory, disk, failed services, and recent errors, then summarises everything.
 
 ```bash
 hosomaki status           # paragraph summary
-hosomaki status --brief   # single sentence
 ```
+**Flags:**
+
+| Flag | Default | Description |
+|---|---|---|
+| `--debug` | `false` | print raw model response to stderr |
+| `--brief` | `false` | single-sentence summary|
 
 ### `doctor`
 
@@ -83,8 +92,14 @@ If a suggested action is potentially disruptive or irreversible, the output says
 
 ```bash
 hosomaki doctor           # full diagnosis with suggested actions
-hosomaki doctor --brief   # one sentence per issue
 ```
+
+**Flags:**
+
+| Flag | Default | Description |
+|---|---|---|
+| `--debug` | `false` | print raw model response to stderr |
+| `--brief` | `false` | single-sentence summary|
 
 ### `shell-integration`
 

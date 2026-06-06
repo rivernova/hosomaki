@@ -6,7 +6,6 @@ package hosomaki
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 
@@ -15,15 +14,17 @@ import (
 	"github.com/rivernova/hosomaki/internal/prompt"
 	"github.com/rivernova/hosomaki/internal/sanitiser"
 	"github.com/rivernova/hosomaki/internal/spinner"
-	"github.com/rivernova/hosomaki/internal/stream"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
 )
 
-// doctor command implementation
+// doctor command logic
 
 func newDoctorCmd() *cobra.Command {
-	var brief bool
+	var (
+		brief bool
+		debug bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "doctor",
@@ -37,6 +38,8 @@ you can take — commands to run, files to inspect, configuration values to chan
 
 If a suggested action is potentially disruptive or irreversible, the output will
 say so explicitly before describing it. Doctor never modifies the system itself.
+
+All output is validated and repaired automatically before being printed.
 
   hosomaki doctor           # full diagnosis with suggested actions
   hosomaki doctor --brief   # one sentence per issue`,
@@ -57,7 +60,7 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 				RecentErrors:   snap.RecentErrors,
 			}
 			san := sanitiser.Default()
-			p := prompt.Doctor(prompt.DoctorInput{
+			input := prompt.DoctorInput{
 				CollectedAt:    snap.CollectedAt,
 				Environment:    snap.Environment,
 				Uptime:         snap.Uptime,
@@ -66,73 +69,46 @@ say so explicitly before describing it. Doctor never modifies the system itself.
 				FailedServices: san.Sanitise(snap.FailedServices),
 				RecentErrors:   san.Sanitise(snap.RecentErrors),
 				TopProcesses:   san.Sanitise(snap.TopProcesses),
-			}, brief)
+			}
 
 			if brief {
-				return runDoctorBrief(data, p)
+				return runDoctorBrief(data, prompt.Doctor(input, true), debug)
 			}
-			return runDoctorFull(data, p)
+			return runDoctorFull(data, prompt.Doctor(input, false), debug)
 		},
 	}
 
 	cmd.Flags().BoolVar(&brief, "brief", false, "one sentence per issue instead of a full diagnosis")
+	cmd.Flags().BoolVar(&debug, "debug", false, "print raw model response to stderr")
 	return cmd
 }
 
-func doctorBriefPipeline() ai.Pipeline[prompt.DoctorBriefResult] {
+func doctorPipeline() ai.Pipeline[prompt.DoctorResult] {
 	return ai.NewPipeline(
 		provider,
-		ai.NewSchema(prompt.SchemaDoctorBrief),
-		ai.StructValidator[prompt.DoctorBriefResult]{},
+		ai.NewSchema(prompt.SchemaDoctorFull),
+		ai.StructValidator[prompt.DoctorResult]{},
 	)
 }
 
-func runDoctorFull(data ui.SnapshotData, p string) error {
+func runDoctorFull(data ui.SnapshotData, p string, debug bool) error {
 	fmt.Print(ui.DoctorHeader())
 	fmt.Print(ui.DoctorSystemSection(data))
 	fmt.Print(ui.DoctorInsightsSection(data))
 
-	var (
-		issues              []prompt.DoctorIssue
-		actions             []prompt.DoctorAction
-		issueHeaderPrinted  bool
-		actionHeaderPrinted bool
-	)
-
 	spin := spinner.Start("diagnosing…")
+	pipe := doctorPipeline()
+	if debug {
+		pipe = pipe.WithDebug(os.Stderr)
+	}
 
-	sc := stream.NewArrayItemScanner(func(key, raw string) {
-		switch key {
-		case "issues":
-			var iss prompt.DoctorIssue
-			if err := json.Unmarshal([]byte(raw), &iss); err != nil {
-				return
-			}
-			issues = append(issues, iss)
-			if !issueHeaderPrinted {
-				spin.Stop()
-				fmt.Print(ui.DoctorIssuesHeader())
-				issueHeaderPrinted = true
-			}
-			fmt.Print(ui.RenderDoctorIssueLive(iss, len(issues)))
-
-		case "actions":
-			var act prompt.DoctorAction
-			if err := json.Unmarshal([]byte(raw), &act); err != nil {
-				return
-			}
-			actions = append(actions, act)
-			if !actionHeaderPrinted {
-				fmt.Print(ui.DoctorActionsHeader())
-				actionHeaderPrinted = true
-			}
-			fmt.Print(ui.RenderDoctorActionLive(act, len(actions)))
-		}
-	})
-
-	_, err := provider.GenerateStream(context.Background(), p,
-		func() { spin.SetLabel("responding…") },
-		sc,
+	result, err := pipe.Run(
+		context.Background(),
+		p,
+		ai.RunOptions{
+			OnFirstToken:  func() { spin.SetLabel("responding…") },
+			OnRepairStart: func(n int) { spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n)) },
+		},
 	)
 	spin.Stop()
 
@@ -141,31 +117,47 @@ func runDoctorFull(data ui.SnapshotData, p string) error {
 		return err
 	}
 
-	if !issueHeaderPrinted {
-		fmt.Print(ui.DoctorIssuesHeader())
+	fmt.Print(ui.DoctorIssuesHeader())
+	if len(result.Issues) == 0 {
 		fmt.Print(ui.BulletOK("no issues detected"))
-	}
-	if !actionHeaderPrinted {
-		fmt.Print(ui.DoctorActionsHeader())
-		fmt.Print(ui.BulletOK("no actions required"))
+	} else {
+		for i, iss := range result.Issues {
+			fmt.Print(ui.RenderDoctorIssueLive(iss, i+1))
+		}
 	}
 
-	fmt.Print(ui.RenderDoctorSummary(prompt.DoctorResult{Issues: issues, Actions: actions}))
+	fmt.Print(ui.DoctorActionsHeader())
+	if len(result.Actions) == 0 {
+		fmt.Print(ui.BulletOK("no actions required"))
+	} else {
+		for i, act := range result.Actions {
+			fmt.Print(ui.RenderDoctorActionLive(act, i+1))
+		}
+	}
+
+	fmt.Print(ui.RenderDoctorSummary(result))
 	fmt.Print(ui.Done())
 	return nil
 }
 
-func runDoctorBrief(data ui.SnapshotData, p string) error {
+func runDoctorBrief(data ui.SnapshotData, p string, debug bool) error {
 	fmt.Print(ui.DoctorHeaderBrief())
 	fmt.Print(ui.DoctorSystemSectionBrief(data))
 	fmt.Print(ui.DoctorInsightsSectionBrief(data))
 
 	spin := spinner.Start("diagnosing…")
+	pipe := doctorPipeline()
+	if debug {
+		pipe = pipe.WithDebug(os.Stderr)
+	}
 
-	result, err := doctorBriefPipeline().Run(
+	result, err := pipe.Run(
 		context.Background(),
 		p,
-		func() { spin.SetLabel("responding…") },
+		ai.RunOptions{
+			OnFirstToken:  func() { spin.SetLabel("responding…") },
+			OnRepairStart: func(n int) { spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n)) },
+		},
 	)
 	spin.Stop()
 

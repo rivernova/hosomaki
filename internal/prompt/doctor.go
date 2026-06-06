@@ -12,7 +12,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// template for the doctor command prompt
+// prompt logic for the doctor command
 
 type DoctorInput struct {
 	CollectedAt    time.Time
@@ -76,21 +76,7 @@ Analyse the system snapshot below. Return ONLY a JSON object — no prose, no ma
 The JSON must use exactly these field names. Do not rename, abbreviate, or add fields.
 
 SCHEMA
-{
-  "issues": [
-    {
-      "severity": "failed",
-      "title": "string",
-      "detail": "string"
-    }
-  ],
-  "actions": [
-    {
-      "description": "string",
-      "disruptive": false
-    }
-  ]
-}
+%s
 
 FIELD RULES
 - "severity": the string "failed" for a downed or broken component, "warning" for degraded or concerning.
@@ -107,7 +93,7 @@ No markdown. No bullet points. No numbered lists. No headers. All string values 
 %s
 
 System snapshot:
-%s`, EnvironmentSection(d.Environment), depthInstr, formatDoctorSnapshot(d))
+%s`, EnvironmentSection(d.Environment), SchemaDoctorFull, depthInstr, formatDoctorSnapshot(d))
 }
 
 func formatDoctorSnapshot(d DoctorInput) string {

@@ -52,14 +52,6 @@ func StatusInsightsSectionBrief(d SnapshotData) string {
 	return SectionCompact("insights", insightBullets(d))
 }
 
-func StatusAIHeader() string {
-	return sectionHeader("ai analysis")
-}
-
-func StatusAIHeaderBrief() string {
-	return compactHeader("ai")
-}
-
 func DoctorHeader() string {
 	return Title("doctor")
 }
@@ -84,28 +76,12 @@ func DoctorInsightsSectionBrief(d SnapshotData) string {
 	return SectionCompact("insights", insightBullets(d))
 }
 
-func DoctorAIHeader() string {
-	return sectionHeader("ai analysis")
-}
-
-func DoctorAIHeaderBrief() string {
-	return compactHeader("ai")
-}
-
 func ExplainHeader() string {
 	return Title("explain")
 }
 
 func ExplainContextSection(c ExplainContext) string {
 	return Section("context", explainContextKV(c))
-}
-
-func ExplainExplanationSection(c ExplainContext) string {
-	return Section("explanation", explainBullets(c))
-}
-
-func ExplainAIHeader() string {
-	return sectionHeader("ai analysis")
 }
 
 func systemKV(d SnapshotData) string {
@@ -232,20 +208,6 @@ func explainContextKV(c ExplainContext) string {
 	}
 	if c.Lines > 0 {
 		b.WriteString(KeyValue("lines", fmt.Sprintf("%d", c.Lines)))
-	}
-	return b.String()
-}
-
-func explainBullets(c ExplainContext) string {
-	var b strings.Builder
-	if c.Cmd != "" {
-		b.WriteString(BulletOK(fmt.Sprintf("originating command: %s", c.Cmd)))
-	}
-	if c.Source != "" {
-		b.WriteString(BulletOK(fmt.Sprintf("input source: %s", c.Source)))
-	}
-	if c.Lines > 0 {
-		b.WriteString(BulletWarn(fmt.Sprintf("reading last %d lines", c.Lines)))
 	}
 	return b.String()
 }

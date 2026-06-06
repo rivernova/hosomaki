@@ -11,7 +11,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/prompt"
 )
 
-// renderers for prompt results
+// renders the results
 
 func RenderDoctorBrief(result prompt.DoctorBriefResult) string {
 	return renderIssues(result.Issues, "no issues detected") +
@@ -55,10 +55,6 @@ func RenderStatusSummary(result prompt.StatusResult) string {
 	b.WriteString(SummaryLine(plural(critical, "critical issue", "critical issues")))
 	b.WriteString(SummaryLine(plural(warnings, "warning", "warnings")))
 	return SectionSummary(b.String())
-}
-
-func RenderExplainSummary(result prompt.ExplainResult) string {
-	return SummaryLine(plural(len(result.Issues), "issue identified", "issues identified"))
 }
 
 func renderIssues(issues []prompt.DoctorIssue, emptyMsg string) string {

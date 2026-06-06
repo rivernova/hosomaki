@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// unit testing for validation of LLM output against a schema
+// unit testing for validator logic
 
 type validatorItem struct {
 	Label  string `json:"label"`
@@ -51,6 +51,22 @@ func TestValidator_OmitemptyAbsentIsValid(t *testing.T) {
 	}
 }
 
+func TestValidator_EmptyStringIsStructurallyValid(t *testing.T) {
+	raw := `{"name":"","count":0,"items":[]}`
+	r := newValidator().Validate(raw)
+	if !r.Valid() {
+		t.Fatalf("empty string should be structurally valid, got: %v", r.Errors())
+	}
+}
+
+func TestValidator_NullSliceIsValid(t *testing.T) {
+	raw := `{"name":"x","count":0,"items":null}`
+	r := newValidator().Validate(raw)
+	if !r.Valid() {
+		t.Fatalf("null slice should be valid, got: %v", r.Errors())
+	}
+}
+
 func TestValidator_MissingRequiredField(t *testing.T) {
 	raw := `{"count":1,"items":[]}`
 	r := newValidator().Validate(raw)
@@ -65,11 +81,44 @@ func TestValidator_MissingRequiredField(t *testing.T) {
 	}
 }
 
+func TestValidator_NullForRequiredNonSliceField(t *testing.T) {
+	raw := `{"name":null,"count":1,"items":[]}`
+	r := newValidator().Validate(raw)
+	if r.Valid() {
+		t.Fatal("expected invalid (name is null)")
+	}
+	if !containsError(r.StructuralErrors(), `"name" cannot be null`) {
+		t.Fatalf("expected null-rejection error, got: %v", r.StructuralErrors())
+	}
+}
+
+func TestValidator_UnexpectedTopLevelKey(t *testing.T) {
+	raw := `{"name":"x","count":1,"items":[],"junk":"extra"}`
+	r := newValidator().Validate(raw)
+	if r.Valid() {
+		t.Fatal("expected invalid (unexpected top-level 'junk')")
+	}
+	if !containsError(r.StructuralErrors(), `unexpected field "junk"`) {
+		t.Fatalf("expected unexpected-field error, got: %v", r.StructuralErrors())
+	}
+}
+
+func TestValidator_UnexpectedNestedKey(t *testing.T) {
+	raw := `{"name":"x","count":1,"items":[{"label":"a","active":true,"junk":1}]}`
+	r := newValidator().Validate(raw)
+	if r.Valid() {
+		t.Fatal("expected invalid (unexpected nested 'junk')")
+	}
+	if !containsError(r.StructuralErrors(), `unexpected field "items[0].junk"`) {
+		t.Fatalf("expected nested unexpected-field error, got: %v", r.StructuralErrors())
+	}
+}
+
 func TestValidator_ArrayItemMissingField(t *testing.T) {
 	raw := `{"name":"x","count":1,"items":[{"active":true}]}`
 	r := newValidator().Validate(raw)
 	if r.Valid() {
-		t.Fatal("expected invalid (items[0].label missing), got valid")
+		t.Fatal("expected invalid (items[0].label missing)")
 	}
 	if !containsError(r.StructuralErrors(), `"items[0].label" is missing`) {
 		t.Fatalf("expected items[0].label error, got: %v", r.StructuralErrors())
@@ -80,15 +129,7 @@ func TestValidator_StringFieldGotNumber(t *testing.T) {
 	raw := `{"name":42,"count":1,"items":[]}`
 	r := newValidator().Validate(raw)
 	if r.Valid() || r.StructurallyValid() {
-		t.Fatal("expected structural invalid (name is number), got valid")
-	}
-}
-
-func TestValidator_EmptyStringIsInvalid(t *testing.T) {
-	raw := `{"name":"","count":1,"items":[]}`
-	r := newValidator().Validate(raw)
-	if r.Valid() || r.StructurallyValid() {
-		t.Fatal("expected structural invalid (name is empty string), got valid")
+		t.Fatal("expected structural invalid (name is number)")
 	}
 }
 
@@ -96,21 +137,21 @@ func TestValidator_BoolFieldGotString(t *testing.T) {
 	raw := `{"name":"x","count":1,"items":[{"label":"a","active":"yes"}]}`
 	r := newValidator().Validate(raw)
 	if r.Valid() || r.StructurallyValid() {
-		t.Fatal("expected structural invalid (active is string not bool), got valid")
+		t.Fatal("expected structural invalid (active is string not bool)")
 	}
 }
 
 func TestValidator_SyntaxError(t *testing.T) {
 	r := newValidator().Validate(`{broken`)
 	if r.Valid() || r.StructurallyValid() {
-		t.Fatal("expected invalid for syntax error, got valid")
+		t.Fatal("expected invalid for syntax error")
 	}
 }
 
 func TestValidator_EmptyInput(t *testing.T) {
 	r := newValidator().Validate(``)
 	if r.Valid() || r.StructurallyValid() {
-		t.Fatal("expected invalid for empty input, got valid")
+		t.Fatal("expected invalid for empty input")
 	}
 }
 
@@ -127,9 +168,8 @@ func TestValidator_SemanticCheckFires(t *testing.T) {
 	r := v.Validate(raw)
 
 	if r.Valid() {
-		t.Fatal("expected invalid from semantic check, got valid")
+		t.Fatal("expected invalid from semantic check")
 	}
-
 	if !r.StructurallyValid() {
 		t.Fatal("StructurallyValid() must be true when only semantic check failed")
 	}
@@ -137,23 +177,7 @@ func TestValidator_SemanticCheckFires(t *testing.T) {
 		t.Fatalf("expected semantic error, got: %v", r.SemanticErrors())
 	}
 	if len(r.StructuralErrors()) != 0 {
-		t.Fatalf("StructuralErrors() must be empty for a semantic-only failure, got: %v", r.StructuralErrors())
-	}
-}
-
-func TestValidator_SemanticErrorsNotInStructuralErrors(t *testing.T) {
-	v := StructValidator[validatorSchema]{
-		SemanticCheck: func(s validatorSchema) []string {
-			return []string{"custom semantic rule violated"}
-		},
-	}
-	r := v.Validate(`{"name":"x","count":0,"items":[]}`)
-
-	if len(r.StructuralErrors()) != 0 {
 		t.Fatalf("structural errors must be empty for semantic-only failure, got: %v", r.StructuralErrors())
-	}
-	if !containsError(r.SemanticErrors(), "custom semantic rule violated") {
-		t.Fatalf("semantic error missing, got: %v", r.SemanticErrors())
 	}
 }
 
@@ -189,7 +213,7 @@ func TestValidator_ErrorsCombinesStructuralAndSemantic(t *testing.T) {
 }
 
 func TestValidationResult_Error(t *testing.T) {
-	r := &ValidationResult{structuralErrors: []string{"field \"x\" is missing"}}
+	r := &ValidationResult{structuralErrors: []string{`field "x" is missing`}}
 	msg := r.Error()
 	if !strings.Contains(msg, "validation failed") {
 		t.Fatalf("Error() missing expected prefix, got: %q", msg)
