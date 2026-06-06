@@ -1,49 +1,61 @@
 # config
-BINARY     := hosomaki
+BINARY    := hosomaki
 CMD_DIR   := .
-BUILD_DIR  := ./bin
-VERSION    := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-LDFLAGS    := -ldflags "-X main.version=$(VERSION)"
-
+BUILD_DIR := ./bin
+VERSION   := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+LDFLAGS   := -ldflags "-X main.version=$(VERSION)"
 OLLAMA_URL := http://localhost:11434
 
 # default
 .DEFAULT_GOAL := help
 
 .PHONY: help
-help:
+help: ## show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
 # build
+
 .PHONY: build
-build:
+build: ## build binary to ./bin/hosomaki
 	@mkdir -p $(BUILD_DIR)
 	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) $(CMD_DIR)
 	@echo "✓ Built $(BUILD_DIR)/$(BINARY) ($(VERSION))"
 
 .PHONY: install
-install: build 
+install: build ## install binary to /usr/local/bin
 	sudo cp $(BUILD_DIR)/$(BINARY) /usr/local/bin/$(BINARY)
 	@echo "✓ Installed to /usr/local/bin/$(BINARY)"
 
 .PHONY: uninstall
-uninstall: 
+uninstall: ## remove binary from /usr/local/bin
 	sudo rm -f /usr/local/bin/$(BINARY)
 	@echo "✓ Uninstalled $(BINARY)"
 
+.PHONY: setup
+setup: install ## install hosomaki and print next steps for Ollama
+	@echo ""
+	@echo "Next: make sure Ollama is running and pull a model:"
+	@echo "  ollama serve"
+	@echo "  ollama pull llama3.1:8b"
+	@echo ""
+	@echo "Then try:"
+	@echo "  hosomaki status"
+
 # dev
+
 .PHONY: run
-run: check-ollama build 
+run: check-ollama build ## build and run with ARGS= (e.g. make run ARGS='status')
 	$(BUILD_DIR)/$(BINARY) $(ARGS)
 
 .PHONY: dev
-dev: check-ollama
+dev: check-ollama ## run without building (go run) with ARGS=
 	go run $(LDFLAGS) $(CMD_DIR) $(ARGS)
 
 # ollama
+
 .PHONY: check-ollama
-check-ollama: 
+check-ollama: ## check that Ollama is reachable
 	@curl -sf $(OLLAMA_URL) > /dev/null 2>&1 || \
 		(echo "✗ Ollama is not running at $(OLLAMA_URL)"; \
 		 echo "  Start it with: ollama serve"; \
@@ -51,57 +63,64 @@ check-ollama:
 	@echo "✓ Ollama is running"
 
 .PHONY: ollama-start
-ollama-start: 
+ollama-start: ## start Ollama in the background if not already running
 	@curl -sf $(OLLAMA_URL) > /dev/null 2>&1 && \
 		echo "✓ Ollama already running" || \
 		(ollama serve &> /tmp/ollama.log & \
 		 sleep 2 && \
 		 curl -sf $(OLLAMA_URL) > /dev/null 2>&1 && \
 		 echo "✓ Ollama started" || \
-		 (echo "✗ Failed to start Ollama. Check /tmp/ollama.log"; exit 1))
+		 (echo "✗ Failed to start Ollama — check /tmp/ollama.log"; exit 1))
 
 .PHONY: ollama-stop
-ollama-stop: 
+ollama-stop: ## stop the background Ollama process
 	@pkill -f "ollama serve" && echo "✓ Ollama stopped" || echo "Ollama was not running"
 
 .PHONY: ollama-status
-ollama-status: 
+ollama-status: ## show Ollama status and loaded models
 	@curl -sf $(OLLAMA_URL) > /dev/null 2>&1 && \
 		(echo "✓ Ollama running at $(OLLAMA_URL)"; ollama list) || \
 		echo "✗ Ollama not running"
 
-# test
+# test and quality
+
 .PHONY: test
-test:
+test: ## run tests
+	go test ./...
+
+.PHONY: test-verbose
+test-verbose: ## run tests with verbose output
 	go test ./... -v
 
 .PHONY: test-cover
-test-cover: 
+test-cover: ## run tests and generate HTML coverage report
 	go test ./... -coverprofile=coverage.txt
 	go tool cover -html=coverage.txt -o coverage.html
 	@echo "✓ Coverage report: coverage.html"
 
 .PHONY: lint
-lint: 
+lint: ## run golangci-lint
 	golangci-lint run ./...
 
 .PHONY: fmt
-fmt: 
+fmt: ## format code with gofmt and goimports
 	gofmt -w .
 	goimports -w .
 
 .PHONY: vet
-vet: 
+vet: ## run go vet
 	go vet ./...
 
 # deps
+
 .PHONY: deps
-deps:
+deps: ## download and tidy dependencies
 	go mod download
 	go mod tidy
 
 # clean
+
 .PHONY: clean
-clean:
+clean: ## remove build artifacts and coverage files
 	rm -rf $(BUILD_DIR) coverage.txt coverage.html
 	@echo "✓ Cleaned"
