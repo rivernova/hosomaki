@@ -14,8 +14,11 @@ import (
 // renders the results
 
 func RenderDoctorBrief(result prompt.DoctorBriefResult) string {
-	return renderIssues(result.Issues, "no issues detected") +
-		renderActions(result.Actions, "no actions required")
+	summary := strings.TrimSpace(result.Summary)
+	if summary == "" {
+		summary = "(no summary)"
+	}
+	return Section("summary", summary)
 }
 
 func RenderDoctorSummary(result prompt.DoctorResult) string {
@@ -55,34 +58,6 @@ func RenderStatusSummary(result prompt.StatusResult) string {
 	b.WriteString(SummaryLine(plural(critical, "critical issue", "critical issues")))
 	b.WriteString(SummaryLine(plural(warnings, "warning", "warnings")))
 	return SectionSummary(b.String())
-}
-
-func renderIssues(issues []prompt.DoctorIssue, emptyMsg string) string {
-	if len(issues) == 0 {
-		return BulletOK(emptyMsg)
-	}
-	var b strings.Builder
-	for _, iss := range issues {
-		b.WriteString(RenderDoctorIssueLive(iss, 0))
-	}
-	if b.Len() == 0 {
-		return BulletOK(emptyMsg)
-	}
-	return b.String()
-}
-
-func renderActions(actions []prompt.DoctorAction, emptyMsg string) string {
-	if len(actions) == 0 {
-		return BulletOK(emptyMsg)
-	}
-	var b strings.Builder
-	for _, act := range actions {
-		b.WriteString(RenderDoctorActionLive(act, 0))
-	}
-	if b.Len() == 0 {
-		return BulletOK(emptyMsg)
-	}
-	return b.String()
 }
 
 func indentProse(text string) string {
