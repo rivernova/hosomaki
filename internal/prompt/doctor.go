@@ -41,19 +41,26 @@ type DoctorResult struct {
 	Actions []DoctorAction `json:"actions"`
 }
 
-type DoctorBriefResult = DoctorResult
+type DoctorBriefResult struct {
+	Summary string `json:"summary"`
+}
 
 func Doctor(d DoctorInput, brief bool) string {
 	var depthInstr string
+	var schema string
+
 	if brief {
-		depthInstr = `VOLUME AND DEPTH (brief mode)
+		schema = SchemaDoctorBrief
+		depthInstr = fmt.Sprintf(`VOLUME AND DEPTH (brief mode)
 - Include only the 3 most critical issues. Omit minor warnings.
 - "title": one short label for the issue.
 - "detail": one sentence summarising the problem and likely cause.
 - "description": one sentence naming the exact command or file to check.
-- If the system is healthy return {"issues":[],"actions":[]}.`
+- If the system is healthy return %s`, SchemaDoctorBrief)
+
 	} else {
-		depthInstr = `VOLUME AND DEPTH (full mode)
+		schema = SchemaDoctorFull
+		depthInstr = fmt.Sprintf(`VOLUME AND DEPTH (full mode)
 - Include every distinct issue you find. There is no maximum.
 - "title": a concise label used as a heading.
 - "detail": a thorough diagnostic paragraph (3–6 sentences). Explain what is wrong,
@@ -64,7 +71,7 @@ func Doctor(d DoctorInput, brief bool) string {
   take. Name the exact command to run or file to inspect. Explain what to look for and
   what a successful outcome looks like. If multiple steps are needed, describe them
   in sequence. If the action is potentially disruptive or irreversible, say so first.
-- If the system is healthy return {"issues":[],"actions":[]}.`
+- If the system is healthy return %s`, SchemaDoctorFull)
 	}
 
 	return fmt.Sprintf(`You are a Linux system expert performing a full diagnostic of a live system.
@@ -93,7 +100,12 @@ No markdown. No bullet points. No numbered lists. No headers. All string values 
 %s
 
 System snapshot:
-%s`, EnvironmentSection(d.Environment), SchemaDoctorFull, depthInstr, formatDoctorSnapshot(d))
+%s`,
+		EnvironmentSection(d.Environment),
+		schema,
+		depthInstr,
+		formatDoctorSnapshot(d),
+	)
 }
 
 func formatDoctorSnapshot(d DoctorInput) string {
