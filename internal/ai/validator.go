@@ -175,6 +175,8 @@ func validateField(ft reflect.Type, rawVal json.RawMessage, path string, result 
 
 	case reflect.Struct:
 		validateObjectField(ft, rawVal, trimmed, path, result)
+	default:
+		panic("unhandled default case")
 	}
 }
 

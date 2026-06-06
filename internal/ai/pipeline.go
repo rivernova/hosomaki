@@ -137,7 +137,10 @@ func (p Pipeline[T]) mustDecode(raw string) (T, error) {
 
 func (p Pipeline[T]) debugf(format string, args ...any) {
 	if p.debugWriter != nil {
-		fmt.Fprintf(p.debugWriter, format, args...)
+		_, err := fmt.Fprintf(p.debugWriter, format, args...)
+		if err != nil {
+			return
+		}
 	}
 }
 

@@ -115,7 +115,10 @@ func runStatusFull(data ui.SnapshotData, p string, debug bool) error {
 	spin.Stop()
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		_, err := fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		if err != nil {
+			return err
+		}
 		return err
 	}
 
@@ -161,7 +164,10 @@ func runStatusBrief(data ui.SnapshotData, p string, debug bool) error {
 	spin.Stop()
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		_, err := fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		if err != nil {
+			return err
+		}
 		return err
 	}
 

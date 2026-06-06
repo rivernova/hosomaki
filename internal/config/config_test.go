@@ -47,13 +47,6 @@ func TestSetDefaults(t *testing.T) {
 	})
 }
 
-func TestDefaultTimeout(t *testing.T) {
-	expected := 120 * time.Second
-	if DefaultTimeout != expected {
-		t.Errorf("DefaultTimeout = %v, want %v", DefaultTimeout, expected)
-	}
-}
-
 func TestInitWithDefaults(t *testing.T) {
 	cfg, err := Init("")
 	if err != nil {

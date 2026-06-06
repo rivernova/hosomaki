@@ -116,8 +116,14 @@ Then use it:
 
 			fmt.Println(s.code)
 
-			fmt.Fprintf(os.Stderr, "\n# Add to %s with:\n", s.rcFile)
-			fmt.Fprintf(os.Stderr, "#   hosomaki shell-integration --shell %s >> %s\n", shell, s.rcFile)
+			_, err := fmt.Fprintf(os.Stderr, "\n# Add to %s with:\n", s.rcFile)
+			if err != nil {
+				return err
+			}
+			_, err2 := fmt.Fprintf(os.Stderr, "#   hosomaki shell-integration --shell %s >> %s\n", shell, s.rcFile)
+			if err2 != nil {
+				return err2
+			}
 
 			return nil
 		},

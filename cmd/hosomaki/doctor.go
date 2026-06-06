@@ -91,6 +91,14 @@ func doctorPipeline() ai.Pipeline[prompt.DoctorResult] {
 	)
 }
 
+func doctorBriefPipeline() ai.Pipeline[prompt.DoctorBriefResult] {
+	return ai.NewPipeline(
+		provider,
+		ai.NewSchema(prompt.SchemaDoctorBrief),
+		ai.StructValidator[prompt.DoctorBriefResult]{},
+	)
+}
+
 func runDoctorFull(data ui.SnapshotData, p string, debug bool) error {
 	fmt.Print(ui.DoctorHeader())
 	fmt.Print(ui.DoctorSystemSection(data))
@@ -113,7 +121,10 @@ func runDoctorFull(data ui.SnapshotData, p string, debug bool) error {
 	spin.Stop()
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		_, err := fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		if err != nil {
+			return err
+		}
 		return err
 	}
 
@@ -146,7 +157,7 @@ func runDoctorBrief(data ui.SnapshotData, p string, debug bool) error {
 	fmt.Print(ui.DoctorInsightsSectionBrief(data))
 
 	spin := spinner.Start("diagnosing…")
-	pipe := doctorPipeline()
+	pipe := doctorBriefPipeline()
 	if debug {
 		pipe = pipe.WithDebug(os.Stderr)
 	}
@@ -162,7 +173,10 @@ func runDoctorBrief(data ui.SnapshotData, p string, debug bool) error {
 	spin.Stop()
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		_, err := fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		if err != nil {
+			return err
+		}
 		return err
 	}
 

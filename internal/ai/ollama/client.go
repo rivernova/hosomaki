@@ -66,7 +66,12 @@ func (c *Client) generate(ctx context.Context, prompt, format string, onFirstTok
 	if err != nil {
 		return "", fmt.Errorf("ollama: could not reach %s — is Ollama running? (ollama serve): %w", c.endpoint, err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		raw, _ := io.ReadAll(resp.Body)
@@ -101,7 +106,10 @@ func (c *Client) generate(ctx context.Context, prompt, format string, onFirstTok
 		}
 
 		if w != nil {
-			fmt.Fprint(w, chunk.Response)
+			_, err := fmt.Fprint(w, chunk.Response)
+			if err != nil {
+				return "", err
+			}
 		}
 		full.WriteString(chunk.Response)
 

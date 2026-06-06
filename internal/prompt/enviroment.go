@@ -20,7 +20,10 @@ func EnvironmentSection(e collector.Environment) string {
 		if strings.TrimSpace(value) == "" {
 			value = "(unknown)"
 		}
-		fmt.Fprintf(&b, "%s: %s\n", label, value)
+		_, err := fmt.Fprintf(&b, "%s: %s\n", label, value)
+		if err != nil {
+			return
+		}
 	}
 
 	b.WriteString("=== Host environment ===\n")

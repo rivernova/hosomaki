@@ -10,7 +10,7 @@ const SchemaExplain = `{"issues":[{"what":"string","why":"string"}]}`
 
 const SchemaDoctorFull = `{"issues":[{"severity":"string","title":"string","detail":"string"}],"actions":[{"description":"string","disruptive":false}]}`
 
-const SchemaDoctorBrief = SchemaDoctorFull
+const SchemaDoctorBrief = `{"summary":"string"}`
 
 const SchemaStatusFull = `{"overview":"string","anomalies":[{"severity":"string","title":"string","detail":"string"}]}`
 

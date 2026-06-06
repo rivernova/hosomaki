@@ -21,7 +21,7 @@ var (
 	reISO8601    = regexp.MustCompile(`\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:[+-]\d{2}:?\d{2}|Z)?`)
 	reSyslogTime = regexp.MustCompile(`(?m)^[A-Z][a-z]{2} +\d{1,2} \d{2}:\d{2}:\d{2} `)
 	reJournalTS  = regexp.MustCompile(`(?m)^-- (?:Boot|Logs begin|No entries|Reboot)[^\n]*`)
-	rePidTag     = regexp.MustCompile(`\[\d{2,}\]\s*`)
+	rePidTag     = regexp.MustCompile(`\[\d{2,}]\s*`)
 )
 
 func (StripTimestamps) Apply(input string) string {
@@ -36,7 +36,7 @@ type StripSyslogHostnames struct{}
 
 func (StripSyslogHostnames) Name() string { return "strip-hostnames" }
 
-var reSyslogHostname = regexp.MustCompile(`(?m)^([A-Za-z0-9_.-]+) ([A-Za-z0-9_./+-]+(?:\[\d+\])?:)`)
+var reSyslogHostname = regexp.MustCompile(`(?m)^([A-Za-z0-9_.-]+) ([A-Za-z0-9_./+-]+(?:\[\d+])?:)`)
 
 func (StripSyslogHostnames) Apply(input string) string {
 	return reSyslogHostname.ReplaceAllString(input, "$2")
