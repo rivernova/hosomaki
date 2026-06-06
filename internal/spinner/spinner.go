@@ -52,7 +52,10 @@ func (s *Spinner) run() {
 	for {
 		select {
 		case <-s.stop:
-			fmt.Fprint(os.Stderr, clearLine)
+			_, err := fmt.Fprint(os.Stderr, clearLine)
+			if err != nil {
+				return
+			}
 			return
 		case <-ticker.C:
 			s.mu.RLock()
@@ -62,7 +65,10 @@ func (s *Spinner) run() {
 			frame := frames[frameIdx%len(frames)]
 			frameIdx++
 
-			fmt.Fprintf(os.Stderr, "\r%s%s %s%s", lavenderColor, frame, currentLabel, resetColor)
+			_, err := fmt.Fprintf(os.Stderr, "\r%s%s %s%s", lavenderColor, frame, currentLabel, resetColor)
+			if err != nil {
+				return
+			}
 		}
 	}
 }

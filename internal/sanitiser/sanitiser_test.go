@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// unit testing for the sanitiser
+// unit testing for the sanitizer
 
 func TestSanitise_EmptyInput(t *testing.T) {
 	got := Default().Sanitise("")

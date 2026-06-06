@@ -69,7 +69,12 @@ func readOSRelease(e *Environment) {
 	if err != nil {
 		return
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+
+		}
+	}(f)
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {

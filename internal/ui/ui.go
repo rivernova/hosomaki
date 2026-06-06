@@ -43,7 +43,10 @@ func Title(text string) string {
 
 func Section(title, body string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "\n%s%s%s\n\n", styleSection, title, styleReset)
+	_, err := fmt.Fprintf(&b, "\n%s%s%s\n\n", styleSection, title, styleReset)
+	if err != nil {
+		return ""
+	}
 	if strings.TrimSpace(body) != "" {
 		b.WriteString(body)
 		if !strings.HasSuffix(body, "\n") {
@@ -55,7 +58,10 @@ func Section(title, body string) string {
 
 func SectionCompact(title, body string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "\n%s%s%s\n\n", styleSection, title, styleReset)
+	_, err := fmt.Fprintf(&b, "\n%s%s%s\n\n", styleSection, title, styleReset)
+	if err != nil {
+		return ""
+	}
 	if strings.TrimSpace(body) != "" {
 		b.WriteString(body)
 		if !strings.HasSuffix(body, "\n") {
@@ -68,7 +74,10 @@ func SectionCompact(title, body string) string {
 func SectionSummary(body string) string {
 	sep := strings.Repeat(string(separatorRune), separatorLen)
 	var b strings.Builder
-	fmt.Fprintf(&b, "\n%ssummary%s\n%s%s%s\n", styleSection, styleReset, styleSeparator, sep, styleReset)
+	_, err := fmt.Fprintf(&b, "\n%ssummary%s\n%s%s%s\n", styleSection, styleReset, styleSeparator, sep, styleReset)
+	if err != nil {
+		return ""
+	}
 	if strings.TrimSpace(body) != "" {
 		b.WriteString(body)
 		if !strings.HasSuffix(body, "\n") {

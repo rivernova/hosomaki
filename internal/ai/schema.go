@@ -22,5 +22,8 @@ func NewSchema(s string) Schema {
 func (s Schema) String() string { return s.raw }
 
 func (s Schema) Format(f fmt.State, verb rune) {
-	fmt.Fprint(f, s.raw)
+	_, err := fmt.Fprint(f, s.raw)
+	if err != nil {
+		return
+	}
 }

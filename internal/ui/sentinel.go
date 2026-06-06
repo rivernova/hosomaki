@@ -63,7 +63,10 @@ func (s *SentinelWriter) Write(p []byte) (int, error) {
 
 func (s *SentinelWriter) Flush() {
 	if !s.cutting && s.buf.Len() > 0 {
-		s.w.Write(s.buf.Bytes())
+		_, err := s.w.Write(s.buf.Bytes())
+		if err != nil {
+			return
+		}
 		s.buf.Reset()
 	}
 }
@@ -100,18 +103,27 @@ type ExplainCounts struct {
 
 func ParseDoctorCounts(sw *SentinelWriter) DoctorCounts {
 	var c DoctorCounts
-	json.Unmarshal([]byte(sw.ExtractJSON()), &c)
+	err := json.Unmarshal([]byte(sw.ExtractJSON()), &c)
+	if err != nil {
+		return DoctorCounts{}
+	}
 	return c
 }
 
 func ParseStatusCounts(sw *SentinelWriter) StatusCounts {
 	var c StatusCounts
-	json.Unmarshal([]byte(sw.ExtractJSON()), &c)
+	err := json.Unmarshal([]byte(sw.ExtractJSON()), &c)
+	if err != nil {
+		return StatusCounts{}
+	}
 	return c
 }
 
 func ParseExplainCounts(sw *SentinelWriter) ExplainCounts {
 	var c ExplainCounts
-	json.Unmarshal([]byte(sw.ExtractJSON()), &c)
+	err := json.Unmarshal([]byte(sw.ExtractJSON()), &c)
+	if err != nil {
+		return ExplainCounts{}
+	}
 	return c
 }

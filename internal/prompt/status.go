@@ -96,7 +96,10 @@ func formatSnapshot(s StatusInput) string {
 		if content == "" {
 			content = "(no data)"
 		}
-		fmt.Fprintf(&b, "=== %s ===\n%s\n\n", title, content)
+		_, err := fmt.Fprintf(&b, "=== %s ===\n%s\n\n", title, content)
+		if err != nil {
+			return
+		}
 	}
 
 	section("Collected at", s.CollectedAt.Format("2006-01-02 15:04:05"))
