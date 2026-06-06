@@ -110,9 +110,9 @@ func runDoctorFull(data ui.SnapshotData, p string, debug bool) error {
 	if debug {
 		pipe = pipe.WithDebug(os.Stderr)
 	}
-
-	issueIndex := 0
-	actionIndex := 0
+	
+	issueCount := 0
+	actionCount := 0
 
 	result, err := pipe.Run(
 		context.Background(),
@@ -124,34 +124,33 @@ func runDoctorFull(data ui.SnapshotData, p string, debug bool) error {
 				switch key {
 				case "issues":
 					var iss prompt.DoctorIssue
-					if err := json.Unmarshal([]byte(raw), &iss); err != nil {
+					if jsonErr := json.Unmarshal([]byte(raw), &iss); jsonErr != nil {
 						return
 					}
-					if issueIndex == 0 {
-						spin.Stop()
+					spin.ClearLine()
+					if issueCount == 0 {
 						fmt.Print(ui.DoctorIssuesHeader())
 					}
-					fmt.Print(ui.RenderDoctorIssueLive(iss, issueIndex+1))
-					issueIndex++
+					fmt.Print(ui.RenderDoctorIssueLive(iss, issueCount+1))
+					issueCount++
 
 				case "actions":
 					var act prompt.DoctorAction
-					if err := json.Unmarshal([]byte(raw), &act); err != nil {
+					if jsonErr := json.Unmarshal([]byte(raw), &act); jsonErr != nil {
 						return
 					}
-					if actionIndex == 0 {
+					spin.ClearLine()
+					if actionCount == 0 {
 						fmt.Print(ui.DoctorActionsHeader())
 					}
-					fmt.Print(ui.RenderDoctorActionLive(act, actionIndex+1))
-					actionIndex++
+					fmt.Print(ui.RenderDoctorActionLive(act, actionCount+1))
+					actionCount++
 				}
 			},
 		},
 	)
 
-	if !spin.Stopped() {
-		spin.Stop()
-	}
+	spin.Stop()
 
 	if err != nil {
 		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -161,11 +160,11 @@ func runDoctorFull(data ui.SnapshotData, p string, debug bool) error {
 		return err
 	}
 
-	if issueIndex == 0 {
+	if issueCount == 0 {
 		fmt.Print(ui.DoctorIssuesHeader())
 		fmt.Print(ui.BulletOK("no issues detected"))
 	}
-	if actionIndex == 0 {
+	if actionCount == 0 {
 		fmt.Print(ui.DoctorActionsHeader())
 		fmt.Print(ui.BulletOK("no actions required"))
 	}

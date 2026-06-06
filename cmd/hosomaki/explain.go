@@ -118,13 +118,12 @@ func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
 		pipe = pipe.WithDebug(os.Stderr)
 	}
 
+	// buffer
 	var pending *prompt.ExplainEntry
 	emitted := 0
 
 	flush := func(entry prompt.ExplainEntry, multi bool) {
-		if emitted == 0 {
-			spin.Stop()
-		}
+		spin.ClearLine()
 		emitted++
 		fmt.Print(ui.RenderExplainEntryLive(entry, emitted, multi))
 	}
@@ -140,13 +139,14 @@ func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
 					return
 				}
 				var entry prompt.ExplainEntry
-				if err := json.Unmarshal([]byte(raw), &entry); err != nil {
+				if jsonErr := json.Unmarshal([]byte(raw), &entry); jsonErr != nil {
 					return
 				}
 				if pending == nil {
 					pending = &entry
 					return
 				}
+
 				first := *pending
 				pending = nil
 				flush(first, true)
@@ -155,9 +155,7 @@ func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
 		},
 	)
 
-	if !spin.Stopped() {
-		spin.Stop()
-	}
+	spin.Stop()
 
 	if err != nil {
 		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -166,7 +164,8 @@ func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
 		}
 		return err
 	}
-	
+
+	// flush buffer
 	if pending != nil {
 		flush(*pending, len(result.Issues) > 1)
 	}

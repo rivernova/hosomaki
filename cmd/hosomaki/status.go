@@ -105,8 +105,7 @@ func runStatusFull(data ui.SnapshotData, p string, debug bool) error {
 		pipe = pipe.WithDebug(os.Stderr)
 	}
 
-	anomalyIndex := 0
-	overviewPrinted := false
+	anomalyCount := 0
 
 	result, err := pipe.Run(
 		context.Background(),
@@ -118,40 +117,34 @@ func runStatusFull(data ui.SnapshotData, p string, debug bool) error {
 				switch key {
 				case "overview":
 					var s string
-					if err := json.Unmarshal([]byte(raw), &s); err != nil {
+					if jsonErr := json.Unmarshal([]byte(raw), &s); jsonErr != nil {
 						return
 					}
 					s = strings.TrimSpace(s)
 					if s == "" {
 						return
 					}
-					spin.Stop()
-					overviewPrinted = true
+					spin.ClearLine()
 					fmt.Print(ui.StatusOverviewHeader())
 					fmt.Print(ui.RenderStatusOverviewLive(s))
 
 				case "anomalies":
 					var a prompt.StatusAnomaly
-					if err := json.Unmarshal([]byte(raw), &a); err != nil {
+					if jsonErr := json.Unmarshal([]byte(raw), &a); jsonErr != nil {
 						return
 					}
-					if !overviewPrinted {
-						spin.Stop()
-						overviewPrinted = true
-					}
-					if anomalyIndex == 0 {
+					spin.ClearLine()
+					if anomalyCount == 0 {
 						fmt.Print(ui.StatusAnomaliesHeader())
 					}
-					fmt.Print(ui.RenderStatusAnomalyLive(a, anomalyIndex+1))
-					anomalyIndex++
+					fmt.Print(ui.RenderStatusAnomalyLive(a, anomalyCount+1))
+					anomalyCount++
 				}
 			},
 		},
 	)
 
-	if !spin.Stopped() {
-		spin.Stop()
-	}
+	spin.Stop()
 
 	if err != nil {
 		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -161,7 +154,7 @@ func runStatusFull(data ui.SnapshotData, p string, debug bool) error {
 		return err
 	}
 
-	if anomalyIndex == 0 {
+	if anomalyCount == 0 {
 		fmt.Print(ui.StatusAnomaliesHeader())
 		fmt.Print(ui.BulletOK("no anomalies detected"))
 	}

@@ -73,8 +73,6 @@ func TestDetectPackageManagerByID(t *testing.T) {
 }
 
 func TestDetectPackageManagerFallsBackToIDLike(t *testing.T) {
-	// A derivative distro whose ID we don't recognise should still resolve
-	// via ID_LIKE.
 	got := detectPackageManager("madeup-distro", "ubuntu debian")
 	if got != "apt" {
 		t.Errorf("detectPackageManager unknown id with ubuntu ID_LIKE = %q, want apt", got)
@@ -82,8 +80,6 @@ func TestDetectPackageManagerFallsBackToIDLike(t *testing.T) {
 }
 
 func TestDetectPackageManagerUnknown(t *testing.T) {
-	// With no recognisable id or id_like and no installed binaries either
-	// the result is empty
 	got := detectPackageManager("totally-unknown-12345", "also-unknown")
 
 	_ = got
