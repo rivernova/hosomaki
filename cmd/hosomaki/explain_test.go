@@ -208,6 +208,40 @@ func TestResolveInputSinceAllowedWithContext(t *testing.T) {
 	}
 }
 
+func TestResolveInputUntilAllowedWithContext(t *testing.T) {
+	_, err := resolveInput(resolveParams{
+		contexts: []string{"nonexistent-a", "nonexistent-b"},
+		opts:     collector.LogOptions{Until: "now"},
+	})
+	if err != nil && strings.Contains(err.Error(), "--until") {
+		t.Fatalf("should not get --until validation error for --context source, got: %q", err.Error())
+	}
+}
+
+func TestResolveInputSinceAndUntilAllowedWithContext(t *testing.T) {
+	_, err := resolveInput(resolveParams{
+		contexts: []string{"nonexistent-a", "nonexistent-b"},
+		opts:     collector.LogOptions{Since: "2024-01-15 14:00:00", Until: "2024-01-15 15:00:00"},
+	})
+	if err != nil && (strings.Contains(err.Error(), "--since") || strings.Contains(err.Error(), "--until")) {
+		t.Fatalf("should not get time validation error for --context source, got: %q", err.Error())
+	}
+}
+
+func TestResolveInputSinceUnquotedValueDetectedWithContext(t *testing.T) {
+	_, err := resolveInput(resolveParams{
+		contexts: []string{"nginx", "mongodb"},
+		opts:     collector.LogOptions{Since: "30"},
+		args:     []string{"min", "ago"},
+	})
+	if err == nil {
+		t.Fatal("expected error for unquoted --since value with --context, got nil")
+	}
+	if !strings.Contains(err.Error(), "quote") {
+		t.Fatalf("error should hint at quoting, got: %q", err.Error())
+	}
+}
+
 func TestResolveSourceLabelContext(t *testing.T) {
 	label := resolveSourceLabel(resolveParams{
 		contexts: []string{"nginx", "mongodb", "rabbitmq"},
