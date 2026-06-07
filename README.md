@@ -33,11 +33,11 @@ Understands what's going on. Adapts to whatever you throw at it.
 journalctl -p err -n 20 | hosomaki explain
 dmesg | tail -50         | hosomaki explain
 
-# By systemd service — hosomaki fetches the logs for you
+# By systemd service
 hosomaki explain --service nginx
 hosomaki explain --service postgresql --lines 100
 
-# Errors from a specific boot — useful after a crash
+# Errors from a specific boot, this is very useful after a crash
 hosomaki explain --boot
 hosomaki explain --boot -1        # the boot before that
 
@@ -54,11 +54,16 @@ hosomaki explain "kernel: OOM killer activated on process nginx"
 # Multiple related services at once
 hosomaki explain --context nginx,mongodb,rabbitmq
 
+# Compares boots, explains what changed between them
+hosomaki explain --diff -1         # previous boot vs current
+hosomaki explain --diff -2:-1      # boot -2 vs boot -1
+
 # Time-bounded queries
 hosomaki explain --service nginx --since "1 hour ago"
 hosomaki explain --service nginx --since "2024-01-15 14:00:00" --until "2024-01-15 15:00:00"
 hosomaki explain --boot --since "10 min ago"
 hosomaki explain --context nginx,mongodb --since "30 min ago"
+
 ```
 
 **Flags:**
@@ -67,7 +72,6 @@ hosomaki explain --context nginx,mongodb --since "30 min ago"
 |--------------|---------|----------------------------------------------------------------------------------------------|
 | `--debug`    | `false` | print raw model response to stderr                                                           |
 | `--lines`    |         | number of log lines to read (default varies by source)                                       |
-| `--context ` |         | explain logs from multiple related services (comma-separated, e.g. `nginx,mongodb,rabbitmq`) |
 | `--since`    |         | show logs since this time — `--service`, `--boot`, and `--context` only                      |
 | `--until`    |         | show logs until this time — `--service`, `--boot`, and `--context` only                      |
 
@@ -165,7 +169,9 @@ docker run -d -p 11434:11434 --name ollama ollama/ollama
 ollama pull llama3.1
 ```
 
-Any model works. Larger models produce better results; smaller models are faster. If using Docker:
+Any model works. Larger models produce better results, smaller models are faster. 
+
+If using Docker:
 
 ```bash
 docker exec -it ollama ollama pull llama3.1

@@ -30,7 +30,8 @@ func newExplainCmd() *cobra.Command {
 		bootStr        string
 		dmesg          bool
 		file           string
-		contextActive  string
+		contextFlag    string
+		diffFlag       string
 		lines          int
 		since          string
 		until          string
@@ -57,6 +58,10 @@ With flags, it collects the logs for you — no copy-pasting needed:
   hosomaki explain --file /var/log/nginx/error.log
   hosomaki explain --context nginx,mongodb,rabbitmq
 
+Compare logs between boots:
+  hosomaki explain --diff -1         # compare previous boot against current
+  hosomaki explain --diff -2:-1      # compare boot -2 against boot -1
+
 Time-bounded queries (--service, --boot, and --context only):
   hosomaki explain --service nginx --since "1 hour ago"
   hosomaki explain --service nginx --since "2024-01-15 14:00:00" --until "2024-01-15 15:00:00"
@@ -71,11 +76,13 @@ anything is printed.`,
 
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var contexts []string
-			for _, s := range strings.Split(contextActive, ",") {
+			for _, s := range strings.Split(contextFlag, ",") {
 				if t := strings.TrimSpace(s); t != "" {
 					contexts = append(contexts, t)
 				}
 			}
+
+			diff, diffErr := parseBootDiff(diffFlag)
 
 			rp := resolveParams{
 				args:        args,
@@ -85,7 +92,13 @@ anything is printed.`,
 				dmesg:       dmesg,
 				file:        file,
 				contexts:    contexts,
+				diff:        diff,
 				opts:        collector.LogOptions{Lines: lines, Since: since, Until: until},
+			}
+
+			// surface parse errors only when --diff was actually provided
+			if cmd.Flags().Changed("diff") && diffErr != nil {
+				return diffErr
 			}
 			rawInput, err := resolveInput(rp)
 			if err != nil {
@@ -101,8 +114,20 @@ anything is printed.`,
 			}
 
 			env := collector.Env()
-			sanitised := sanitiser.Default().Sanitise(rawInput)
-			generationPrompt := prompt.Explain(sanitised, originatingCmd, env)
+
+			var generationPrompt string
+			if rp.diff != nil {
+				generationPrompt = prompt.ExplainDiff(
+					sanitiser.Default().Sanitise(rp.diff.fromLogs),
+					sanitiser.Default().Sanitise(rp.diff.toLogs),
+					rp.diff.from,
+					rp.diff.to,
+					env,
+				)
+			} else {
+				sanitised := sanitiser.Default().Sanitise(rawInput)
+				generationPrompt = prompt.Explain(sanitised, originatingCmd, env)
+			}
 
 			return runExplain(explainCtx, generationPrompt, debug)
 		},
@@ -112,7 +137,8 @@ anything is printed.`,
 	cmd.Flags().StringVar(&bootStr, "boot", "0", "explain errors from a specific boot (0=current, -1=previous, …)")
 	cmd.Flags().BoolVar(&dmesg, "dmesg", false, "explain kernel errors and warnings from dmesg")
 	cmd.Flags().StringVarP(&file, "file", "f", "", "explain errors from a log file")
-	cmd.Flags().StringVar(&contextActive, "context", "", "explain logs from multiple related services (comma-separated, e.g. nginx,mongodb,rabbitmq)")
+	cmd.Flags().StringVar(&contextFlag, "context", "", "explain logs from multiple related services (comma-separated, e.g. nginx,mongodb,rabbitmq)")
+	cmd.Flags().StringVar(&diffFlag, "diff", "", "compare logs between two boots and explain what changed (e.g. -1 or -2:-1)")
 	cmd.Flags().IntVarP(&lines, "lines", "n", 0, "number of log lines to read (default varies by source)")
 	cmd.Flags().StringVar(&since, "since", "", "show logs since this time (journalctl format, e.g. \"1 hour ago\", \"2024-01-15 14:00:00\")")
 	cmd.Flags().StringVar(&until, "until", "", "show logs until this time (journalctl format)")
@@ -219,11 +245,20 @@ func resolveSourceLabel(p resolveParams) string {
 		return "file: " + p.file
 	case len(p.contexts) > 0:
 		return "context: " + strings.Join(p.contexts, ", ")
+	case p.diff != nil:
+		return fmt.Sprintf("diff: %s → %s", prompt.BootLabel(p.diff.from), prompt.BootLabel(p.diff.to))
 	case len(p.args) > 0:
 		return "argument"
 	default:
 		return "stdin"
 	}
+}
+
+type bootDiff struct {
+	from     int
+	to       int
+	fromLogs string
+	toLogs   string
 }
 
 type resolveParams struct {
@@ -234,6 +269,7 @@ type resolveParams struct {
 	dmesg       bool
 	file        string
 	contexts    []string
+	diff        *bootDiff
 	opts        collector.LogOptions
 }
 
@@ -254,8 +290,11 @@ func resolveInput(p resolveParams) (string, error) {
 	if len(p.contexts) > 0 {
 		sources++
 	}
+	if p.diff != nil {
+		sources++
+	}
 	if sources > 1 {
-		return "", fmt.Errorf("only one of --service, --boot, --dmesg, --file, --context may be used at a time")
+		return "", fmt.Errorf("only one of --service, --boot, --dmesg, --file, --context, --diff may be used at a time")
 	}
 
 	if p.opts.Since != "" || p.opts.Until != "" {
@@ -303,13 +342,22 @@ func resolveInput(p resolveParams) (string, error) {
 		var b strings.Builder
 		for _, svc := range p.contexts {
 			if logs, ok := collected[svc]; ok {
-				_, err := fmt.Fprintf(&b, "--- %s ---\n%s\n", svc, logs)
-				if err != nil {
-					return "", err
-				}
+				b.WriteString("--- ")
+				b.WriteString(svc)
+				b.WriteString(" ---\n")
+				b.WriteString(logs)
+				b.WriteByte('\n')
 			}
 		}
 		return strings.TrimSpace(b.String()), nil
+	case p.diff != nil:
+		fromLogs, toLogs, err := collector.BootDiffLogs(p.diff.from, p.diff.to, p.opts)
+		if err != nil {
+			return "", err
+		}
+		p.diff.fromLogs = fromLogs
+		p.diff.toLogs = toLogs
+		return "diff", nil
 	case len(p.args) > 0:
 		input := strings.TrimSpace(strings.Join(p.args, " "))
 		if input == "" {
@@ -345,4 +393,37 @@ func isStdinPiped() bool {
 		return false
 	}
 	return (fi.Mode() & os.ModeCharDevice) == 0
+}
+
+func parseBootDiff(value string) (*bootDiff, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+
+	parts := strings.SplitN(value, ":", 2)
+	switch len(parts) {
+	case 1:
+		from, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return nil, fmt.Errorf("invalid --diff value %q: expected a boot index like -1 or -2:-1", value)
+		}
+		to := 0
+		if from == to {
+			return nil, fmt.Errorf("--diff: from and to boot indices must be different (got %d:%d)", from, to)
+		}
+		return &bootDiff{from: from, to: to}, nil
+	case 2:
+		from, errFrom := strconv.Atoi(parts[0])
+		to, errTo := strconv.Atoi(parts[1])
+		if errFrom != nil || errTo != nil {
+			return nil, fmt.Errorf("invalid --diff value %q: expected two boot indices like -2:-1", value)
+		}
+		if from == to {
+			return nil, fmt.Errorf("--diff: from and to boot indices must be different (got %d:%d)", from, to)
+		}
+		return &bootDiff{from: from, to: to}, nil
+	default:
+		return nil, fmt.Errorf("invalid --diff value %q: expected a boot index like -1 or -2:-1", value)
+	}
 }

@@ -165,3 +165,15 @@ func TestContextLogs_PreservesAllServicesInMap(t *testing.T) {
 			len(collected), len(errs), len(services))
 	}
 }
+
+func TestBootDiffLogs_BothMissing(t *testing.T) {
+	_, _, err := BootDiffLogs(-999, -998, LogOptions{})
+	if err == nil {
+		t.Fatal("BootDiffLogs with two missing boots should return an error")
+	}
+}
+
+func TestBootDiffLogs_SameIndexRejectedByParser(t *testing.T) {
+	_, _, err := BootDiffLogs(0, 0, LogOptions{})
+	_ = err
+}

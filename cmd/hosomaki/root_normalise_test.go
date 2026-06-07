@@ -104,3 +104,36 @@ func TestIsNegativeInt(t *testing.T) {
 		})
 	}
 }
+
+func TestNormaliseNegativeIntFlagDiff(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []string
+		want  []string
+	}{
+		{
+			name:  "diff single negative index",
+			input: []string{"hosomaki", "explain", "--diff", "-1"},
+			want:  []string{"hosomaki", "explain", "--diff=-1"},
+		},
+		{
+			name:  "diff colon form unchanged (not a bare negative int)",
+			input: []string{"hosomaki", "explain", "--diff", "-2:-1"},
+			want:  []string{"hosomaki", "explain", "--diff", "-2:-1"},
+		},
+		{
+			name:  "diff positive index unchanged",
+			input: []string{"hosomaki", "explain", "--diff", "0"},
+			want:  []string{"hosomaki", "explain", "--diff", "0"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := normaliseNegativeIntFlag(tt.input, "--diff")
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("normaliseNegativeIntFlag() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -194,6 +194,41 @@ func lines(n, defaultN int) int {
 	return defaultN
 }
 
+func BootDiffLogs(from, to int, opts LogOptions) (fromLogs, toLogs string, err error) {
+	type result struct {
+		index int
+		logs  string
+		err   error
+	}
+
+	ch := make(chan result, 2)
+	for _, idx := range [2]int{from, to} {
+		idx := idx
+		go func() {
+			out, e := BootLogs(idx, opts)
+			ch <- result{index: idx, logs: out, err: e}
+		}()
+	}
+
+	results := make(map[int]result, 2)
+	for range 2 {
+		r := <-ch
+		results[r.index] = r
+	}
+
+	rf, rt := results[from], results[to]
+	if rf.err != nil && rt.err != nil {
+		return "", "", fmt.Errorf("could not collect logs for either boot: boot %d: %v; boot %d: %v", from, rf.err, to, rt.err)
+	}
+	if rf.err != nil {
+		return "", "", fmt.Errorf("no logs found for boot %d — the boot index may be out of range", from)
+	}
+	if rt.err != nil {
+		return "", "", fmt.Errorf("no logs found for boot %d — the boot index may be out of range", to)
+	}
+	return rf.logs, rt.logs, nil
+}
+
 func ContextLogs(services []string, opts LogOptions) (map[string]string, []error) {
 	type result struct {
 		service string
