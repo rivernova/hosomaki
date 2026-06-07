@@ -30,6 +30,7 @@ func newExplainCmd() *cobra.Command {
 		bootStr        string
 		dmesg          bool
 		file           string
+		contextActive  string
 		lines          int
 		since          string
 		until          string
@@ -54,11 +55,13 @@ With flags, it collects the logs for you — no copy-pasting needed:
   hosomaki explain --boot -1
   hosomaki explain --dmesg
   hosomaki explain --file /var/log/nginx/error.log
+  hosomaki explain --context nginx,mongodb,rabbitmq
 
-Time-bounded queries (--service and --boot only):
+Time-bounded queries (--service, --boot, and --context only):
   hosomaki explain --service nginx --since "1 hour ago"
   hosomaki explain --service nginx --since "2024-01-15 14:00:00" --until "2024-01-15 15:00:00"
   hosomaki explain --boot --since "10 min ago"
+  hosomaki explain --context nginx,mongodb --since "30 min ago"
 
 All input is sanitised locally before being sent to the LLM. The response is
 validated against a strict schema and repaired automatically if needed before
@@ -67,6 +70,13 @@ anything is printed.`,
 		Args: cobra.ArbitraryArgs,
 
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var contexts []string
+			for _, s := range strings.Split(contextActive, ",") {
+				if t := strings.TrimSpace(s); t != "" {
+					contexts = append(contexts, t)
+				}
+			}
+
 			rp := resolveParams{
 				args:        args,
 				service:     service,
@@ -74,6 +84,7 @@ anything is printed.`,
 				bootChanged: cmd.Flags().Changed("boot"),
 				dmesg:       dmesg,
 				file:        file,
+				contexts:    contexts,
 				opts:        collector.LogOptions{Lines: lines, Since: since, Until: until},
 			}
 			rawInput, err := resolveInput(rp)
@@ -101,6 +112,7 @@ anything is printed.`,
 	cmd.Flags().StringVar(&bootStr, "boot", "0", "explain errors from a specific boot (0=current, -1=previous, …)")
 	cmd.Flags().BoolVar(&dmesg, "dmesg", false, "explain kernel errors and warnings from dmesg")
 	cmd.Flags().StringVarP(&file, "file", "f", "", "explain errors from a log file")
+	cmd.Flags().StringVar(&contextActive, "context", "", "explain logs from multiple related services (comma-separated, e.g. nginx,mongodb,rabbitmq)")
 	cmd.Flags().IntVarP(&lines, "lines", "n", 0, "number of log lines to read (default varies by source)")
 	cmd.Flags().StringVar(&since, "since", "", "show logs since this time (journalctl format, e.g. \"1 hour ago\", \"2024-01-15 14:00:00\")")
 	cmd.Flags().StringVar(&until, "until", "", "show logs until this time (journalctl format)")
@@ -205,6 +217,8 @@ func resolveSourceLabel(p resolveParams) string {
 		return "dmesg"
 	case p.file != "":
 		return "file: " + p.file
+	case len(p.contexts) > 0:
+		return "context: " + strings.Join(p.contexts, ", ")
 	case len(p.args) > 0:
 		return "argument"
 	default:
@@ -219,6 +233,7 @@ type resolveParams struct {
 	bootChanged bool
 	dmesg       bool
 	file        string
+	contexts    []string
 	opts        collector.LogOptions
 }
 
@@ -236,13 +251,16 @@ func resolveInput(p resolveParams) (string, error) {
 	if p.file != "" {
 		sources++
 	}
+	if len(p.contexts) > 0 {
+		sources++
+	}
 	if sources > 1 {
-		return "", fmt.Errorf("only one of --service, --boot, --dmesg, --file may be used at a time")
+		return "", fmt.Errorf("only one of --service, --boot, --dmesg, --file, --context may be used at a time")
 	}
 
 	if p.opts.Since != "" || p.opts.Until != "" {
-		if p.service == "" && !p.bootChanged {
-			return "", fmt.Errorf("--since and --until require --service or --boot")
+		if p.service == "" && !p.bootChanged && len(p.contexts) == 0 {
+			return "", fmt.Errorf("--since and --until require --service, --boot, or --context")
 		}
 		if len(p.args) > 0 {
 			return "", fmt.Errorf(
@@ -267,6 +285,31 @@ func resolveInput(p resolveParams) (string, error) {
 		return collector.DmesgLogs(p.opts)
 	case p.file != "":
 		return collector.FileLogs(p.file, p.opts)
+	case len(p.contexts) > 0:
+		if len(p.contexts) < 2 {
+			return "", fmt.Errorf("--context requires at least 2 services; use --service for a single service")
+		}
+		collected, errs := collector.ContextLogs(p.contexts, p.opts)
+		for _, err := range errs {
+			_, err := fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+			if err != nil {
+				return "", err
+			}
+		}
+		if len(collected) == 0 {
+			return "", fmt.Errorf("no logs found for any of the specified services")
+		}
+
+		var b strings.Builder
+		for _, svc := range p.contexts {
+			if logs, ok := collected[svc]; ok {
+				_, err := fmt.Fprintf(&b, "--- %s ---\n%s\n", svc, logs)
+				if err != nil {
+					return "", err
+				}
+			}
+		}
+		return strings.TrimSpace(b.String()), nil
 	case len(p.args) > 0:
 		input := strings.TrimSpace(strings.Join(p.args, " "))
 		if input == "" {

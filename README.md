@@ -51,20 +51,25 @@ hosomaki explain --file /var/log/syslog
 # Quick one-liner
 hosomaki explain "kernel: OOM killer activated on process nginx"
 
+# Multiple related services at once
+hosomaki explain --context nginx,mongodb,rabbitmq
+
 # Time-bounded queries
 hosomaki explain --service nginx --since "1 hour ago"
 hosomaki explain --service nginx --since "2024-01-15 14:00:00" --until "2024-01-15 15:00:00"
 hosomaki explain --boot --since "10 min ago"
+hosomaki explain --context nginx,mongodb --since "30 min ago"
 ```
 
 **Flags:**
 
-| Flag      | Default | Description                                               |
-|-----------|---------|-----------------------------------------------------------|
-| `--debug` | `false` | print raw model response to stderr                        |
-| `--lines` |         | number of log lines to read (default varies by source)    |
-| `--since` |         | show logs since this time — `--service` and `--boot only` |
-| `--until` |         | show logs until this time — `--service` and `--boot only` |
+| Flag         | Default | Description                                                                                  |
+|--------------|---------|----------------------------------------------------------------------------------------------|
+| `--debug`    | `false` | print raw model response to stderr                                                           |
+| `--lines`    |         | number of log lines to read (default varies by source)                                       |
+| `--context ` |         | explain logs from multiple related services (comma-separated, e.g. `nginx,mongodb,rabbitmq`) |
+| `--since`    |         | show logs since this time — `--service`, `--boot`, and `--context` only                      |
+| `--until`    |         | show logs until this time — `--service`, `--boot`, and `--context` only                      |
 
 ### `status`
 

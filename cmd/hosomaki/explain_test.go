@@ -151,3 +151,79 @@ func TestExplainCmdHasUntilFlag(t *testing.T) {
 		t.Errorf("--until default = %q, want empty string", f.DefValue)
 	}
 }
+
+func TestExplainCmdHasContextFlag(t *testing.T) {
+	cmd := newExplainCmd()
+	f := cmd.Flags().Lookup("context")
+	if f == nil {
+		t.Fatal("explain command is missing the --context flag")
+	}
+	if f.DefValue != "" {
+		t.Errorf("--context default = %q, want empty string", f.DefValue)
+	}
+}
+
+func TestResolveInputContextRequiresAtLeastTwoServices(t *testing.T) {
+	_, err := resolveInput(resolveParams{
+		contexts: []string{"nginx"},
+	})
+	if err == nil {
+		t.Fatal("expected error for single-service --context, got nil")
+	}
+	if !strings.Contains(err.Error(), "at least 2") {
+		t.Fatalf("error should mention 'at least 2', got: %q", err.Error())
+	}
+}
+
+func TestResolveInputContextMutuallyExclusiveWithService(t *testing.T) {
+	_, err := resolveInput(resolveParams{
+		service:  "nginx",
+		contexts: []string{"mongodb", "rabbitmq"},
+	})
+	if err == nil {
+		t.Fatal("expected error when --context and --service are combined, got nil")
+	}
+	if !strings.Contains(err.Error(), "--context") || !strings.Contains(err.Error(), "--service") {
+		t.Fatalf("error should mention both --context and --service, got: %q", err.Error())
+	}
+}
+
+func TestResolveInputContextMutuallyExclusiveWithDmesg(t *testing.T) {
+	_, err := resolveInput(resolveParams{
+		dmesg:    true,
+		contexts: []string{"nginx", "mongodb"},
+	})
+	if err == nil {
+		t.Fatal("expected error when --context and --dmesg are combined, got nil")
+	}
+}
+
+func TestResolveInputSinceAllowedWithContext(t *testing.T) {
+	_, err := resolveInput(resolveParams{
+		contexts: []string{"nonexistent-a", "nonexistent-b"},
+		opts:     collector.LogOptions{Since: "1 hour ago"},
+	})
+	if err != nil && strings.Contains(err.Error(), "--since") {
+		t.Fatalf("should not get --since validation error for --context source, got: %q", err.Error())
+	}
+}
+
+func TestResolveSourceLabelContext(t *testing.T) {
+	label := resolveSourceLabel(resolveParams{
+		contexts: []string{"nginx", "mongodb", "rabbitmq"},
+	})
+	want := "context: nginx, mongodb, rabbitmq"
+	if label != want {
+		t.Errorf("resolveSourceLabel() = %q, want %q", label, want)
+	}
+}
+
+func TestResolveSourceLabelContextTwoServices(t *testing.T) {
+	label := resolveSourceLabel(resolveParams{
+		contexts: []string{"nginx", "postgresql"},
+	})
+	want := "context: nginx, postgresql"
+	if label != want {
+		t.Errorf("resolveSourceLabel() = %q, want %q", label, want)
+	}
+}
