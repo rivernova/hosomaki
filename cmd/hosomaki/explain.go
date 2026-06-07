@@ -31,6 +31,8 @@ func newExplainCmd() *cobra.Command {
 		dmesg          bool
 		file           string
 		lines          int
+		since          string
+		until          string
 		originatingCmd string
 		debug          bool
 	)
@@ -53,6 +55,11 @@ With flags, it collects the logs for you — no copy-pasting needed:
   hosomaki explain --dmesg
   hosomaki explain --file /var/log/nginx/error.log
 
+Time-bounded queries (--service and --boot only):
+  hosomaki explain --service nginx --since "1 hour ago"
+  hosomaki explain --service nginx --since "2024-01-15 14:00:00" --until "2024-01-15 15:00:00"
+  hosomaki explain --boot --since "10 min ago"
+
 All input is sanitised locally before being sent to the LLM. The response is
 validated against a strict schema and repaired automatically if needed before
 anything is printed.`,
@@ -67,7 +74,7 @@ anything is printed.`,
 				bootChanged: cmd.Flags().Changed("boot"),
 				dmesg:       dmesg,
 				file:        file,
-				opts:        collector.LogOptions{Lines: lines},
+				opts:        collector.LogOptions{Lines: lines, Since: since, Until: until},
 			}
 			rawInput, err := resolveInput(rp)
 			if err != nil {
@@ -78,6 +85,8 @@ anything is printed.`,
 				Source: resolveSourceLabel(rp),
 				Cmd:    strings.TrimSpace(originatingCmd),
 				Lines:  lines,
+				Since:  since,
+				Until:  until,
 			}
 
 			env := collector.Env()
@@ -93,6 +102,8 @@ anything is printed.`,
 	cmd.Flags().BoolVar(&dmesg, "dmesg", false, "explain kernel errors and warnings from dmesg")
 	cmd.Flags().StringVarP(&file, "file", "f", "", "explain errors from a log file")
 	cmd.Flags().IntVarP(&lines, "lines", "n", 0, "number of log lines to read (default varies by source)")
+	cmd.Flags().StringVar(&since, "since", "", "show logs since this time (journalctl format, e.g. \"1 hour ago\", \"2024-01-15 14:00:00\")")
+	cmd.Flags().StringVar(&until, "until", "", "show logs until this time (journalctl format)")
 	cmd.Flags().StringVar(&originatingCmd, "cmd", "", "the command that produced this output (set automatically by shell integration)")
 	cmd.Flags().BoolVar(&debug, "debug", false, "print raw model response to stderr")
 	cmd.Flags().Lookup("boot").NoOptDefVal = "0"
@@ -146,7 +157,6 @@ func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
 					pending = &entry
 					return
 				}
-
 				first := *pending
 				pending = nil
 				flush(first, true)
@@ -228,6 +238,20 @@ func resolveInput(p resolveParams) (string, error) {
 	}
 	if sources > 1 {
 		return "", fmt.Errorf("only one of --service, --boot, --dmesg, --file may be used at a time")
+	}
+
+	if p.opts.Since != "" || p.opts.Until != "" {
+		if p.service == "" && !p.bootChanged {
+			return "", fmt.Errorf("--since and --until require --service or --boot")
+		}
+		if len(p.args) > 0 {
+			return "", fmt.Errorf(
+				"unexpected arguments %q — did you forget to quote the time value?\n"+
+					"  Use:  --since %q\n"+
+					"  e.g.  hosomaki explain --service nginx --since \"1 hour ago\"",
+				p.args, p.opts.Since+" "+strings.Join(p.args, " "),
+			)
+		}
 	}
 
 	switch {
