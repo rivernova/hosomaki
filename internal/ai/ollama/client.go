@@ -18,6 +18,8 @@ import (
 
 // minimal ollama client
 
+const pingTimeout = 3 * time.Second
+
 type Client struct {
 	endpoint   string
 	model      string
@@ -30,6 +32,33 @@ func New(endpoint, model string, timeout time.Duration) *Client {
 		model:      model,
 		httpClient: &http.Client{Timeout: timeout},
 	}
+}
+
+func (c *Client) Ping(ctx context.Context) error {
+	pingCtx, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(pingCtx, http.MethodGet, c.endpoint+"/api/tags", nil)
+	if err != nil {
+		return fmt.Errorf("ollama: build ping request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("Ollama is not running at %s — start it with: ollama serve", c.endpoint)
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
+	io.Copy(io.Discard, resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("ollama: endpoint %s returned unexpected status %d — is the endpoint correct?", c.endpoint, resp.StatusCode)
+	}
+	return nil
 }
 
 func (c *Client) Generate(ctx context.Context, prompt string) (string, error) {
