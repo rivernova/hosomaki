@@ -88,3 +88,81 @@ func TestExplainPromptNoFixSuggestions(t *testing.T) {
 		t.Error("Explain() prompt must forbid fix suggestions")
 	}
 }
+
+func TestExplainDiffIncludesBothBootLabels(t *testing.T) {
+	p := ExplainDiff("log from boot -1", "log from boot 0", -1, 0, collector.Environment{})
+	if !strings.Contains(p, "previous boot (-1)") {
+		t.Error("ExplainDiff() prompt must include the from-boot label")
+	}
+	if !strings.Contains(p, "current boot (0)") {
+		t.Error("ExplainDiff() prompt must include the to-boot label")
+	}
+}
+
+func TestExplainDiffIncludesBothLogSections(t *testing.T) {
+	p := ExplainDiff("FROM_LOG_SENTINEL", "TO_LOG_SENTINEL", -1, 0, collector.Environment{})
+	if !strings.Contains(p, "FROM_LOG_SENTINEL") {
+		t.Error("ExplainDiff() prompt must include the from-boot logs")
+	}
+	if !strings.Contains(p, "TO_LOG_SENTINEL") {
+		t.Error("ExplainDiff() prompt must include the to-boot logs")
+	}
+}
+
+func TestExplainDiffRequestsJSON(t *testing.T) {
+	p := ExplainDiff("a", "b", -1, 0, collector.Environment{})
+	if !strings.Contains(p, `"what"`) {
+		t.Error("ExplainDiff() prompt must reference the 'what' JSON field")
+	}
+	if !strings.Contains(p, `"why"`) {
+		t.Error("ExplainDiff() prompt must reference the 'why' JSON field")
+	}
+	if !strings.Contains(p, "Return ONLY a JSON object") {
+		t.Error("ExplainDiff() prompt must instruct the model to return pure JSON")
+	}
+}
+
+func TestExplainDiffNoFixSuggestions(t *testing.T) {
+	p := ExplainDiff("a", "b", -1, 0, collector.Environment{})
+	if !strings.Contains(p, "Do not suggest fixes") {
+		t.Error("ExplainDiff() prompt must forbid fix suggestions")
+	}
+}
+
+func TestExplainDiffFocusesOnDifferences(t *testing.T) {
+	p := ExplainDiff("a", "b", -1, 0, collector.Environment{})
+	if !strings.Contains(p, "changed") {
+		t.Error("ExplainDiff() prompt must instruct the model to focus on what changed")
+	}
+	if !strings.Contains(p, "identical") {
+		t.Error("ExplainDiff() prompt must instruct the model to return empty issues when both boots are identical")
+	}
+}
+
+func TestExplainDiffArbitraryBootIndices(t *testing.T) {
+	p := ExplainDiff("log a", "log b", -3, -2, collector.Environment{})
+	if !strings.Contains(p, "boot -3") {
+		t.Error("ExplainDiff() must include arbitrary from-boot index in prompt")
+	}
+	if !strings.Contains(p, "boot -2") {
+		t.Error("ExplainDiff() must include arbitrary to-boot index in prompt")
+	}
+}
+
+func TestBootLabelCurrent(t *testing.T) {
+	if got := BootLabel(0); got != "current boot (0)" {
+		t.Errorf("BootLabel(0) = %q, want %q", got, "current boot (0)")
+	}
+}
+
+func TestBootLabelPrevious(t *testing.T) {
+	if got := BootLabel(-1); got != "previous boot (-1)" {
+		t.Errorf("BootLabel(-1) = %q, want %q", got, "previous boot (-1)")
+	}
+}
+
+func TestBootLabelArbitrary(t *testing.T) {
+	if got := BootLabel(-3); got != "boot -3" {
+		t.Errorf("BootLabel(-3) = %q, want %q", got, "boot -3")
+	}
+}

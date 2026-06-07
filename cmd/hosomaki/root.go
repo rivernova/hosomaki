@@ -30,6 +30,7 @@ func Execute(v string) {
 	rootCmd.Version = version
 
 	os.Args = normaliseNegativeIntFlag(os.Args, "--boot")
+	os.Args = normaliseNegativeIntFlag(os.Args, "--diff")
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

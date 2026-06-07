@@ -208,6 +208,40 @@ func TestResolveInputSinceAllowedWithContext(t *testing.T) {
 	}
 }
 
+func TestResolveInputUntilAllowedWithContext(t *testing.T) {
+	_, err := resolveInput(resolveParams{
+		contexts: []string{"nonexistent-a", "nonexistent-b"},
+		opts:     collector.LogOptions{Until: "now"},
+	})
+	if err != nil && strings.Contains(err.Error(), "--until") {
+		t.Fatalf("should not get --until validation error for --context source, got: %q", err.Error())
+	}
+}
+
+func TestResolveInputSinceAndUntilAllowedWithContext(t *testing.T) {
+	_, err := resolveInput(resolveParams{
+		contexts: []string{"nonexistent-a", "nonexistent-b"},
+		opts:     collector.LogOptions{Since: "2024-01-15 14:00:00", Until: "2024-01-15 15:00:00"},
+	})
+	if err != nil && (strings.Contains(err.Error(), "--since") || strings.Contains(err.Error(), "--until")) {
+		t.Fatalf("should not get time validation error for --context source, got: %q", err.Error())
+	}
+}
+
+func TestResolveInputSinceUnquotedValueDetectedWithContext(t *testing.T) {
+	_, err := resolveInput(resolveParams{
+		contexts: []string{"nginx", "mongodb"},
+		opts:     collector.LogOptions{Since: "30"},
+		args:     []string{"min", "ago"},
+	})
+	if err == nil {
+		t.Fatal("expected error for unquoted --since value with --context, got nil")
+	}
+	if !strings.Contains(err.Error(), "quote") {
+		t.Fatalf("error should hint at quoting, got: %q", err.Error())
+	}
+}
+
 func TestResolveSourceLabelContext(t *testing.T) {
 	label := resolveSourceLabel(resolveParams{
 		contexts: []string{"nginx", "mongodb", "rabbitmq"},
@@ -225,5 +259,125 @@ func TestResolveSourceLabelContextTwoServices(t *testing.T) {
 	want := "context: nginx, postgresql"
 	if label != want {
 		t.Errorf("resolveSourceLabel() = %q, want %q", label, want)
+	}
+}
+
+func TestParseBootDiffSingleIndex(t *testing.T) {
+	d, err := parseBootDiff("-1")
+	if err != nil {
+		t.Fatalf("parseBootDiff(-1) error = %v", err)
+	}
+	if d.from != -1 || d.to != 0 {
+		t.Errorf("parseBootDiff(-1) = {%d, %d}, want {-1, 0}", d.from, d.to)
+	}
+}
+
+func TestParseBootDiffColonForm(t *testing.T) {
+	d, err := parseBootDiff("-2:-1")
+	if err != nil {
+		t.Fatalf("parseBootDiff(-2:-1) error = %v", err)
+	}
+	if d.from != -2 || d.to != -1 {
+		t.Errorf("parseBootDiff(-2:-1) = {%d, %d}, want {-2, -1}", d.from, d.to)
+	}
+}
+
+func TestParseBootDiffEmpty(t *testing.T) {
+	d, err := parseBootDiff("")
+	if err != nil {
+		t.Fatalf("parseBootDiff('') error = %v", err)
+	}
+	if d != nil {
+		t.Errorf("parseBootDiff('') should return nil, got %+v", d)
+	}
+}
+
+func TestParseBootDiffSameIndexRejected(t *testing.T) {
+	_, err := parseBootDiff("0")
+	if err == nil {
+		t.Fatal("parseBootDiff('0') should error: from and to are identical")
+	}
+}
+
+func TestParseBootDiffSameIndexColonRejected(t *testing.T) {
+	_, err := parseBootDiff("-1:-1")
+	if err == nil {
+		t.Fatal("parseBootDiff('-1:-1') should error: from and to are identical")
+	}
+}
+
+func TestParseBootDiffInvalidString(t *testing.T) {
+	_, err := parseBootDiff("abc")
+	if err == nil {
+		t.Fatal("parseBootDiff('abc') should error")
+	}
+}
+
+func TestParseBootDiffInvalidColonForm(t *testing.T) {
+	_, err := parseBootDiff("-1:abc")
+	if err == nil {
+		t.Fatal("parseBootDiff('-1:abc') should error")
+	}
+}
+
+func TestExplainCmdHasDiffFlag(t *testing.T) {
+	cmd := newExplainCmd()
+	f := cmd.Flags().Lookup("diff")
+	if f == nil {
+		t.Fatal("explain command is missing the --diff flag")
+	}
+	if f.DefValue != "" {
+		t.Errorf("--diff default = %q, want empty string", f.DefValue)
+	}
+}
+
+func TestResolveInputDiffMutuallyExclusiveWithService(t *testing.T) {
+	d := &bootDiff{from: -1, to: 0}
+	_, err := resolveInput(resolveParams{
+		service: "nginx",
+		diff:    d,
+	})
+	if err == nil {
+		t.Fatal("expected error when --diff and --service are combined, got nil")
+	}
+	if !strings.Contains(err.Error(), "--diff") || !strings.Contains(err.Error(), "--service") {
+		t.Fatalf("error should mention both flags, got: %q", err.Error())
+	}
+}
+
+func TestResolveInputDiffMutuallyExclusiveWithDmesg(t *testing.T) {
+	d := &bootDiff{from: -1, to: 0}
+	_, err := resolveInput(resolveParams{
+		dmesg: true,
+		diff:  d,
+	})
+	if err == nil {
+		t.Fatal("expected error when --diff and --dmesg are combined, got nil")
+	}
+}
+
+func TestResolveInputDiffSinceRejected(t *testing.T) {
+	d := &bootDiff{from: -1, to: 0}
+	_, err := resolveInput(resolveParams{
+		diff: d,
+		opts: collector.LogOptions{Since: "1 hour ago"},
+	})
+	if err == nil {
+		t.Fatal("expected error when --diff is combined with --since, got nil")
+	}
+	if !strings.Contains(err.Error(), "--since") {
+		t.Fatalf("error should mention --since, got: %q", err.Error())
+	}
+}
+
+func TestResolveSourceLabelDiff(t *testing.T) {
+	label := resolveSourceLabel(resolveParams{
+		diff: &bootDiff{from: -1, to: 0},
+	})
+	if !strings.Contains(label, "diff") {
+		t.Errorf("resolveSourceLabel for diff should contain 'diff', got %q", label)
+	}
+	if !strings.Contains(label, "-1") || !strings.Contains(label, "0") {
+		t.Errorf("resolveSourceLabel for diff should contain both boot indices, got %q", label)
 	}
 }

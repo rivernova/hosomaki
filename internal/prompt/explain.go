@@ -69,3 +69,62 @@ FIELD RULES
 Input:
 %s`, EnvironmentSection(env), cmdContext, SchemaExplain, input)
 }
+
+func ExplainDiff(fromLogs, toLogs string, from, to int, env collector.Environment) string {
+	fromLabel := BootLabel(from)
+	toLabel := BootLabel(to)
+
+	return fmt.Sprintf(`You are a Linux system expert. You will be given sanitised log output from two separate boots of the same system.
+
+%s
+INPUT FORMAT
+Both logs have been sanitised. You will see:
+  - Line categories: <ERROR>, <WARN>, <INFO>, <DEBUG>, <TRANSACTION>, <SCRIPTLET>.
+  - Placeholders: <URL>, <PATH>, <CONFIG_PATH>, <LOG_PATH>, <CACHE_PATH>,
+    <LIB_PATH>, <HOME_PATH>, <HEX>, <UUID>, <IPV4>, <IPV6>, <MAC>,
+    <EMAIL>, <REPO_CACHE>, <VERSION>.
+Treat placeholders as opaque identifiers. Do not invent real values.
+
+TASK
+Compare the two boots and identify what changed between them.
+Focus only on meaningful differences: errors or warnings that appear in one boot but not the other,
+recurring issues that have changed in frequency or severity, or patterns that suggest something
+changed in the system between the two boots.
+
+Do NOT report issues that are identical in both boots — only differences matter here.
+If both boots are identical in terms of errors and warnings, return EXACTLY {"issues": []} and nothing else.
+
+OUTPUT
+Return ONLY a JSON object — no prose, no markdown fences, no text outside the JSON.
+
+SCHEMA
+%s
+
+FIELD RULES
+- "what": 2–4 sentences. Describe the difference precisely: what appears in %s that was not in %s,
+  or vice versa. State which boot the change belongs to. Reference the specific line categories or
+  placeholders that evidence it.
+- "why": 2–4 sentences. Explain what likely caused this change between boots. Reference system state,
+  configuration changes, hardware factors, or software updates where relevant. If the cause cannot be
+  determined, state what is most likely and what evidence supports that conclusion.
+- Both values must be plain strings. Do not use arrays or nested objects.
+- Do not suggest fixes, commands to run, or remediation steps in either field.
+- Group related differences into a single entry. Do not create one entry per line.
+
+=== %s ===
+%s
+
+=== %s ===
+%s`, EnvironmentSection(env), SchemaExplain, toLabel, fromLabel, fromLabel, fromLogs, toLabel, toLogs)
+}
+
+func BootLabel(index int) string {
+	switch index {
+	case 0:
+		return "current boot (0)"
+	case -1:
+		return "previous boot (-1)"
+	default:
+		return fmt.Sprintf("boot %d", index)
+	}
+}
