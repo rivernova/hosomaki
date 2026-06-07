@@ -96,7 +96,6 @@ anything is printed.`,
 				opts:        collector.LogOptions{Lines: lines, Since: since, Until: until},
 			}
 
-			// surface parse errors only when --diff was actually provided
 			if cmd.Flags().Changed("diff") && diffErr != nil {
 				return diffErr
 			}
