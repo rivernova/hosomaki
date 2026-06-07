@@ -26,6 +26,8 @@ type ExplainContext struct {
 	Source string
 	Cmd    string
 	Lines  int
+	Since  string
+	Until  string
 }
 
 func StatusHeader() string {
@@ -208,6 +210,12 @@ func explainContextKV(c ExplainContext) string {
 	}
 	if c.Lines > 0 {
 		b.WriteString(KeyValue("lines", fmt.Sprintf("%d", c.Lines)))
+	}
+	if c.Since != "" {
+		b.WriteString(KeyValue("since", c.Since))
+	}
+	if c.Until != "" {
+		b.WriteString(KeyValue("until", c.Until))
 	}
 	return b.String()
 }

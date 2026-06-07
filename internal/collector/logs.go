@@ -16,6 +16,8 @@ import (
 
 type LogOptions struct {
 	Lines int
+	Since string
+	Until string
 }
 
 const (
@@ -24,6 +26,17 @@ const (
 	defaultDmesgLines   = 60
 	defaultFileLines    = 100
 )
+
+func (o LogOptions) timeArgs() []string {
+	var args []string
+	if o.Since != "" {
+		args = append(args, "--since", o.Since)
+	}
+	if o.Until != "" {
+		args = append(args, "--until", o.Until)
+	}
+	return args
+}
 
 func isJournalContent(out string) bool {
 	trimmed := strings.TrimSpace(out)
@@ -50,11 +63,9 @@ func looksLikeLogLine(text string) bool {
 		if len(line) == 0 {
 			continue
 		}
-
 		if strings.HasPrefix(line, "[") {
 			return true
 		}
-
 		if strings.Contains(line, "]:") {
 			return true
 		}
@@ -66,6 +77,7 @@ func ServiceLogs(service string, opts LogOptions) (string, error) {
 	n := lines(opts.Lines, defaultServiceLines)
 
 	args := []string{"-u", service, "-n", strconv.Itoa(n)}
+	args = append(args, opts.timeArgs()...)
 	args = append(args, journalctl.errorLevel...)
 	args = append(args, journalctl.format...)
 	out, err := exec.Command(binJournalctl, args...).Output()
@@ -74,6 +86,7 @@ func ServiceLogs(service string, opts LogOptions) (string, error) {
 	}
 
 	args = []string{"-u", service, "-n", strconv.Itoa(n)}
+	args = append(args, opts.timeArgs()...)
 	args = append(args, journalctl.format...)
 	out, err = exec.Command(binJournalctl, args...).Output()
 	if err != nil || !isJournalContent(string(out)) {
@@ -86,6 +99,7 @@ func BootLogs(bootIndex int, opts LogOptions) (string, error) {
 	n := lines(opts.Lines, defaultBootLines)
 
 	args := []string{"-b", strconv.Itoa(bootIndex), "-n", strconv.Itoa(n)}
+	args = append(args, opts.timeArgs()...)
 	args = append(args, journalctl.errorLevel...)
 	args = append(args, journalctl.format...)
 	out, err := exec.Command(binJournalctl, args...).Output()
@@ -94,6 +108,7 @@ func BootLogs(bootIndex int, opts LogOptions) (string, error) {
 	}
 
 	args = []string{"-b", strconv.Itoa(bootIndex), "-n", strconv.Itoa(n)}
+	args = append(args, opts.timeArgs()...)
 	args = append(args, journalctl.format...)
 	out, err = exec.Command(binJournalctl, args...).Output()
 	if err != nil || !isJournalContent(string(out)) {
