@@ -24,9 +24,7 @@ Sanitisation is not an optional feature. It is the first and mandatory step of e
 
 ## Data Flow & Processing Pipeline
 
-<p align="center">
-  <img src="assets/hosomaki_flowchart.svg" alt="Dataflow"/>
-</p>
+ <img src="assets/hosomaki_flowchart.svg" alt="Dataflow"/>
 
 Each command sanitises its input locally, sends it to the local model, then validates and repairs the response against a strict schema before rendering. 
 
@@ -58,13 +56,21 @@ hosomaki explain --file /var/log/syslog
 
 # Quick one-liner
 hosomaki explain "kernel: OOM killer activated on process nginx"
+
+# Time-bounded queries
+hosomaki explain --service nginx --since "1 hour ago"
+hosomaki explain --service nginx --since "2024-01-15 14:00:00" --until "2024-01-15 15:00:00"
+hosomaki explain --boot --since "10 min ago"
 ```
 
 **Flags:**
 
-| Flag | Default | Description |
-|---|---|---|
-| `--debug` | `false` | print raw model response to stderr |
+| Flag      | Default | Description                                               |
+|-----------|---------|-----------------------------------------------------------|
+| `--debug` | `false` | print raw model response to stderr                        |
+| `--lines` |         | number of log lines to read (default varies by source)    |
+| `--since` |         | show logs since this time — `--service` and `--boot only` |
+| `--until` |         | show logs until this time — `--service` and `--boot only` |
 
 ### `status`
 
