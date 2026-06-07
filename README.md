@@ -1,7 +1,5 @@
 # Hosomaki
 
-**Your Linux system has a story to tell. Hosomaki is the moment it finally finds its voice.**
-
 <img src="assets/hosomaki_logo.png" alt="Hosomaki"/>
 
 Hosomaki reads your system and helps you understand what's happening in plain language. No cloud. No telemetry. Your system, your data, your choice.
