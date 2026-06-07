@@ -31,10 +31,8 @@ const (
 	styleFail        = "\x1b[38;5;210m" // soft rose
 	styleSeparator   = "\x1b[38;5;189m" // pale lavender
 	styleSummaryLine = "\x1b[38;5;147m" // periwinkle
-	styleTitleOK     = "\x1b[38;5;158m" // pale mint
 	styleTitleWarn   = "\x1b[38;5;229m" // pale lemon
 	styleTitleFail   = "\x1b[38;5;217m" // pale rose
-
 )
 
 func Title(text string) string {
@@ -109,10 +107,6 @@ func BulletFail(text string) string {
 	return fmt.Sprintf("%s%s%s %s\n", styleFail, glyphFail, styleReset, text)
 }
 
-func BulletTitleOK(text string) string {
-	return fmt.Sprintf("%s%s%s %s%s%s\n", styleOK, glyphOK, styleReset, styleTitleOK, text, styleReset)
-}
-
 func BulletTitleWarn(text string) string {
 	return fmt.Sprintf("%s%s%s %s%s%s\n", styleWarn, glyphWarn, styleReset, styleTitleWarn, text, styleReset)
 }
@@ -121,15 +115,7 @@ func BulletTitleFail(text string) string {
 	return fmt.Sprintf("%s%s%s %s%s%s\n", styleFail, glyphFail, styleReset, styleTitleFail, text, styleReset)
 }
 
-func Separator() string {
-	return ""
-}
-
 func sectionHeader(title string) string {
-	return fmt.Sprintf("\n%s%s%s\n\n", styleSection, title, styleReset)
-}
-
-func compactHeader(title string) string {
 	return fmt.Sprintf("\n%s%s%s\n\n", styleSection, title, styleReset)
 }
 
