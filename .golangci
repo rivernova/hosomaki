@@ -1,0 +1,78 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    # correctness
+    - errcheck
+    - govet          # redundant with CI vet, but lint owns it now
+    - staticcheck    # advanced static analysis
+    - ineffassign    # assignments whose value is never used
+    - unused         # unexported identifiers that are never used
+
+    # style / maintainability
+    - gofmt          # formatting (fast, no external tool needed)
+    - goimports      # import grouping and formatting
+    - revive         # opinionated but configurable replacement for golint
+    - misspell       # common English spelling mistakes in comments or strings
+    - whitespace     # unnecessary blank lines at the start/end of blocks
+
+    # bugs
+    - bodyclose      # http response body close checks
+    - noctx          # http.NewRequest without context
+    - rowserrcheck   # sql.Rows.Err() checks
+    - copylock       # lock values copied by value
+
+    # security / robustness
+    - gosec          # common security issues
+
+linters-settings:
+  errcheck:
+    exclude-functions:
+      - fmt.Print
+      - fmt.Println
+      - fmt.Printf
+
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - "checkPrivateReceivers"
+          - "sayRepetitiveInsteadOfStutters"
+      - name: error-return
+      - name: error-strings
+      - name: blank-imports
+      - name: context-as-argument
+      - name: dot-imports
+      - name: var-naming
+
+  gosec:
+    excludes:
+      - G204
+      - G304
+
+  staticcheck:
+    checks:
+      - "all"
+      - "-ST1000"
+      - "-ST1020"
+
+  misspell:
+    locale: UK   # project uses neutral English (this is British btw)
+
+issues:
+  exclude-rules:
+    - path: "_test\\.go"
+      linters:
+        - errcheck
+        - gosec
+
+    - path: "internal/sanitiser/"
+      linters:
+        - gosec
+
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+run:
+  timeout: 3m
