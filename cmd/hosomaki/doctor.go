@@ -110,16 +110,20 @@ func runDoctorFull(data ui.SnapshotData, p string, debug bool) error {
 	if debug {
 		pipe = pipe.WithDebug(os.Stderr)
 	}
-	
+
 	issueCount := 0
 	actionCount := 0
+	wasRepaired := false
 
 	result, err := pipe.Run(
 		context.Background(),
 		p,
 		ai.StreamOptions{
-			OnFirstToken:  func() { spin.SetLabel("responding…") },
-			OnRepairStart: func(n int) { spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n)) },
+			OnFirstToken: func() { spin.SetLabel("responding…") },
+			OnRepairStart: func(n int) {
+				wasRepaired = true
+				spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n))
+			},
 			OnItem: func(key, raw string) {
 				switch key {
 				case "issues":
@@ -160,13 +164,33 @@ func runDoctorFull(data ui.SnapshotData, p string, debug bool) error {
 		return err
 	}
 
-	if issueCount == 0 {
+	// if a repair happened, items may not match the validated
+	if wasRepaired {
 		fmt.Print(ui.DoctorIssuesHeader())
-		fmt.Print(ui.BulletOK("no issues detected"))
-	}
-	if actionCount == 0 {
+		if len(result.Issues) == 0 {
+			fmt.Print(ui.BulletOK("no issues detected"))
+		} else {
+			for i, iss := range result.Issues {
+				fmt.Print(ui.RenderDoctorIssueLive(iss, i+1))
+			}
+		}
 		fmt.Print(ui.DoctorActionsHeader())
-		fmt.Print(ui.BulletOK("no actions required"))
+		if len(result.Actions) == 0 {
+			fmt.Print(ui.BulletOK("no actions required"))
+		} else {
+			for i, act := range result.Actions {
+				fmt.Print(ui.RenderDoctorActionLive(act, i+1))
+			}
+		}
+	} else {
+		if issueCount == 0 {
+			fmt.Print(ui.DoctorIssuesHeader())
+			fmt.Print(ui.BulletOK("no issues detected"))
+		}
+		if actionCount == 0 {
+			fmt.Print(ui.DoctorActionsHeader())
+			fmt.Print(ui.BulletOK("no actions required"))
+		}
 	}
 
 	fmt.Print(ui.RenderDoctorSummary(result))

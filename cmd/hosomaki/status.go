@@ -106,13 +106,17 @@ func runStatusFull(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	anomalyCount := 0
+	wasRepaired := false
 
 	result, err := pipe.Run(
 		context.Background(),
 		p,
 		ai.StreamOptions{
-			OnFirstToken:  func() { spin.SetLabel("responding…") },
-			OnRepairStart: func(n int) { spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n)) },
+			OnFirstToken: func() { spin.SetLabel("responding…") },
+			OnRepairStart: func(n int) {
+				wasRepaired = true
+				spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n))
+			},
 			OnItem: func(key, raw string) {
 				switch key {
 				case "overview":
@@ -154,9 +158,23 @@ func runStatusFull(data ui.SnapshotData, p string, debug bool) error {
 		return err
 	}
 
-	if anomalyCount == 0 {
+	// if a repair happened, items may not match the validated
+	if wasRepaired {
+		fmt.Print(ui.StatusOverviewHeader())
+		fmt.Print(ui.RenderStatusOverviewLive(result.Overview))
 		fmt.Print(ui.StatusAnomaliesHeader())
-		fmt.Print(ui.BulletOK("no anomalies detected"))
+		if len(result.Anomalies) == 0 {
+			fmt.Print(ui.BulletOK("no anomalies detected"))
+		} else {
+			for i, a := range result.Anomalies {
+				fmt.Print(ui.RenderStatusAnomalyLive(a, i+1))
+			}
+		}
+	} else {
+		if anomalyCount == 0 {
+			fmt.Print(ui.StatusAnomaliesHeader())
+			fmt.Print(ui.BulletOK("no anomalies detected"))
+		}
 	}
 
 	fmt.Print(ui.RenderStatusSummary(result))
