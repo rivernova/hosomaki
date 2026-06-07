@@ -136,3 +136,32 @@ func TestLines_IgnoresNegative(t *testing.T) {
 		t.Error("lines(-1, 50) should return the default 50")
 	}
 }
+
+func TestContextLogs_AllServicesMissing(t *testing.T) {
+	services := []string{"hosomaki-nonexistent-a", "hosomaki-nonexistent-b"}
+	collected, errs := ContextLogs(services, LogOptions{})
+	if len(collected) != 0 {
+		t.Errorf("expected no collected logs for missing services, got %d", len(collected))
+	}
+	if len(errs) != 2 {
+		t.Errorf("expected 2 errors for 2 missing services, got %d", len(errs))
+	}
+}
+
+func TestContextLogs_ReturnsErrorsNonFatal(t *testing.T) {
+	services := []string{"hosomaki-nonexistent-xyz", "systemd-journald"}
+	collected, errs := ContextLogs(services, LogOptions{})
+	if len(errs) == 0 {
+		t.Error("expected at least one error for nonexistent service")
+	}
+	_ = collected
+}
+
+func TestContextLogs_PreservesAllServicesInMap(t *testing.T) {
+	services := []string{"hosomaki-nonexistent-1", "hosomaki-nonexistent-2", "hosomaki-nonexistent-3"}
+	collected, errs := ContextLogs(services, LogOptions{})
+	if len(collected)+len(errs) != len(services) {
+		t.Errorf("collected (%d) + errs (%d) should equal services (%d)",
+			len(collected), len(errs), len(services))
+	}
+}

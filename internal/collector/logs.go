@@ -193,3 +193,32 @@ func lines(n, defaultN int) int {
 	}
 	return defaultN
 }
+
+func ContextLogs(services []string, opts LogOptions) (map[string]string, []error) {
+	type result struct {
+		service string
+		logs    string
+		err     error
+	}
+
+	ch := make(chan result, len(services))
+	for _, svc := range services {
+		svc := svc
+		go func() {
+			out, err := ServiceLogs(svc, opts)
+			ch <- result{service: svc, logs: out, err: err}
+		}()
+	}
+
+	collected := make(map[string]string, len(services))
+	var errs []error
+	for range services {
+		r := <-ch
+		if r.err != nil {
+			errs = append(errs, r.err)
+		} else {
+			collected[r.service] = r.logs
+		}
+	}
+	return collected, errs
+}
