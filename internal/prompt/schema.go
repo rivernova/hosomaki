@@ -15,3 +15,5 @@ const SchemaDoctorBrief = `{"summary":"string"}`
 const SchemaStatusFull = `{"overview":"string","anomalies":[{"severity":"string","title":"string","detail":"string"}]}`
 
 const SchemaStatusBrief = `{"summary":"string"}`
+
+const SchemaAudit = `{"summary":"string","findings":[{"severity":"string","category":"string","title":"string","detail":"string"}]}`
