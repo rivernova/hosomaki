@@ -6,8 +6,6 @@ Hosomaki reads your system and helps you understand what's happening in plain la
 
 It uses a local model via [Ollama](https://ollama.com) and never sends anything off your machine.
 
-### Quick Start
-
 Pull a recommended model:
 
 ```bash
@@ -192,8 +190,8 @@ cd hosomaki
 make build
 sudo make install
 ```
-
-## Recommended Ollama Models
+## Quick Start
+### Recommended Ollama Models
 
 Hosomaki works best with instruction-tuned local models for text generation, summarization, and log parsing. Model choice depends on your hardware and desired trade-off between speed and quality.
 
