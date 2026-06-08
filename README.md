@@ -6,17 +6,6 @@ Hosomaki reads your system and helps you understand what's happening in plain la
 
 It uses a local model via [Ollama](https://ollama.com) and never sends anything off your machine.
 
-## Recommended Ollama Models
-
-Hosomaki works best with instruction-tuned local models for text generation, summarization, and log parsing. Model choice depends on your hardware and desired trade-off between speed and quality.
-
-| Model | Best for | Notes |
-| --- | --- | --- |
-| `llama3.2:3b` | Fast responses, low resource | Lightweight summarization and log tasks |
-| `gemma3:4b` | Balanced | Large context window, multilingual support |
-| `mistral:7b` | General-purpose | Strong instruction-following 7B model |
-| `qwen3:8b` | Higher-quality reasoning & summaries | Requires more RAM/VRAM |
-
 ### Quick Start
 
 Pull a recommended model:
@@ -203,6 +192,17 @@ cd hosomaki
 make build
 sudo make install
 ```
+
+## Recommended Ollama Models
+
+Hosomaki works best with instruction-tuned local models for text generation, summarization, and log parsing. Model choice depends on your hardware and desired trade-off between speed and quality.
+
+| Model | Best for | Notes |
+| --- | --- | --- |
+| `llama3.2:3b` | Fast responses, low resource | Lightweight summarization and log tasks |
+| `gemma3:4b` | Balanced | Large context window, multilingual support |
+| `mistral:7b` | General-purpose | Strong instruction-following 7B model |
+| `qwen3:8b` | Higher-quality reasoning & summaries | Requires more RAM/VRAM |
 
 ## Configuration
 
