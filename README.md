@@ -185,7 +185,6 @@ cd hosomaki
 make build
 sudo make install
 ```
-## Quick Start
 ### Recommended Ollama Models
 
 Hosomaki works best with instruction-tuned local models for text generation, summarization, and log parsing. Model choice depends on your hardware and desired trade-off between speed and quality.
