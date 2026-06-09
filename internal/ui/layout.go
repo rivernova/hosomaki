@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/rivernova/hosomaki/internal/auditor"
 )
 
 // generates the various sections outputs
@@ -242,5 +244,100 @@ func ExplainEmptyResult() string {
 		"result",
 		BulletOK("no errors or warnings found in the provided log")+
 			BulletOK("the log appears to be informational or debug output only"),
+	)
+}
+
+func AuditHeader() string { return Title("audit") }
+
+func AuditInitHeader() string { return Title("audit (init)") }
+
+func AuditBaselineSection(b *auditor.AuditBaseline, path string) string {
+	var body strings.Builder
+	body.WriteString(KeyValue("saved to", path))
+	body.WriteString(KeyValue("captured at", b.CreatedAt.Format("2006-01-02 15:04:05")))
+	body.WriteString(KeyValue("services", fmt.Sprintf("%d", len(b.Services))))
+	body.WriteString(KeyValue("watched files", fmt.Sprintf("%d", len(b.Files))))
+	body.WriteString(KeyValue("packages", fmt.Sprintf("%d", len(b.Packages))))
+	body.WriteString(KeyValue("users", fmt.Sprintf("%d", len(b.Users))))
+	body.WriteString(KeyValue("ports", fmt.Sprintf("%d", len(b.Ports))))
+	for _, e := range b.CollectionErrors {
+		body.WriteString(BulletWarn(e))
+	}
+	return Section("baseline", body.String())
+}
+
+func AuditDiffSection(d *auditor.AuditDiff, age string) string {
+	var body strings.Builder
+	body.WriteString(KeyValue("baseline age", age))
+	body.WriteString(KeyValue("total changes", fmt.Sprintf("%d", d.TotalChanges())))
+	return Section("changes detected", body.String())
+}
+
+func AuditLocalChanges(d *auditor.AuditDiff) string {
+	var b strings.Builder
+
+	renderList := func(header string, items []string, bullet func(string) string) {
+		if len(items) == 0 {
+			return
+		}
+		b.WriteString(sectionHeader(header))
+		for _, item := range items {
+			b.WriteString(bullet(item))
+		}
+	}
+
+	renderList("services added", d.ServicesAdded, BulletWarn)
+	renderList("services removed", d.ServicesRemoved, BulletWarn)
+
+	renderList("files added", d.FilesAdded, BulletWarn)
+	renderList("files removed", d.FilesRemoved, BulletWarn)
+
+	if len(d.FilesModified) > 0 {
+		b.WriteString(sectionHeader("files modified"))
+		for _, fc := range d.FilesModified {
+			b.WriteString(BulletWarn(fc.Path))
+			b.WriteString(KeyValue("  size", fmt.Sprintf("%d → %d bytes", fc.OldSize, fc.NewSize)))
+		}
+	}
+
+	if len(d.PermissionsChanged) > 0 {
+		b.WriteString(sectionHeader("permission changes"))
+		for _, pc := range d.PermissionsChanged {
+			b.WriteString(BulletWarn(pc.Path))
+			if pc.OldMode != pc.NewMode {
+				b.WriteString(KeyValue("  mode", fmt.Sprintf("%s → %s", pc.OldMode, pc.NewMode)))
+			}
+			if pc.OldOwner != pc.NewOwner {
+				b.WriteString(KeyValue("  owner", fmt.Sprintf("%s → %s", pc.OldOwner, pc.NewOwner)))
+			}
+			if pc.OldGroup != pc.NewGroup {
+				b.WriteString(KeyValue("  group", fmt.Sprintf("%s → %s", pc.OldGroup, pc.NewGroup)))
+			}
+		}
+	}
+
+	renderList("packages installed", d.PackagesAdded, BulletOK)
+	renderList("packages removed", d.PackagesRemoved, BulletWarn)
+
+	if len(d.PackagesUpdated) > 0 {
+		b.WriteString(sectionHeader("packages updated"))
+		for _, pu := range d.PackagesUpdated {
+			b.WriteString(BulletOK(fmt.Sprintf("%s  (%s → %s)", pu.Name, pu.OldVersion, pu.NewVersion)))
+		}
+	}
+
+	renderList("ports opened", d.PortsOpened, BulletWarn)
+	renderList("ports closed", d.PortsClosed, BulletWarn)
+
+	renderList("users added", d.UsersAdded, BulletFail)
+	renderList("users removed", d.UsersRemoved, BulletWarn)
+
+	return b.String()
+}
+
+func AuditNoChanges(age string) string {
+	return Section(
+		"result",
+		BulletOK(fmt.Sprintf("no changes detected since baseline was taken (%s ago)", age)),
 	)
 }

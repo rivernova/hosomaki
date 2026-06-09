@@ -97,3 +97,41 @@ func RenderExplainEntryLive(entry prompt.ExplainEntry, index int, multi bool) st
 	return Section("what is happening", what) +
 		Section("why it is happening", why)
 }
+
+func AuditFindingsHeader() string { return sectionHeader("ai analysis") }
+
+func RenderAuditSummaryLive(summary string) string {
+	t := strings.TrimSpace(summary)
+	if t == "" {
+		return ""
+	}
+	return t + "\n"
+}
+
+func RenderAuditFindingLive(f prompt.AuditFinding, _ int) string {
+	title := strings.TrimSpace(f.Title)
+	detail := strings.TrimSpace(f.Detail)
+	if title == "" && detail == "" {
+		return ""
+	}
+	label := title
+	if label == "" {
+		label = detail
+		detail = ""
+	}
+
+	var bullet string
+	switch f.Severity {
+	case "critical":
+		bullet = BulletTitleFail(label)
+	case "warning":
+		bullet = BulletTitleWarn(label)
+	default: // "info" and any unexpected value
+		bullet = BulletOK(label)
+	}
+
+	if detail == "" {
+		return bullet
+	}
+	return bullet + indentProse(detail)
+}
