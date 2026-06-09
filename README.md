@@ -8,20 +8,6 @@ It uses a local model via [Ollama](https://ollama.com) and never sends anything 
 
 ---
 
-## Data Privacy & Security
-
-Hosomaki is designed around a simple principle: your logs should remain yours.
-
-Before any data reaches the local language model, Hosomaki applies a strict sanitisation layer directly on your system. This layer aggressively detects and removes sensitive material, like IP addresses, paths, UUIDs, credentials, hostnames, from your logs before they ever enter the model context.
-
-Sanitisation is not an optional feature. It is the first and mandatory step of every pipeline.
-
-## Data Flow & Processing Pipeline
-
- <img src="assets/hosomaki_flowchart.svg" alt="Dataflow"/>
-
-Each command sanitises its input locally, sends it to the local model, then validates and repairs the response against a strict schema before rendering. 
-
 ## Commands
 
 ### `explain`
@@ -109,6 +95,29 @@ hosomaki doctor --brief   # one-sentence summary of health and top action
 | `--debug` | `false` | print raw model response to stderr |
 | `--brief` | `false` | one-sentence summary |
 
+### `audit`
+
+Surfaces system changes by diffing the current state against a stored baseline snapshot.
+Will track files modified, services added or removed, permission changes, new or removed
+listening ports, package updates, and user account changes.
+
+The first run must create a baseline. Every subsequent run diffs against it.
+
+```bash
+hosomaki audit --init          # create/reset the baseline
+hosomaki audit                 # diff current state against the baseline
+```
+
+By default, the baseline is stored at `~/.local/share/hosomaki/audit-baseline.json`
+
+**Flags:**
+
+| Flag              | Default                                       | Description                                                          |
+|-------------------|-----------------------------------------------|----------------------------------------------------------------------|
+| `--baseline PATH` | `~/.local/share/hosomaki/audit-baseline.json` | use a custom baseline file                                           |
+| `--dirs DIRS`         | `/etc,/usr/local/bin,/usr/local/sbin`         | comma-separated directories to track for file and permission changes |
+| `--debug`         | `false`                                       | print raw model response to stderr                                   |
+
 ### `shell-integration`
 
 Installs a small shell wrapper. Any command prefixed with `explain` will be analysed automatically if it fails.
@@ -132,6 +141,24 @@ explain docker compose up
 ## Coming soon
 
 See the [Roadmap](https://github.com/rivernova/hosomaki/wiki) for the full plan.
+
+---
+
+## Data Privacy & Security
+
+Hosomaki is designed around a simple principle: your data should remain yours.
+
+Before anything reaches the local language model, Hosomaki applies a strict sanitisation layer directly on your system. This layer aggressively detects and removes sensitive material, like IP addresses, paths, UUIDs, credentials, hostnames, from your data before it ever enters the model context.
+
+Sanitisation is not an optional feature. It is the first and mandatory step of every pipeline.
+
+---
+
+## Data Flow & Processing Pipeline
+
+ <img src="assets/hosomaki_flowchart.svg" alt="Dataflow"/>
+
+Each command sanitises its input locally, sends it to the local model, then validates and repairs the response against a strict schema before rendering.
 
 ---
 
