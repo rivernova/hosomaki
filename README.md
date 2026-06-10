@@ -20,8 +20,8 @@ journalctl -p err -n 20 | hosomaki explain
 dmesg | tail -50         | hosomaki explain
 
 # By systemd service
-hosomaki explain --service nginx
-hosomaki explain --service postgresql --lines 100
+hosomaki explain --service <service>
+hosomaki explain --service <service> --lines 100
 
 # Errors from a specific boot, this is very useful after a crash
 hosomaki explain --boot
@@ -38,17 +38,17 @@ hosomaki explain --file /var/log/syslog
 hosomaki explain "kernel: OOM killer activated on process nginx"
 
 # Multiple related services at once
-hosomaki explain --context nginx,mongodb,rabbitmq
+hosomaki explain --context <service_1>,<service_2>,<service_3>
 
 # Compares boots, explains what changed between them
 hosomaki explain --diff -1         # previous boot vs current
 hosomaki explain --diff -2:-1      # boot -2 vs boot -1
 
 # Time-bounded queries
-hosomaki explain --service nginx --since "1 hour ago"
-hosomaki explain --service nginx --since "2024-01-15 14:00:00" --until "2024-01-15 15:00:00"
+hosomaki explain --service <service> --since "1 hour ago"
+hosomaki explain --service <service> --since "2024-01-15 14:00:00" --until "2024-01-15 15:00:00"
 hosomaki explain --boot --since "10 min ago"
-hosomaki explain --context nginx,mongodb --since "30 min ago"
+hosomaki explain --context <service_1>,<service_2> --since "30 min ago"
 
 ```
 
@@ -118,6 +118,24 @@ By default, the baseline is stored at `~/.local/share/hosomaki/audit-baseline.js
 | `--dirs DIRS`         | `/etc,/usr/local/bin,/usr/local/sbin`         | comma-separated directories to track for file and permission changes |
 | `--debug`         | `false`                                       | print raw model response to stderr                                   |
 
+### `watch`
+
+Tails a systemd service journal in real time and explains new errors and warnings
+as they appear. Runs continuously until you press `Ctrl+C`.
+
+```bash
+hosomaki watch <service>
+```
+
+**Flags:**
+
+| Flag | Default | Description |
+|---|---|---|
+| `--lines`, `-n` | `20` | number of historical lines to seed on startup (`0` to disable) |
+| `--window` | `3s` | silence window before flushing a non-full batch to the AI |
+| `--max-lines` | `50` | maximum batch size before forcing a flush to the AI |
+| `--debug` | `false` | print raw model response to stderr |
+
 ### `shell-integration`
 
 Installs a small shell wrapper. Any command prefixed with `explain` will be analysed automatically if it fails.
@@ -138,12 +156,6 @@ explain docker compose up
 
 ---
 
-## Coming soon
-
-See the [Roadmap](https://github.com/rivernova/hosomaki/wiki) for the full plan.
-
----
-
 ## Data Privacy & Security
 
 Hosomaki is designed around a simple principle: your data should remain yours.
@@ -159,6 +171,12 @@ Sanitisation is not an optional feature. It is the first and mandatory step of e
  <img src="assets/hosomaki_flowchart.svg" alt="Dataflow"/>
 
 Each command sanitises its input locally, sends it to the local model, then validates and repairs the response against a strict schema before rendering.
+
+---
+
+## Coming soon
+
+See the [Roadmap](https://github.com/rivernova/hosomaki/wiki) for the full plan.
 
 ---
 
