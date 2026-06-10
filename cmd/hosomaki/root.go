@@ -103,6 +103,7 @@ func init() {
 
 	rootCmd.AddCommand(
 		newAuditCmd(),
+		newWatchCmd(),
 		newDoctorCmd(),
 		newExplainCmd(),
 		newStatusCmd(),

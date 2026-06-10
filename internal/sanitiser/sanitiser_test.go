@@ -446,3 +446,58 @@ func FuzzSanitise(f *testing.F) {
 		_ = s.Sanitise(in)
 	})
 }
+
+func TestDefaultPerLine_HasOneFewerRuleThanDefault(t *testing.T) {
+	fullRules := Default().Rules()
+	perLineRules := DefaultPerLine().Rules()
+	if len(perLineRules) != len(fullRules)-1 {
+		t.Errorf("DefaultPerLine() has %d rules, want %d (Default minus CollapseRepeats)",
+			len(perLineRules), len(fullRules)-1)
+	}
+}
+
+func TestDefaultPerLine_DoesNotIncludeCollapseRepeats(t *testing.T) {
+	for _, r := range DefaultPerLine().Rules() {
+		if r.Name() == "collapse-repeats" {
+			t.Error("DefaultPerLine() must not include the collapse-repeats rule")
+		}
+	}
+}
+
+func TestDefaultPerLine_StillClassifiesLines(t *testing.T) {
+	got := DefaultPerLine().Sanitise("error: connection refused")
+	if !strings.HasPrefix(got, "<ERROR>") {
+		t.Errorf("DefaultPerLine() must still classify lines, got %q", got)
+	}
+}
+
+func TestDefaultPerLine_StillMasksIPv4(t *testing.T) {
+	got := DefaultPerLine().Sanitise("connecting to 192.168.1.1")
+	if strings.Contains(got, "192.168.1.1") {
+		t.Errorf("DefaultPerLine() must still mask IPv4, got %q", got)
+	}
+}
+
+func TestCollapseRepeats_OnBatchAfterPerLineSanitise(t *testing.T) {
+	perLine := DefaultPerLine()
+	lines := []string{
+		"error: disk full",
+		"error: disk full",
+		"error: disk full",
+		"info: retrying",
+	}
+	classified := make([]string, len(lines))
+	for i, l := range lines {
+		classified[i] = perLine.Sanitise(l)
+	}
+	batch := strings.Join(classified, "\n")
+
+	collapsed := New(CollapseRepeats{}).Sanitise(batch)
+
+	if !strings.Contains(collapsed, "[x3]") {
+		t.Errorf("CollapseRepeats on batch must collapse 3 identical lines, got:\n%s", collapsed)
+	}
+	if strings.Count(collapsed, "<ERROR>") != 1 {
+		t.Errorf("collapsed batch must contain exactly 1 <ERROR> line, got:\n%s", collapsed)
+	}
+}

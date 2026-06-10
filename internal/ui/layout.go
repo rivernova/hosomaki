@@ -341,3 +341,23 @@ func AuditNoChanges(age string) string {
 		BulletOK(fmt.Sprintf("no changes detected since baseline was taken (%s ago)", age)),
 	)
 }
+
+func WatchHeader(service string) string {
+	return Title(fmt.Sprintf("watch — %s", service))
+}
+
+func WatchReadyLine(service string, seedLines int) string {
+	msg := fmt.Sprintf("tailing %s", service)
+	if seedLines > 0 {
+		msg += fmt.Sprintf("  (seeded with last %d lines)", seedLines)
+	}
+	return BulletOK(msg) + "\n"
+}
+
+func WatchBatchHeader(t time.Time) string {
+	return sectionHeader(fmt.Sprintf("analysis — %s", t.Format("15:04:05")))
+}
+
+func WatchShutdownLine() string {
+	return "\n" + BulletOK("watch stopped") + "\n"
+}
