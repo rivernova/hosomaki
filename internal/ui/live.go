@@ -135,13 +135,3 @@ func RenderAuditFindingLive(f prompt.AuditFinding, _ int) string {
 	}
 	return bullet + indentProse(detail)
 }
-
-func WatchIssuesHeader() string { return sectionHeader("issues detected") }
-
-func RenderWatchIssueLive(issue prompt.WatchIssue, index int, multi bool) string {
-	return RenderExplainEntryLive(
-		prompt.ExplainEntry{What: issue.What, Why: issue.Why},
-		index,
-		multi,
-	)
-}

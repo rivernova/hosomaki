@@ -75,6 +75,26 @@ func Default() *Sanitiser {
 	)
 }
 
+func DefaultPerLine() *Sanitiser {
+	return New(
+		StripTimestamps{},
+		StripSyslogHostnames{},
+		MaskURLs{},
+		MaskEmails{},
+		MaskMACAddresses{},
+		MaskIPv4{},
+		MaskIPv6{},
+		NormaliseRepoNames{},
+		MaskHomePaths{},
+		MaskAbsolutePaths{},
+		MaskUUIDs{},
+		MaskHexAddresses{},
+		NormalisePackageNVR{},
+		ClassifyLines{},
+		// CollapseRepeats intentionally omitted
+	)
+}
+
 func (s *Sanitiser) Sanitise(input string) string {
 	if input == "" {
 		return ""

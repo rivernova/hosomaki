@@ -69,10 +69,6 @@ hosomaki watch never modifies the system. It is read-only.`,
 
 			env := collector.Env()
 
-			// Build the AI pipeline once. StreamPipeline is a value type;
-			// WithDebug returns a new value, so we resolve the final pipeline
-			// here rather than inside the flush closure to avoid repeated
-			// re-wrapping on every batch.
 			pipe := watchStreamPipeline()
 			if debug {
 				pipe = pipe.WithDebug(os.Stderr)
@@ -85,13 +81,9 @@ hosomaki watch never modifies the system. It is read-only.`,
 					SilenceWindow: window,
 					MaxLines:      maxLines,
 				},
-				// Sanitise is applied per line at ingest time, before buffering.
-				// By the time OnFlush is called the batch is already clean.
-				Sanitise: sanitiser.Default().Sanitise,
+
+				Sanitise: sanitiser.DefaultPerLine().Sanitise,
 				OnFlush:  makeFlushFunc(service, env, pipe),
-				// OnLine is intentionally nil — raw lines are not echoed to the
-				// terminal. The operator sees AI explanations only, keeping the
-				// output readable during noisy log bursts.
 				OnLine: nil,
 			}
 
@@ -103,7 +95,7 @@ hosomaki watch never modifies the system. It is read-only.`,
 			fmt.Print(ui.WatchHeader(service))
 			fmt.Print(ui.WatchReadyLine(service, seedLines))
 
-			// Install signal handler so Ctrl-C cancels the context cleanly.
+			// Install signal handler so Ctrl-C cancels the context cleanly
 			ctx, cancel := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer cancel()
 
@@ -111,7 +103,6 @@ hosomaki watch never modifies the system. It is read-only.`,
 
 			fmt.Print(ui.WatchShutdownLine())
 
-			// context.Canceled is a clean shutdown (Ctrl-C), not an error to surface.
 			if ctx.Err() != nil {
 				return nil
 			}
@@ -127,21 +118,15 @@ hosomaki watch never modifies the system. It is read-only.`,
 	return cmd
 }
 
-// makeFlushFunc returns the OnFlush callback used by the watcher.
-// It receives a pre-built, fully configured pipeline so the closure
-// has no mutable state — the same pipeline value is reused for every batch.
-//
-// The batch arriving here is already sanitised (sanitiser.Default() is
-// applied per line at ingest time). We do not re-sanitise.
-//
-// AI errors within a batch are non-fatal: they are logged to stderr and
-// the watcher continues. Killing the tail loop because one batch failed
-// would be worse than skipping a single explanation.
-func makeFlushFunc(service string, env collector.Environment, pipe ai.StreamPipeline[prompt.WatchResult]) watcher.FlushFunc {
+var batchCollapser = sanitiser.New(sanitiser.CollapseRepeats{})
+
+func makeFlushFunc(service string, env collector.Environment, pipe ai.StreamPipeline[prompt.ExplainResult]) watcher.FlushFunc {
 	return func(ctx context.Context, batch string) error {
+		collapsed := batchCollapser.Sanitise(batch)
+
 		p := prompt.Watch(prompt.WatchInput{
 			Service:     service,
-			Batch:       batch,
+			Batch:       collapsed,
 			Environment: env,
 		})
 
@@ -162,11 +147,11 @@ func makeFlushFunc(service string, env collector.Environment, pipe ai.StreamPipe
 				if key != "issues" {
 					return
 				}
-				var issue prompt.WatchIssue
-				if jsonErr := json.Unmarshal([]byte(raw), &issue); jsonErr != nil {
+				var entry prompt.ExplainEntry
+				if jsonErr := json.Unmarshal([]byte(raw), &entry); jsonErr != nil {
 					return
 				}
-				if strings.TrimSpace(issue.What) == "" && strings.TrimSpace(issue.Why) == "" {
+				if strings.TrimSpace(entry.What) == "" && strings.TrimSpace(entry.Why) == "" {
 					return
 				}
 				spin.ClearLine()
@@ -174,7 +159,7 @@ func makeFlushFunc(service string, env collector.Environment, pipe ai.StreamPipe
 					fmt.Print(ui.WatchBatchHeader(batchTime))
 					headerPrinted = true
 				}
-				fmt.Print(ui.RenderWatchIssueLive(issue, issueCount+1, issueCount > 0))
+				fmt.Print(ui.RenderExplainEntryLive(entry, issueCount+1, issueCount > 0))
 				issueCount++
 			},
 		})
@@ -182,36 +167,27 @@ func makeFlushFunc(service string, env collector.Environment, pipe ai.StreamPipe
 		spin.Stop()
 
 		if err != nil {
-			// Non-fatal: log and continue tailing.
 			_, _ = fmt.Fprintf(os.Stderr, "watch: analysis error: %v\n", err)
 			return nil
 		}
 
-		// If repair happened the streamed output may be incomplete;
-		// re-render from the fully validated result.
 		if wasRepaired && len(result.Issues) > 0 {
 			if !headerPrinted {
 				fmt.Print(ui.WatchBatchHeader(batchTime))
 			}
-			for i, issue := range result.Issues {
-				fmt.Print(ui.RenderWatchIssueLive(issue, i+1, len(result.Issues) > 1))
+			for i, entry := range result.Issues {
+				fmt.Print(ui.RenderExplainEntryLive(entry, i+1, len(result.Issues) > 1))
 			}
 		}
-
-		// Empty result: the model found no issues. Stay quiet — same behaviour
-		// as explain when it returns {"issues":[]}.
 
 		return nil
 	}
 }
 
-// watchStreamPipeline constructs the streaming AI pipeline for the watch command.
-// WatchResult is structurally identical to ExplainResult; they share the same
-// schema and validator path.
-func watchStreamPipeline() ai.StreamPipeline[prompt.WatchResult] {
+func watchStreamPipeline() ai.StreamPipeline[prompt.ExplainResult] {
 	return ai.NewStreamPipeline(
 		provider,
-		ai.NewSchema(prompt.SchemaWatch),
-		ai.StructValidator[prompt.WatchResult]{},
+		ai.NewSchema(prompt.SchemaExplain),
+		ai.StructValidator[prompt.ExplainResult]{},
 	)
 }

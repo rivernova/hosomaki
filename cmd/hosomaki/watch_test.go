@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/rivernova/hosomaki/internal/sanitiser"
 )
 
 // unit tests for the watch command
@@ -79,7 +81,6 @@ func TestWatchCmdHasNoWatchFlag(t *testing.T) {
 
 func TestWatchCmdRequiresExactlyOneArg(t *testing.T) {
 	cmd := newWatchCmd()
-
 	if err := cmd.Args(cmd, []string{}); err == nil {
 		t.Error("watch command must require at least one positional argument")
 	}
@@ -87,7 +88,7 @@ func TestWatchCmdRequiresExactlyOneArg(t *testing.T) {
 		t.Error("watch command must reject more than one positional argument")
 	}
 	if err := cmd.Args(cmd, []string{"nginx"}); err != nil {
-		t.Errorf("watch command must accept exactly one positional argument, got error: %v", err)
+		t.Errorf("watch command must accept exactly one positional argument, got: %v", err)
 	}
 }
 
@@ -112,21 +113,8 @@ func TestWatchCmdLongContainsKeyPhrases(t *testing.T) {
 	}
 }
 
-func TestWatchCmdHelp_DoesNotPanic(t *testing.T) {
-	cmd := newWatchCmd()
-	var out bytes.Buffer
-	cmd.SetOut(&out)
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("help panicked: %v", r)
-		}
-	}()
-	_ = cmd.Help()
-}
-
 func TestWatchCmdDefaultWindowIsPositive(t *testing.T) {
-	cmd := newWatchCmd()
-	f := cmd.Flags().Lookup("window")
+	f := newWatchCmd().Flags().Lookup("window")
 	if f == nil {
 		t.Fatal("missing --window flag")
 	}
@@ -140,12 +128,76 @@ func TestWatchCmdDefaultWindowIsPositive(t *testing.T) {
 }
 
 func TestWatchCmdDefaultMaxLinesIsPositive(t *testing.T) {
-	cmd := newWatchCmd()
-	f := cmd.Flags().Lookup("max-lines")
+	f := newWatchCmd().Flags().Lookup("max-lines")
 	if f == nil {
 		t.Fatal("missing --max-lines flag")
 	}
 	if f.DefValue == "0" || f.DefValue == "" {
 		t.Errorf("--max-lines default must be positive, got %q", f.DefValue)
 	}
+}
+
+func TestWatchCmdHelp_DoesNotPanic(t *testing.T) {
+	cmd := newWatchCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("help panicked: %v", r)
+		}
+	}()
+	_ = cmd.Help()
+}
+
+func TestBatchCollapser_CollapsesIdenticalLines(t *testing.T) {
+	batch := "<ERROR> disk full\n<ERROR> disk full\n<ERROR> disk full\n<INFO> retrying"
+	got := batchCollapser.Sanitise(batch)
+	if !strings.Contains(got, "[x3]") {
+		t.Errorf("batchCollapser must collapse 3 identical lines, got:\n%s", got)
+	}
+	if strings.Count(got, "<ERROR> disk full") > 1 {
+		t.Errorf("batchCollapser must produce only one <ERROR> line, got:\n%s", got)
+	}
+}
+
+func TestBatchCollapser_DoesNotAlterDistinctLines(t *testing.T) {
+	batch := "<ERROR> first\n<ERROR> second\n<INFO> third"
+	got := batchCollapser.Sanitise(batch)
+	if strings.Contains(got, "[x") {
+		t.Errorf("batchCollapser must not collapse distinct lines, got:\n%s", got)
+	}
+	if !strings.Contains(got, "<ERROR> first") || !strings.Contains(got, "<ERROR> second") {
+		t.Errorf("batchCollapser must preserve all distinct lines, got:\n%s", got)
+	}
+}
+
+func TestBatchCollapser_EmptyStringIsIdempotent(t *testing.T) {
+	got := batchCollapser.Sanitise("")
+	if got != "" {
+		t.Errorf("batchCollapser.Sanitise('') = %q, want empty", got)
+	}
+}
+
+func TestWatchSanitiserSplit_PerLineSanitiserDoesNotHaveCollapseRepeats(t *testing.T) {
+	san := sanitiser.DefaultPerLine()
+	for _, r := range san.Rules() {
+		if r.Name() == "collapse-repeats" {
+			t.Error("DefaultPerLine() must not include collapse-repeats; use batchCollapser instead")
+		}
+	}
+}
+
+func TestWatchSanitiserSplit_BatchCollapserOnlyContainsCollapseRepeats(t *testing.T) {
+	rules := batchCollapser.Rules()
+	if len(rules) != 1 {
+		t.Fatalf("batchCollapser must contain exactly 1 rule (CollapseRepeats), got %d", len(rules))
+	}
+	if rules[0].Name() != "collapse-repeats" {
+		t.Errorf("batchCollapser rule = %q, want 'collapse-repeats'", rules[0].Name())
+	}
+}
+
+func TestWatchPipeline_UsesExplainResult(t *testing.T) {
+	pipe := watchStreamPipeline()
+	_ = pipe
 }
