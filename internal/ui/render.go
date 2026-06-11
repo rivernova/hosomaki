@@ -100,3 +100,12 @@ func plural(n int, singular, pluralForm string) string {
 	}
 	return fmt.Sprintf("%d %s", n, pluralForm)
 }
+
+func RenderWhySummary(result prompt.WhyResult) string {
+	var b strings.Builder
+	b.WriteString(SummaryLine(plural(len(result.Chain),
+		"step in failure chain", "steps in failure chain")))
+	b.WriteString(SummaryLine(plural(len(result.NextSteps),
+		"remediation step suggested", "remediation steps suggested")))
+	return SectionSummary(b.String())
+}

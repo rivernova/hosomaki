@@ -135,3 +135,41 @@ func RenderAuditFindingLive(f prompt.AuditFinding, _ int) string {
 	}
 	return bullet + indentProse(detail)
 }
+
+func WhySummaryHeader() string   { return sectionHeader("failure summary") }
+func WhyChainHeader() string     { return sectionHeader("failure chain") }
+func WhyNextStepsHeader() string { return sectionHeader("next steps") }
+
+func RenderWhySummaryLive(summary string) string {
+	t := strings.TrimSpace(summary)
+	if t == "" {
+		return ""
+	}
+	return t + "\n"
+}
+
+func RenderWhyStepLive(step prompt.WhyStep, index int) string {
+	event := strings.TrimSpace(step.Event)
+	detail := strings.TrimSpace(step.Detail)
+	if event == "" && detail == "" {
+		return ""
+	}
+	label := event
+	if label == "" {
+		label = detail
+		detail = ""
+	}
+	bullet := BulletWarn(fmt.Sprintf("step %d — %s", index, label))
+	if detail == "" {
+		return bullet
+	}
+	return bullet + indentProse(detail)
+}
+
+func RenderWhyNextStepLive(step string, index int) string {
+	text := strings.TrimSpace(step)
+	if text == "" {
+		return ""
+	}
+	return BulletOK(fmt.Sprintf("%d. %s", index, text))
+}
