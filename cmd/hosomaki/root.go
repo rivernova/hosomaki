@@ -102,11 +102,12 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ~/.config/hosomaki/config.yaml)")
 
 	rootCmd.AddCommand(
-		newAuditCmd(),
-		newWatchCmd(),
-		newDoctorCmd(),
 		newExplainCmd(),
 		newStatusCmd(),
+		newDoctorCmd(),
+		newAuditCmd(),
+		newWatchCmd(),
+		newWhyCmd(),
 		newShellIntegrationCmd(),
 	)
 }
