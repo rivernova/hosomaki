@@ -19,3 +19,5 @@ const SchemaStatusBrief = `{"summary":"string"}`
 const SchemaAudit = `{"summary":"string","findings":[{"severity":"string","category":"string","title":"string","detail":"string"}]}`
 
 const SchemaWatch = `{"issues":[{"what":"string","why":"string"}]}`
+
+const SchemaWhy = `{"summary":"string","chain":[{"event":"string","detail":"string"}],"next_steps":["string"]}`
