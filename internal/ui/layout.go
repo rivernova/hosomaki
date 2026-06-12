@@ -361,3 +361,25 @@ func WatchBatchHeader(t time.Time) string {
 func WatchShutdownLine() string {
 	return "\n" + BulletOK("watch stopped") + "\n"
 }
+
+func WhyHeader() string { return Title("why") }
+
+type WhyContext struct {
+	Service  string
+	ExitCode int
+	Lines    int
+	Since    string
+}
+
+func WhyContextSection(c WhyContext) string {
+	var b strings.Builder
+	b.WriteString(KeyValue("service", c.Service))
+	b.WriteString(KeyValue("exit code", fmt.Sprintf("%d", c.ExitCode)))
+	if c.Lines > 0 {
+		b.WriteString(KeyValue("lines", fmt.Sprintf("%d", c.Lines)))
+	}
+	if c.Since != "" {
+		b.WriteString(KeyValue("since", c.Since))
+	}
+	return Section("context", b.String())
+}

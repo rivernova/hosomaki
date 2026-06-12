@@ -156,6 +156,26 @@ explain docker compose up
 
 ---
 
+### `why`
+
+Given a nonzero exit code, pulls surrounding journal context for a service and
+explains the full failure chain.
+
+The exit code is a required positional argument. `--service` is a required flag.
+Exit codes outside 1–255 and exit code 0 are rejected before any collection happens.
+
+```bash
+hosomaki why <non_zero_code>  --service <service>
+```
+
+**Flags:**
+
+| Flag | Short | Default | Description |
+|---|---|---|---|
+| `--lines` | `-n` | `50` | number of journal lines to collect |
+| `--since` | | | collect logs since this time |
+| `--debug` | | `false` | print raw model response to stderr |
+
 ## Data Privacy & Security
 
 Hosomaki is designed around a simple principle: your data should remain yours.
