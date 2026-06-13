@@ -112,5 +112,6 @@ func init() {
 		newPortsCmd(),
 		newCronsCmd(),
 		newTimersCmd(),
+		newMountsCmd(),
 	)
 }
