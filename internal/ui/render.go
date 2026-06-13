@@ -109,3 +109,21 @@ func RenderWhySummary(result prompt.WhyResult) string {
 		"remediation step suggested", "remediation steps suggested")))
 	return SectionSummary(b.String())
 }
+
+func RenderPortsResultSummary(result prompt.PortsResult) string {
+	warnings, info := 0, 0
+	for _, f := range result.Findings {
+		switch f.Severity {
+		case "warning":
+			warnings++
+		default:
+			info++
+		}
+	}
+	var b strings.Builder
+	b.WriteString(SummaryLine(plural(warnings, "warning", "warnings")))
+	if info > 0 {
+		b.WriteString(SummaryLine(plural(info, "informational finding", "informational findings")))
+	}
+	return SectionSummary(b.String())
+}

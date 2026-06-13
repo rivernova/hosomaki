@@ -108,6 +108,7 @@ func init() {
 		newAuditCmd(),
 		newWatchCmd(),
 		newWhyCmd(),
+		newPortsCmd(),
 		newShellIntegrationCmd(),
 	)
 }

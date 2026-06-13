@@ -74,3 +74,15 @@ func runShell(cmd string) (string, string) {
 	}
 	return strings.TrimSpace(string(out)), ""
 }
+
+func nonEmptyLines(s string) []string {
+	raw := strings.Split(s, "\n")
+	out := make([]string, 0, len(raw))
+	for _, l := range raw {
+		l = strings.TrimSpace(l)
+		if l != "" {
+			out = append(out, l)
+		}
+	}
+	return out
+}
