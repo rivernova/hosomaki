@@ -401,3 +401,33 @@ func PortsCleanResult() string {
 		BulletOK("no unexpected ports detected"),
 	)
 }
+
+func TimersHeader() string { return Title("timers") }
+
+func TimersCollectedSection(count int, warning string) string {
+	var b strings.Builder
+	b.WriteString(KeyValue("systemd timers", fmt.Sprintf("%d", count)))
+	if warning != "" {
+		b.WriteString(BulletWarn(warning))
+	}
+	return Section("collected", b.String())
+}
+
+func TimersCleanResult() string {
+	return Section("result", BulletOK("all timers are healthy"))
+}
+
+func CronsHeader() string { return Title("crons") }
+
+func CronsCollectedSection(count int, warnings []string) string {
+	var b strings.Builder
+	b.WriteString(KeyValue("cron jobs", fmt.Sprintf("%d", count)))
+	for _, w := range warnings {
+		b.WriteString(BulletWarn(w))
+	}
+	return Section("collected", b.String())
+}
+
+func CronsCleanResult() string {
+	return Section("result", BulletOK("no issues found in cron jobs"))
+}

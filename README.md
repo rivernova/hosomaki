@@ -10,192 +10,61 @@ It uses a local model via [Ollama](https://ollama.com) and never sends anything 
 
 ## Commands
 
-### `explain`
+| Command | What it does |
+|---|---|
+| `explain` | Explain errors from a service, boot, log file, pipe, or inline text |
+| `status` | Quick summary of current system health |
+| `doctor` | Full diagnosis with concrete suggested actions |
+| `audit` | Surface changes since a baseline snapshot |
+| `watch` | Tail a service journal and explain errors in real time |
+| `why` | Given an exit code and service, reconstruct the full failure chain |
+| `ports` | List listening ports and flag anything unexpected |
+| `timers` | Inspect all systemd timers and flag failures or overdue schedules |
+| `crons` | Read all crontabs and explain what each job does |
+| `shell-integration` | Install a shell wrapper that explains failed commands automatically |
 
-Understands what's going on. Adapts to whatever you throw at it.
-
-```bash
-# Pipe any log output directly
-journalctl -p err -n 20 | hosomaki explain
-dmesg | tail -50         | hosomaki explain
-
-# By systemd service
-hosomaki explain --service <service>
-hosomaki explain --service <service> --lines 100
-
-# Errors from a specific boot, this is very useful after a crash
-hosomaki explain --boot
-hosomaki explain --boot -1        # the boot before that
-
-# Kernel messages
-hosomaki explain --dmesg
-
-# Any log file
-hosomaki explain --file /var/log/nginx/error.log
-hosomaki explain --file /var/log/syslog
-
-# Quick one-liner
-hosomaki explain "kernel: OOM killer activated on process nginx"
-
-# Multiple related services at once
-hosomaki explain --context <service_1>,<service_2>,<service_3>
-
-# Compares boots, explains what changed between them
-hosomaki explain --diff -1         # previous boot vs current
-hosomaki explain --diff -2:-1      # boot -2 vs boot -1
-
-# Time-bounded queries
-hosomaki explain --service <service> --since "1 hour ago"
-hosomaki explain --service <service> --since "2024-01-15 14:00:00" --until "2024-01-15 15:00:00"
-hosomaki explain --boot --since "10 min ago"
-hosomaki explain --context <service_1>,<service_2> --since "30 min ago"
-
-```
-
-**Flags:**
-
-| Flag         | Default | Description                                                                                  |
-|--------------|---------|----------------------------------------------------------------------------------------------|
-| `--debug`    | `false` | print raw model response to stderr                                                           |
-| `--lines`    |         | number of log lines to read (default varies by source)                                       |
-| `--since`    |         | show logs since this time — `--service`, `--boot`, and `--context` only                      |
-| `--until`    |         | show logs until this time — `--service`, `--boot`, and `--context` only                      |
-
-### `status`
-
-Quick health snapshot.
-
-```bash
-hosomaki status           # paragraph summary with anomaly list
-hosomaki status --brief   # single sentence
-```
-
-**Flags:**
-
-| Flag | Default | Description |
-|---|---|---|
-| `--debug` | `false` | print raw model response to stderr |
-| `--brief` | `false` | single-sentence summary |
-
-### `doctor`
-
-Full system diagnosis with concrete suggested actions. Unlike `status`, which only describes what it sees, `doctor` goes further.
-
-If a suggested action is potentially disruptive or irreversible, the output says so explicitly.
-
-```bash
-hosomaki doctor           # full diagnosis with suggested actions
-hosomaki doctor --brief   # one-sentence summary of health and top action
-```
-
-**Flags:**
-
-| Flag | Default | Description |
-|---|---|---|
-| `--debug` | `false` | print raw model response to stderr |
-| `--brief` | `false` | one-sentence summary |
-
-### `audit`
-
-Surfaces system changes by diffing the current state against a stored baseline snapshot.
-Will track files modified, services added or removed, permission changes, new or removed
-listening ports, package updates, and user account changes.
-
-The first run must create a baseline. Every subsequent run diffs against it.
-
-```bash
-hosomaki audit --init          # create/reset the baseline
-hosomaki audit                 # diff current state against the baseline
-```
-
-By default, the baseline is stored at `~/.local/share/hosomaki/audit-baseline.json`
-
-**Flags:**
-
-| Flag              | Default                                       | Description                                                          |
-|-------------------|-----------------------------------------------|----------------------------------------------------------------------|
-| `--baseline PATH` | `~/.local/share/hosomaki/audit-baseline.json` | use a custom baseline file                                           |
-| `--dirs DIRS`         | `/etc,/usr/local/bin,/usr/local/sbin`         | comma-separated directories to track for file and permission changes |
-| `--debug`         | `false`                                       | print raw model response to stderr                                   |
-
-### `watch`
-
-Tails a systemd service journal in real time and explains new errors and warnings
-as they appear. Runs continuously until you press `Ctrl+C`.
-
-```bash
-hosomaki watch <service>
-```
-
-**Flags:**
-
-| Flag | Default | Description |
-|---|---|---|
-| `--lines`, `-n` | `20` | number of historical lines to seed on startup (`0` to disable) |
-| `--window` | `3s` | silence window before flushing a non-full batch to the AI |
-| `--max-lines` | `50` | maximum batch size before forcing a flush to the AI |
-| `--debug` | `false` | print raw model response to stderr |
-
-### `shell-integration`
-
-Installs a small shell wrapper. Any command prefixed with `explain` will be analysed automatically if it fails.
-
-```bash
-hosomaki shell-integration --shell bash >> ~/.bashrc && source ~/.bashrc
-hosomaki shell-integration --shell zsh  >> ~/.zshrc  && source ~/.zshrc
-hosomaki shell-integration --shell fish >> ~/.config/fish/config.fish
-```
-
-Then just prefix any command with `explain`:
-
-```bash
-explain sudo systemctl start nginx
-explain make build
-explain docker compose up
-```
+Run `hosomaki <command> --help` for flags and usage details.
 
 ---
 
-### `why`
-
-Given a nonzero exit code, pulls surrounding journal context for a service and
-explains the full failure chain.
-
-The exit code is a required positional argument. `--service` is a required flag.
-Exit codes outside 1–255 and exit code 0 are rejected before any collection happens.
+### Quick examples
 
 ```bash
-hosomaki why <non_zero_code>  --service <service>
+# General health check
+hosomaki status
+hosomaki doctor
+
+# Diagnose a service failure
+hosomaki explain --service nginx
+hosomaki why 1 --service nginx
+
+# Explain any log output
+journalctl -p err -n 50 | hosomaki explain
+dmesg | tail -50 | hosomaki explain
+
+# Surface what changed on the system
+hosomaki audit --init   # take a baseline
+hosomaki audit          # diff against it
+
+# Watch a service and explain errors as they arrive
+hosomaki watch nginx
+
+# Review scheduled work
+hosomaki timers
+hosomaki crons
+
+# Auto-explain failed commands
+hosomaki shell-integration --shell bash >> ~/.bashrc && source ~/.bashrc
+explain make build
 ```
 
-**Flags:**
-
-| Flag | Short | Default | Description |
-|---|---|---|---|
-| `--lines` | `-n` | `50` | number of journal lines to collect |
-| `--since` | | | collect logs since this time |
-| `--debug` | | `false` | print raw model response to stderr |
-
-### `ports`
-
-Identifies anything unexpected or potentially concerning on all currently listening TCP and UDP ports. 
-For tracking how ports change over time use `hosomaki audit`.
-
-```bash
-hosomaki ports
-```
-
-**Flags:**
-
-| Flag | Default | Description |
-|---|---|---|
-| `--debug` | `false` | print raw model response to stderr |
+---
 
 ## Data Privacy & Security
 
 Hosomaki is designed around a simple principle: your data should remain yours.
 
-Before anything reaches the local language model, Hosomaki applies a strict sanitisation layer directly on your system. This layer aggressively detects and removes sensitive material, like IP addresses, paths, UUIDs, credentials, hostnames, from your data before it ever enters the model context.
+Before anything reaches the local language model, Hosomaki applies a strict sanitisation layer directly on your system. This layer aggressively detects and removes sensitive material — IP addresses, paths, UUIDs, credentials, hostnames — before it ever enters the model context.
 
 Sanitisation is not an optional feature. It is the first and mandatory step of every pipeline.
 
@@ -203,7 +72,7 @@ Sanitisation is not an optional feature. It is the first and mandatory step of e
 
 ## Data Flow & Processing Pipeline
 
- <img src="assets/hosomaki_flowchart.svg" alt="Dataflow"/>
+<img src="assets/hosomaki_flowchart.svg" alt="Dataflow"/>
 
 Each command sanitises its input locally, sends it to the local model, then validates and repairs the response against a strict schema before rendering.
 
@@ -220,6 +89,8 @@ See the [Roadmap](https://github.com/rivernova/hosomaki/wiki) for the full plan.
 - Linux (systemd-based distro recommended)
 - Go 1.23+
 - [Ollama](https://ollama.com) running locally with a model pulled
+
+---
 
 ## Installation
 
@@ -249,7 +120,7 @@ docker run -d -p 11434:11434 --name ollama ollama/ollama
 ollama pull llama3.1
 ```
 
-Any model works. Larger models produce better results, smaller models are faster. 
+Any model works. Larger models produce better results, smaller models are faster.
 
 If using Docker:
 
@@ -265,16 +136,19 @@ cd hosomaki
 make build
 sudo make install
 ```
+
 ### Recommended Ollama Models
 
-Hosomaki works best with instruction-tuned local models for text generation, summarization, and log parsing. Model choice depends on your hardware and desired trade-off between speed and quality.
+Hosomaki works best with instruction-tuned local models for text generation, summarisation, and log parsing. Model choice depends on your hardware and desired trade-off between speed and quality.
 
 | Model | Best for | Notes |
-| --- | --- | --- |
-| `llama3.2:3b` | Fast responses, low resource | Lightweight summarization and log tasks |
+|---|---|---|
+| `llama3.2:3b` | Fast responses, low resource | Lightweight summarisation and log tasks |
 | `gemma3:4b` | Balanced | Large context window, multilingual support |
 | `mistral:7b` | General-purpose | Strong instruction-following 7B model |
 | `qwen3:8b` | Higher-quality reasoning & summaries | Requires more RAM/VRAM |
+
+---
 
 ## Configuration
 
@@ -302,6 +176,8 @@ Environment variables are also supported, prefixed with `HOSOMAKI_`:
 HOSOMAKI_AI_MODEL=mistral hosomaki explain --service nginx
 ```
 
+---
+
 ## Development
 
 ```bash
@@ -312,6 +188,8 @@ make dev      # run without building (go run)
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+
+---
 
 ## Status
 

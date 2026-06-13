@@ -11,6 +11,8 @@ import (
 	"github.com/rivernova/hosomaki/internal/prompt"
 )
 
+// live ux
+
 func DoctorIssuesHeader() string  { return sectionHeader("issues") }
 func DoctorActionsHeader() string { return sectionHeader("suggested actions") }
 func RenderDoctorIssueLive(iss prompt.DoctorIssue, _ int) string {
@@ -200,6 +202,101 @@ func RenderPortsFindingLive(f prompt.PortsFinding, _ int) string {
 	default:
 		bullet = BulletOK(label)
 	}
+	if detail == "" {
+		return bullet
+	}
+	return bullet + indentProse(detail)
+}
+
+func TimersFindingsHeader() string { return sectionHeader("ai analysis") }
+
+func RenderTimersSummaryLive(summary string) string {
+	t := strings.TrimSpace(summary)
+	if t == "" {
+		return ""
+	}
+	return t + "\n"
+}
+
+func RenderTimerLive(entry prompt.TimerEntry, _ int) string {
+	name := strings.TrimSpace(entry.Name)
+	if name == "" {
+		return ""
+	}
+
+	schedule := strings.TrimSpace(entry.Schedule)
+	label := name
+	if schedule != "" {
+		label = fmt.Sprintf("%s  —  %s", name, schedule)
+	}
+
+	var bullet string
+	switch entry.Status {
+	case "failed":
+		bullet = BulletTitleFail(label)
+	case "warning":
+		bullet = BulletTitleWarn(label)
+	default:
+		bullet = BulletOK(label)
+	}
+
+	var meta strings.Builder
+	if v := strings.TrimSpace(entry.LastRun); v != "" {
+		meta.WriteString(KeyValue("last run", v))
+	}
+	if v := strings.TrimSpace(entry.NextRun); v != "" {
+		meta.WriteString(KeyValue("next run", v))
+	}
+	if detail := strings.TrimSpace(entry.Detail); detail != "" {
+		meta.WriteString(indentProse(detail))
+	}
+
+	if meta.Len() == 0 {
+		return bullet
+	}
+	return bullet + meta.String()
+}
+
+func CronsFindingsHeader() string { return sectionHeader("ai analysis") }
+
+func RenderCronsSummaryLive(summary string) string {
+	t := strings.TrimSpace(summary)
+	if t == "" {
+		return ""
+	}
+	return t + "\n"
+}
+
+func RenderCronJobLive(entry prompt.CronJobEntry, _ int) string {
+	source := strings.TrimSpace(entry.Source)
+	if source == "" {
+		return ""
+	}
+
+	schedule := strings.TrimSpace(entry.Schedule)
+	whatItDoes := strings.TrimSpace(entry.WhatItDoes)
+
+	var label string
+	switch {
+	case schedule != "" && whatItDoes != "":
+		label = fmt.Sprintf("%s  —  %s  —  %s", source, schedule, whatItDoes)
+	case schedule != "":
+		label = fmt.Sprintf("%s  —  %s", source, schedule)
+	default:
+		label = source
+	}
+
+	var bullet string
+	switch entry.Status {
+	case "failed":
+		bullet = BulletTitleFail(label)
+	case "warning":
+		bullet = BulletTitleWarn(label)
+	default:
+		bullet = BulletOK(label)
+	}
+
+	detail := strings.TrimSpace(entry.Detail)
 	if detail == "" {
 		return bullet
 	}

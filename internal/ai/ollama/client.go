@@ -45,7 +45,7 @@ func (c *Client) Ping(ctx context.Context) error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("Ollama is not running at %s — start it with: ollama serve", c.endpoint)
+		return fmt.Errorf("ollama is not running at %s — start it with: ollama serve", c.endpoint)
 	}
 	defer func() { _, _ = io.Copy(io.Discard, resp.Body); _ = resp.Body.Close() }()
 

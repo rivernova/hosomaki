@@ -107,8 +107,10 @@ func init() {
 		newDoctorCmd(),
 		newAuditCmd(),
 		newWatchCmd(),
+		newShellIntegrationCmd(),
 		newWhyCmd(),
 		newPortsCmd(),
-		newShellIntegrationCmd(),
+		newCronsCmd(),
+		newTimersCmd(),
 	)
 }
