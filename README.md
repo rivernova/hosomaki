@@ -84,7 +84,7 @@ explain make build
 
 Hosomaki is designed around a simple principle: your data should remain yours.
 
-Before anything reaches the local language model, Hosomaki applies a strict sanitisation layer directly on your system. This layer aggressively detects and removes sensitive material — IP addresses, paths, UUIDs, credentials, hostnames — before it ever enters the model context.
+Before anything reaches the local language model, Hosomaki applies a strict sanitisation layer directly on your system. This layer aggressively detects and removes sensitive material like IP addresses, paths, UUIDs, credentials, hostnames, before it ever enters the model context.
 
 Sanitisation is not an optional feature. It is the first and mandatory step of every pipeline.
 
