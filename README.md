@@ -21,6 +21,7 @@ It uses a local model via [Ollama](https://ollama.com) and never sends anything 
 | `ports` | List listening ports and flag anything unexpected |
 | `timers` | Inspect all systemd timers and flag failures or overdue schedules |
 | `crons` | Read all crontabs and explain what each job does |
+| `mounts` | Inspect active mounts, detect stale NFS, and flag disks approaching capacity |
 | `shell-integration` | Install a shell wrapper that explains failed commands automatically |
 
 Run `hosomaki <command> --help` for flags and usage details.
@@ -72,6 +73,9 @@ hosomaki watch nginx --window 10s --max-lines 30 # tune batching behaviour
 hosomaki ports
 hosomaki timers
 hosomaki crons
+
+# Mount health, stale NFS, disk thresholds
+ hosomaki mounts                                  
 
 # Auto-explain failed commands
 hosomaki shell-integration --shell bash >> ~/.bashrc && source ~/.bashrc
