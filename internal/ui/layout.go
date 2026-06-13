@@ -431,3 +431,17 @@ func CronsCollectedSection(count int, warnings []string) string {
 func CronsCleanResult() string {
 	return Section("result", BulletOK("no issues found in cron jobs"))
 }
+
+type ExplainPIDContext struct {
+	PID  int
+	Name string // process name from /proc/<pid>/status. may be empty
+}
+
+func ExplainPIDContextSection(c ExplainPIDContext) string {
+	var b strings.Builder
+	b.WriteString(KeyValue("source", fmt.Sprintf("pid: %d", c.PID)))
+	if c.Name != "" {
+		b.WriteString(KeyValue("process", c.Name))
+	}
+	return Section("context", b.String())
+}

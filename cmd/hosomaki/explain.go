@@ -7,6 +7,7 @@ package hosomaki
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -37,6 +38,7 @@ func newExplainCmd() *cobra.Command {
 		until          string
 		originatingCmd string
 		debug          bool
+		pid            int
 	)
 
 	cmd := &cobra.Command{
@@ -57,6 +59,9 @@ With flags, it collects the logs for you — no copy-pasting needed:
   hosomaki explain --dmesg
   hosomaki explain --file /var/log/nginx/error.log
   hosomaki explain --context nginx,mongodb,rabbitmq
+
+Explain a running process via procfs (read-only, no kernel attachment):
+  hosomaki explain --pid 1234
 
 Compare logs between boots:
   hosomaki explain --diff -1         # compare previous boot against current
@@ -93,15 +98,36 @@ anything is printed.`,
 				file:        file,
 				contexts:    contexts,
 				diff:        diff,
+				pid:         pid,
 				opts:        collector.LogOptions{Lines: lines, Since: since, Until: until},
 			}
 
 			if cmd.Flags().Changed("diff") && diffErr != nil {
 				return diffErr
 			}
+
 			rawInput, err := resolveInput(rp)
 			if err != nil {
 				return err
+			}
+
+			env := collector.Env()
+
+			if rp.pid > 0 {
+				var processName string
+				if snap, snapErr := collector.ProcessInfo(rp.pid); snapErr == nil {
+					processName = snap.Name
+				}
+				pidCtx := ui.ExplainPIDContext{
+					PID:  rp.pid,
+					Name: processName,
+				}
+				fmt.Print(ui.ExplainHeader())
+				fmt.Print(ui.ExplainPIDContextSection(pidCtx))
+
+				sanitised := sanitiser.Default().Sanitise(rawInput)
+				generationPrompt := prompt.ExplainProcess(sanitised, rp.pid, env)
+				return runExplain(generationPrompt, debug)
 			}
 
 			explainCtx := ui.ExplainContext{
@@ -112,7 +138,8 @@ anything is printed.`,
 				Until:  until,
 			}
 
-			env := collector.Env()
+			fmt.Print(ui.ExplainHeader())
+			fmt.Print(ui.ExplainContextSection(explainCtx))
 
 			var generationPrompt string
 			if rp.diff != nil {
@@ -128,7 +155,7 @@ anything is printed.`,
 				generationPrompt = prompt.Explain(sanitised, originatingCmd, env)
 			}
 
-			return runExplain(explainCtx, generationPrompt, debug)
+			return runExplain(generationPrompt, debug)
 		},
 	}
 
@@ -143,6 +170,7 @@ anything is printed.`,
 	cmd.Flags().StringVar(&until, "until", "", "show logs until this time (journalctl format)")
 	cmd.Flags().StringVar(&originatingCmd, "cmd", "", "the command that produced this output (set automatically by shell integration)")
 	cmd.Flags().BoolVar(&debug, "debug", false, "print raw model response to stderr")
+	cmd.Flags().IntVar(&pid, "pid", 0, "explain what a running process is doing via procfs (e.g. --pid 1234); read-only, no kernel attachment")
 	cmd.Flags().Lookup("boot").NoOptDefVal = "0"
 
 	return cmd
@@ -156,10 +184,7 @@ func explainStreamPipeline() ai.StreamPipeline[prompt.ExplainResult] {
 	)
 }
 
-func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
-	fmt.Print(ui.ExplainHeader())
-	fmt.Print(ui.ExplainContextSection(ctx))
-
+func runExplain(p string, debug bool) error {
 	spin := spinner.Start("thinking…")
 	pipe := explainStreamPipeline()
 	if debug {
@@ -227,6 +252,8 @@ func runExplain(ctx ui.ExplainContext, p string, debug bool) error {
 
 func resolveSourceLabel(p resolveParams) string {
 	switch {
+	case p.pid > 0:
+		return fmt.Sprintf("pid: %d", p.pid)
 	case p.service != "":
 		return "service: " + p.service
 	case p.bootChanged:
@@ -269,6 +296,7 @@ type resolveParams struct {
 	file        string
 	contexts    []string
 	diff        *bootDiff
+	pid         int
 	opts        collector.LogOptions
 }
 
@@ -292,8 +320,11 @@ func resolveInput(p resolveParams) (string, error) {
 	if p.diff != nil {
 		sources++
 	}
+	if p.pid > 0 {
+		sources++
+	}
 	if sources > 1 {
-		return "", fmt.Errorf("only one of --service, --boot, --dmesg, --file, --context, --diff may be used at a time")
+		return "", fmt.Errorf("only one of --service, --boot, --dmesg, --file, --context, --diff, --pid may be used at a time")
 	}
 
 	if p.opts.Since != "" || p.opts.Until != "" {
@@ -311,18 +342,36 @@ func resolveInput(p resolveParams) (string, error) {
 	}
 
 	switch {
+	case p.pid > 0:
+		snap, err := collector.ProcessInfo(p.pid)
+		if err != nil {
+			switch {
+			case errors.Is(err, collector.ErrProcessNotFound):
+				return "", fmt.Errorf("PID %d does not exist", p.pid)
+			case errors.Is(err, collector.ErrProcessPermission):
+				return "", fmt.Errorf("PID %d: permission denied — try running as root or the process owner", p.pid)
+			default:
+				return "", fmt.Errorf("PID %d: %w", p.pid, err)
+			}
+		}
+		return collector.FormatProcessSnapshotForPrompt(snap), nil
+
 	case p.service != "":
 		return collector.ServiceLogs(p.service, p.opts)
+
 	case p.bootChanged:
 		bootIndex, err := strconv.Atoi(p.boot)
 		if err != nil {
 			return "", fmt.Errorf("invalid boot index %q: must be an integer", p.boot)
 		}
 		return collector.BootLogs(bootIndex, p.opts)
+
 	case p.dmesg:
 		return collector.DmesgLogs(p.opts)
+
 	case p.file != "":
 		return collector.FileLogs(p.file, p.opts)
+
 	case len(p.contexts) > 0:
 		if len(p.contexts) < 2 {
 			return "", fmt.Errorf("--context requires at least 2 services; use --service for a single service")
@@ -349,6 +398,7 @@ func resolveInput(p resolveParams) (string, error) {
 			}
 		}
 		return strings.TrimSpace(b.String()), nil
+
 	case p.diff != nil:
 		fromLogs, toLogs, err := collector.BootDiffLogs(p.diff.from, p.diff.to, p.opts)
 		if err != nil {
@@ -357,12 +407,14 @@ func resolveInput(p resolveParams) (string, error) {
 		p.diff.fromLogs = fromLogs
 		p.diff.toLogs = toLogs
 		return "diff", nil
+
 	case len(p.args) > 0:
 		input := strings.TrimSpace(strings.Join(p.args, " "))
 		if input == "" {
 			return "", fmt.Errorf("message was empty — provide a non-empty message")
 		}
 		return input, nil
+
 	case isStdinPiped():
 		raw, err := io.ReadAll(os.Stdin)
 		if err != nil {
@@ -373,6 +425,7 @@ func resolveInput(p resolveParams) (string, error) {
 			return "", fmt.Errorf("stdin was empty — pipe some log output or provide a message as argument")
 		}
 		return input, nil
+
 	default:
 		return "", fmt.Errorf(
 			"no input provided\n\n" +
@@ -381,6 +434,7 @@ func resolveInput(p resolveParams) (string, error) {
 				"  By boot:           hosomaki explain --boot\n" +
 				"  Kernel messages:   hosomaki explain --dmesg\n" +
 				"  From a file:       hosomaki explain --file /var/log/syslog\n" +
+				"  Explain a process: hosomaki explain --pid 1234\n" +
 				"  Quick message:     hosomaki explain \"error text here\"",
 		)
 	}
