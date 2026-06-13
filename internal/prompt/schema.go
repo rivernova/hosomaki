@@ -21,3 +21,5 @@ const SchemaAudit = `{"summary":"string","findings":[{"severity":"string","categ
 const SchemaWatch = `{"issues":[{"what":"string","why":"string"}]}`
 
 const SchemaWhy = `{"summary":"string","chain":[{"event":"string","detail":"string"}],"next_steps":["string"]}`
+
+const SchemaPorts = `{"summary":"string","findings":[{"severity":"string","port":"string","title":"string","detail":"string"}]}`

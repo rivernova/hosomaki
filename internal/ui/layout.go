@@ -383,3 +383,21 @@ func WhyContextSection(c WhyContext) string {
 	}
 	return Section("context", b.String())
 }
+
+func PortsHeader() string { return Title("ports") }
+
+func PortsCollectedSection(count int, warnings []string) string {
+	var b strings.Builder
+	b.WriteString(KeyValue("listening ports", fmt.Sprintf("%d", count)))
+	for _, w := range warnings {
+		b.WriteString(BulletWarn(w))
+	}
+	return Section("collected", b.String())
+}
+
+func PortsCleanResult() string {
+	return Section(
+		"result",
+		BulletOK("no unexpected ports detected"),
+	)
+}

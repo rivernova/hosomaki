@@ -173,3 +173,35 @@ func RenderWhyNextStepLive(step string, index int) string {
 	}
 	return BulletOK(fmt.Sprintf("%d. %s", index, text))
 }
+
+func RenderPortsSummaryLive(summary string) string {
+	t := strings.TrimSpace(summary)
+	if t == "" {
+		return ""
+	}
+	return t + "\n"
+}
+
+func RenderPortsFindingLive(f prompt.PortsFinding, _ int) string {
+	title := strings.TrimSpace(f.Title)
+	detail := strings.TrimSpace(f.Detail)
+	if title == "" && detail == "" {
+		return ""
+	}
+	label := title
+	if label == "" {
+		label = detail
+		detail = ""
+	}
+	var bullet string
+	switch f.Severity {
+	case "warning":
+		bullet = BulletTitleWarn(label)
+	default:
+		bullet = BulletOK(label)
+	}
+	if detail == "" {
+		return bullet
+	}
+	return bullet + indentProse(detail)
+}

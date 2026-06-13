@@ -4,7 +4,7 @@
 
 package collector
 
-// all commands are defined here and referenced by name
+// all external binary names used by collectors, referenced by name
 const (
 	binUptime     = "uptime"
 	binFree       = "free"
@@ -14,6 +14,7 @@ const (
 	binDmesg      = "dmesg"
 	binDf         = "df"
 	binTail       = "tail"
+	binSs         = "ss"
 )
 
 var snapshot = struct {
