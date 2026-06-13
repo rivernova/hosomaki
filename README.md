@@ -12,7 +12,7 @@ It uses a local model via [Ollama](https://ollama.com) and never sends anything 
 
 | Command | What it does |
 |---|---|
-| `explain` | Explain errors from a service, boot, log file, pipe, or inline text |
+| `explain` | Explain errors from a service, boot, log file, pipe, inline text, or a running process |
 | `status` | Quick summary of current system health |
 | `doctor` | Full diagnosis with concrete suggested actions |
 | `audit` | Surface changes since a baseline snapshot |
@@ -32,24 +32,44 @@ Run `hosomaki <command> --help` for flags and usage details.
 ```bash
 # General health check
 hosomaki status
+hosomaki status --brief                          # one-sentence summary
 hosomaki doctor
+hosomaki doctor --brief                          # one-sentence summary
 
-# Diagnose a service failure
+# Explain logs. Adapts to whatever you throw at it
 hosomaki explain --service nginx
-hosomaki why 1 --service nginx
+hosomaki explain --service nginx --lines 100     # control how many lines to read
+hosomaki explain --service nginx --since "1 hour ago"
+hosomaki explain --service nginx --since "2024-01-15 14:00" --until "2024-01-15 15:00"
+hosomaki explain --boot                          # current boot
+hosomaki explain --boot -1                       # previous boot
+hosomaki explain --dmesg                         # kernel ring buffer
+hosomaki explain --file /var/log/syslog
+hosomaki explain --context nginx,postgresql      # correlate multiple services at once
+hosomaki explain --diff -1                       # compare current boot with the previous one
+hosomaki explain --diff -2:-1                    # compare any two boots
+hosomaki explain --pid 1234                      # what is this process doing right now
+journalctl -p err -n 50 | hosomaki explain       # pipe any log output
+hosomaki explain "kernel: OOM killer activated"  # inline message
 
-# Explain any log output
-journalctl -p err -n 50 | hosomaki explain
-dmesg | tail -50 | hosomaki explain
+# Explain why a service exited
+hosomaki why 1 --service nginx
+hosomaki why 137 --service myapp --lines 100
+hosomaki why 1 --service nginx --since "10 min ago"
 
 # Surface what changed on the system
-hosomaki audit --init   # take a baseline
-hosomaki audit          # diff against it
+hosomaki audit --init                            # take a baseline
+hosomaki audit                                   # diff against it
+hosomaki audit --dirs /etc,/usr/local/bin        # track additional directories
+hosomaki audit --baseline /tmp/my-baseline.json  # use a custom baseline path
 
 # Watch a service and explain errors as they arrive
 hosomaki watch nginx
+hosomaki watch nginx --lines 20                  # seed with number of lines. 0 skips seed
+hosomaki watch nginx --window 10s --max-lines 30 # tune batching behaviour
 
 # Review scheduled work
+hosomaki ports
 hosomaki timers
 hosomaki crons
 
@@ -64,7 +84,7 @@ explain make build
 
 Hosomaki is designed around a simple principle: your data should remain yours.
 
-Before anything reaches the local language model, Hosomaki applies a strict sanitisation layer directly on your system. This layer aggressively detects and removes sensitive material — IP addresses, paths, UUIDs, credentials, hostnames — before it ever enters the model context.
+Before anything reaches the local language model, Hosomaki applies a strict sanitisation layer directly on your system. This layer aggressively detects and removes sensitive material like IP addresses, paths, UUIDs, credentials, hostnames, before it ever enters the model context.
 
 Sanitisation is not an optional feature. It is the first and mandatory step of every pipeline.
 

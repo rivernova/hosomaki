@@ -381,3 +381,97 @@ func TestResolveSourceLabelDiff(t *testing.T) {
 		t.Errorf("resolveSourceLabel for diff should contain both boot indices, got %q", label)
 	}
 }
+
+func TestExplainCmdHasPIDFlag(t *testing.T) {
+	cmd := newExplainCmd()
+	f := cmd.Flags().Lookup("pid")
+	if f == nil {
+		t.Fatal("explain command is missing the --pid flag")
+	}
+	if f.DefValue != "0" {
+		t.Errorf("--pid default = %q, want \"0\"", f.DefValue)
+	}
+}
+
+func TestResolveInputPIDMutuallyExclusiveWithService(t *testing.T) {
+	_, err := resolveInput(resolveParams{
+		service: "nginx",
+		pid:     1234,
+	})
+	if err == nil {
+		t.Fatal("expected error when --pid and --service are combined, got nil")
+	}
+	if !strings.Contains(err.Error(), "--pid") || !strings.Contains(err.Error(), "--service") {
+		t.Fatalf("error should mention both --pid and --service, got: %q", err.Error())
+	}
+}
+
+func TestResolveInputPIDMutuallyExclusiveWithDmesg(t *testing.T) {
+	_, err := resolveInput(resolveParams{
+		dmesg: true,
+		pid:   1234,
+	})
+	if err == nil {
+		t.Fatal("expected error when --pid and --dmesg are combined, got nil")
+	}
+}
+
+func TestResolveInputPIDMutuallyExclusiveWithFile(t *testing.T) {
+	_, err := resolveInput(resolveParams{
+		file: "/var/log/syslog",
+		pid:  1234,
+	})
+	if err == nil {
+		t.Fatal("expected error when --pid and --file are combined, got nil")
+	}
+}
+
+func TestResolveInputPIDMutuallyExclusiveWithBoot(t *testing.T) {
+	_, err := resolveInput(resolveParams{
+		bootChanged: true,
+		boot:        "0",
+		pid:         1234,
+	})
+	if err == nil {
+		t.Fatal("expected error when --pid and --boot are combined, got nil")
+	}
+}
+
+func TestResolveInputPIDMutuallyExclusiveWithDiff(t *testing.T) {
+	d := &bootDiff{from: -1, to: 0}
+	_, err := resolveInput(resolveParams{
+		diff: d,
+		pid:  1234,
+	})
+	if err == nil {
+		t.Fatal("expected error when --pid and --diff are combined, got nil")
+	}
+}
+
+func TestResolveInputPIDNonExistent(t *testing.T) {
+	_, err := resolveInput(resolveParams{pid: 999999999})
+	if err == nil {
+		t.Fatal("expected error for non-existent PID, got nil")
+	}
+	if !strings.Contains(err.Error(), "999999999") {
+		t.Fatalf("error should mention the PID, got: %q", err.Error())
+	}
+}
+
+func TestResolveInputPIDZeroIsIgnored(t *testing.T) {
+	_, err := resolveInput(resolveParams{pid: 0, args: []string{"some error message"}})
+	if err != nil {
+		// An error here is acceptable only if it is NOT about PID 0.
+		if strings.Contains(err.Error(), "PID 0") {
+			t.Fatalf("pid=0 should not be treated as an active --pid source, got: %q", err.Error())
+		}
+	}
+}
+
+func TestResolveSourceLabelPID(t *testing.T) {
+	label := resolveSourceLabel(resolveParams{pid: 42})
+	want := "pid: 42"
+	if label != want {
+		t.Errorf("resolveSourceLabel() with pid = %q, want %q", label, want)
+	}
+}
