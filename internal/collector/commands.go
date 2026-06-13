@@ -15,6 +15,7 @@ const (
 	binDf         = "df"
 	binTail       = "tail"
 	binSs         = "ss"
+	binCrontab    = "crontab"
 )
 
 var snapshot = struct {

@@ -23,3 +23,7 @@ const SchemaWatch = `{"issues":[{"what":"string","why":"string"}]}`
 const SchemaWhy = `{"summary":"string","chain":[{"event":"string","detail":"string"}],"next_steps":["string"]}`
 
 const SchemaPorts = `{"summary":"string","findings":[{"severity":"string","port":"string","title":"string","detail":"string"}]}`
+
+const SchemaTimers = `{"summary":"string","timers":[{"name":"string","schedule":"string","last_run":"string","next_run":"string","status":"string","detail":"string"}]}`
+
+const SchemaCrons = `{"summary":"string","jobs":[{"source":"string","schedule":"string","command":"string","what_it_does":"string","last_run":"string","status":"string","detail":"string"}]}`
