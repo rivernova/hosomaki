@@ -110,12 +110,7 @@ func loginShellUsers() ([]string, string) {
 	if err != nil {
 		return nil, fmt.Sprintf("cannot read /etc/passwd: %v", err)
 	}
-	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
-
-		}
-	}(f)
+	defer f.Close()
 
 	nologinSuffixes := []string{"nologin", "false", "sync", "shutdown", "halt"}
 
