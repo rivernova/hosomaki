@@ -302,3 +302,41 @@ func RenderCronJobLive(entry prompt.CronJobEntry, _ int) string {
 	}
 	return bullet + indentProse(detail)
 }
+
+func MountsFindingsHeader() string { return sectionHeader("ai analysis") }
+
+func RenderMountsSummaryLive(summary string) string {
+	t := strings.TrimSpace(summary)
+	if t == "" {
+		return ""
+	}
+	return t + "\n"
+}
+
+func RenderMountsFindingLive(f prompt.MountFinding, _ int) string {
+	title := strings.TrimSpace(f.Title)
+	detail := strings.TrimSpace(f.Detail)
+	if title == "" && detail == "" {
+		return ""
+	}
+	label := title
+	if label == "" {
+		label = detail
+		detail = ""
+	}
+
+	var bullet string
+	switch f.Severity {
+	case "critical":
+		bullet = BulletTitleFail(label)
+	case "warning":
+		bullet = BulletTitleWarn(label)
+	default:
+		bullet = BulletOK(label)
+	}
+
+	if detail == "" {
+		return bullet
+	}
+	return bullet + indentProse(detail)
+}

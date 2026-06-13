@@ -445,3 +445,26 @@ func ExplainPIDContextSection(c ExplainPIDContext) string {
 	}
 	return Section("context", b.String())
 }
+
+func MountsHeader() string { return Title("mounts") }
+
+func MountsCollectedSection(total, real, nfs, staleNFS int, warnings []string) string {
+	var b strings.Builder
+	b.WriteString(KeyValue("active mounts", fmt.Sprintf("%d", total)))
+	b.WriteString(KeyValue("real filesystems", fmt.Sprintf("%d", real)))
+	if nfs > 0 {
+		if staleNFS > 0 {
+			b.WriteString(KeyValue("nfs mounts", fmt.Sprintf("%d  (%d stale)", nfs, staleNFS)))
+		} else {
+			b.WriteString(KeyValue("nfs mounts", fmt.Sprintf("%d", nfs)))
+		}
+	}
+	for _, w := range warnings {
+		b.WriteString(BulletWarn(w))
+	}
+	return Section("collected", b.String())
+}
+
+func MountsCleanResult() string {
+	return Section("result", BulletOK("all mount points are healthy"))
+}
