@@ -27,3 +27,5 @@ const SchemaPorts = `{"summary":"string","findings":[{"severity":"string","port"
 const SchemaTimers = `{"summary":"string","timers":[{"name":"string","schedule":"string","last_run":"string","next_run":"string","status":"string","detail":"string"}]}`
 
 const SchemaCrons = `{"summary":"string","jobs":[{"source":"string","schedule":"string","command":"string","what_it_does":"string","last_run":"string","status":"string","detail":"string"}]}`
+
+const SchemaMounts = `{"summary":"string","findings":[{"severity":"string","mount_point":"string","title":"string","detail":"string"}]}`
