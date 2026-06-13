@@ -176,6 +176,21 @@ hosomaki why <non_zero_code>  --service <service>
 | `--since` | | | collect logs since this time |
 | `--debug` | | `false` | print raw model response to stderr |
 
+### `ports`
+
+Identifies anything unexpected or potentially concerning on all currently listening TCP and UDP ports. 
+For tracking how ports change over time use `hosomaki audit`.
+
+```bash
+hosomaki ports
+```
+
+**Flags:**
+
+| Flag | Default | Description |
+|---|---|---|
+| `--debug` | `false` | print raw model response to stderr |
+
 ## Data Privacy & Security
 
 Hosomaki is designed around a simple principle: your data should remain yours.
