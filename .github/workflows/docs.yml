@@ -7,7 +7,7 @@ on:
     paths:
       - 'docs/**'
 
-  # Allow manual trigger from the Actions tab
+  # manual trigger
   workflow_dispatch:
 
 permissions:
