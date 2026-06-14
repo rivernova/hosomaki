@@ -1,10 +1,7 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Hosomaki docs theme — parchment/salmon/teal palette
-   ═══════════════════════════════════════════════════════════════════════════ */
+/*  parchment/salmon/teal palette*/
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
 
-/* ── Tokens ─────────────────────────────────────────────────────────────── */
 :root {
     --hoso-bg:       #f2efe9;
     --hoso-bg-alt:   #ebe8e2;
@@ -17,28 +14,23 @@
     --hoso-border:   rgba(46,43,39,.1);
     --hoso-border-2: rgba(46,43,39,.16);
 
-    /* VitePress brand */
     --vp-c-brand-1:     var(--hoso-salmon);
     --vp-c-brand-2:     #c9573e;
     --vp-c-brand-3:     #f07c64;
     --vp-c-brand-soft:  rgba(224,107,80,.1);
 
-    /* VitePress surfaces */
     --vp-c-bg:          var(--hoso-bg);
     --vp-c-bg-soft:     var(--hoso-bg-alt);
     --vp-c-bg-mute:     var(--hoso-bg-soft);
     --vp-c-bg-elv:      var(--hoso-bg);
 
-    /* VitePress text */
     --vp-c-text-1: var(--hoso-ink);
     --vp-c-text-2: var(--hoso-ink-2);
     --vp-c-text-3: var(--hoso-ink-3);
 
-    /* VitePress dividers */
     --vp-c-divider: var(--hoso-border);
     --vp-c-gutter:  var(--hoso-bg-alt);
 
-    /* VitePress semantic */
     --vp-c-tip-1:       var(--hoso-teal);
     --vp-c-tip-soft:    rgba(90,168,154,.1);
     --vp-c-warning-1:   #b8903a;
@@ -46,19 +38,15 @@
     --vp-c-danger-1:    var(--hoso-salmon);
     --vp-c-danger-soft: rgba(224,107,80,.1);
 
-    /* Typography */
     --vp-font-family-base: 'JetBrains Mono', 'Fira Code', monospace;
     --vp-font-family-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-    /* Nav — keep VitePress's own height var intact, just set colours */
     --vp-nav-height:      60px;
     --vp-nav-bg-color:    rgba(242,239,233,.88);
 
-    /* Sidebar */
     --vp-sidebar-bg-color: var(--hoso-bg);
     --vp-sidebar-width:    260px;
 
-    /* Code */
     --vp-code-bg:          rgba(46,43,39,.07);
     --vp-code-block-bg:    var(--hoso-ink);
     --vp-code-font-size:   .84em;
@@ -66,27 +54,19 @@
     --vp-code-color:       var(--hoso-salmon);
 }
 
-/* ── Base ───────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
 
-/* ── Nav — rendered by SiteNav.vue; VitePress nav hidden via DocsLayout.vue ──
-   No overrides needed here. */
-
-/* ── Sidebar — DO NOT set padding-top; VitePress handles the nav offset ── */
 .VPSidebar {
     background: var(--hoso-bg) !important;
     border-right: 1px solid var(--hoso-border) !important;
-    /* no padding-top override — VitePress uses padding-top: var(--vp-nav-height) */
 }
 
-/* Extra top breathing room inside the nav-offset, after it */
 .VPSidebarNav {
     padding-top: .75rem !important;
 }
 
-/* Group headers */
 .VPSidebarItem.level-0 > .item .text {
     font-family: 'JetBrains Mono', monospace;
     font-size: .66rem !important;
@@ -97,7 +77,6 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
     margin-top: .35rem;
 }
 
-/* Links */
 .VPSidebarItem .link {
     font-size: .875rem;
     color: var(--hoso-ink-2) !important;
@@ -117,10 +96,8 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
 }
 .VPSidebarItem .caret { color: var(--hoso-ink-3) !important; }
 
-/* ── Content ────────────────────────────────────────────────────────────── */
 .VPContent { background: var(--hoso-bg); }
 
-/* ── Doc typography ─────────────────────────────────────────────────────── */
 .vp-doc {
     font-family: 'JetBrains Mono', monospace !important;
 }
@@ -153,7 +130,6 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
 .vp-doc a:hover { border-bottom-color: var(--hoso-salmon); }
 .vp-doc strong { color: var(--hoso-ink); font-weight: 600; }
 
-/* ── Inline code ────────────────────────────────────────────────────────── */
 .vp-doc :not(pre) > code {
     font-family: var(--vp-font-family-mono);
     font-size: .82em; font-weight: 500;
@@ -163,7 +139,6 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
     border-radius: 5px; padding: .1em .38em;
 }
 
-/* ── Code blocks ────────────────────────────────────────────────────────── */
 .vp-doc div[class*='language-'] {
     border-radius: 10px;
     border: 1px solid var(--hoso-border);
@@ -190,7 +165,6 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
     background: rgba(255,255,255,.12); color: rgba(242,239,233,.8);
 }
 
-/* ── Tables ─────────────────────────────────────────────────────────────── */
 .vp-doc table {
     border-collapse: collapse; width: 100%; font-size: .875rem;
     border: 1px solid var(--hoso-border); border-radius: 10px; overflow: hidden;
@@ -210,7 +184,6 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
 .vp-doc tr:last-child td { border-bottom: none; }
 .vp-doc tr:hover td { background: var(--hoso-bg-alt); }
 
-/* ── Custom containers ──────────────────────────────────────────────────── */
 .vp-doc .custom-block {
     border-radius: 8px; padding: .95rem 1.2rem; margin: 1.2rem 0;
     border: 1px solid;
@@ -221,7 +194,6 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
 .vp-doc .custom-block.tip .custom-block-title { color: var(--hoso-teal); font-weight: 600; }
 .vp-doc .custom-block p { font-size: .88rem; margin: 0; }
 
-/* ── Right outline (ToC) ────────────────────────────────────────────────── */
 .VPDocAside .outline-title {
     font-family: 'JetBrains Mono', monospace;
     font-size: .63rem; letter-spacing: .1em; text-transform: uppercase;
@@ -234,7 +206,6 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
 .VPDocAsideOutline a:hover  { color: var(--hoso-ink) !important; }
 .VPDocAsideOutline a.active { color: var(--hoso-salmon) !important; font-weight: 500; }
 
-/* ── Footer ─────────────────────────────────────────────────────────────── */
 .VPFooter {
     background: var(--hoso-bg) !important;
     border-top: 1px solid var(--hoso-border) !important;
@@ -245,7 +216,6 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
 .VPFooter a { color: var(--hoso-ink-3); border: none; transition: color .15s; }
 .VPFooter a:hover { color: var(--hoso-salmon); }
 
-/* ── Doc prev/next ──────────────────────────────────────────────────────── */
 .VPDocFooter { border-top: 1px solid var(--hoso-border); padding-top: 1.4rem; }
 .VPDocFooter .pager-link {
     border: 1px solid var(--hoso-border); border-radius: 10px;
@@ -255,16 +225,13 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
 .VPDocFooter .pager-link .title { color: var(--hoso-ink); font-weight: 600; }
 .VPDocFooter .pager-link .desc  { color: var(--hoso-ink-3); font-size: .79rem; }
 
-/* ── Edit link ──────────────────────────────────────────────────────────── */
 .VPDocFooter .edit-link-button {
     font-size: .81rem; color: var(--hoso-ink-3); border: none; transition: color .15s;
 }
 .VPDocFooter .edit-link-button:hover { color: var(--hoso-salmon); }
 
-/* ── Last updated ───────────────────────────────────────────────────────── */
 .VPLastUpdated { font-size: .77rem; color: var(--hoso-ink-3) !important; }
 
-/* ── Local search ───────────────────────────────────────────────────────── */
 .VPLocalSearchBox { font-family: var(--vp-font-family-base); }
 .VPLocalSearchBox .modal {
     background: var(--hoso-bg) !important;
@@ -278,14 +245,247 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
 }
 .VPLocalSearchBox mark { color: var(--hoso-salmon) !important; background: none !important; }
 
-/* ── Scrollbar ──────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--hoso-border-2); border-radius: 3px; }
 
-/* ── Mobile ─────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
     .vp-doc h1 { font-size: 1.5rem; }
     .vp-doc h2 { font-size: 1.05rem; }
     .vp-doc th, .vp-doc td { padding: .52rem .7rem; }
 }
+
+/* dark mode */
+
+.dark {
+    --hoso-bg:       #131210;
+    --hoso-bg-alt:   #1c1a17;
+    --hoso-bg-soft:  #242118;
+    --hoso-ink:      #e8e4dc;
+    --hoso-ink-2:    #9e9a93;
+    --hoso-ink-3:    #5e5a54;
+    --hoso-salmon:   #e8765e;
+    --hoso-teal:     #62b8a8;
+    --hoso-border:   rgba(232, 228, 220, .08);
+    --hoso-border-2: rgba(232, 228, 220, .13);
+
+    --vp-c-bg:         var(--hoso-bg);
+    --vp-c-bg-soft:    var(--hoso-bg-alt);
+    --vp-c-bg-mute:    var(--hoso-bg-soft);
+    --vp-c-bg-elv:     var(--hoso-bg-alt);
+
+    --vp-c-text-1: var(--hoso-ink);
+    --vp-c-text-2: var(--hoso-ink-2);
+    --vp-c-text-3: var(--hoso-ink-3);
+
+    --vp-c-divider: var(--hoso-border);
+    --vp-c-gutter:  var(--hoso-bg-alt);
+
+    --vp-code-bg:       rgba(232, 228, 220, .07);
+    --vp-code-block-bg: #0d0c0a;
+    --vp-code-color:    var(--hoso-salmon);
+
+    --vp-nav-bg-color: rgba(19, 18, 16, .85);
+
+    --vp-sidebar-bg-color: var(--hoso-bg);
+}
+
+.dark .VPSidebar {
+    background: var(--hoso-bg) !important;
+    border-right-color: var(--hoso-border) !important;
+}
+.dark .VPSidebarItem .link { color: var(--hoso-ink-2) !important; }
+.dark .VPSidebarItem .link:hover {
+    color: var(--hoso-ink) !important;
+    background: var(--hoso-bg-alt);
+}
+.dark .VPSidebarItem.is-active > .item .link {
+    color: var(--hoso-salmon) !important;
+    background: rgba(232, 118, 94, .1);
+}
+.dark .VPSidebarItem.level-0 > .item .text { color: var(--hoso-ink-3) !important; }
+.dark .VPSidebarItem .caret            { color: var(--hoso-ink-3) !important; }
+
+.dark .VPContent { background: var(--hoso-bg); }
+.dark .vp-doc h1,
+.dark .vp-doc h2,
+.dark .vp-doc h3 { color: var(--hoso-ink); border-color: var(--hoso-border); }
+.dark .vp-doc p  { color: var(--hoso-ink-2); }
+.dark .vp-doc a  { color: var(--hoso-salmon); border-bottom-color: rgba(232,118,94,.25); }
+.dark .vp-doc a:hover { border-bottom-color: var(--hoso-salmon); }
+.dark .vp-doc strong  { color: var(--hoso-ink); }
+
+.dark .vp-doc :not(pre) > code {
+    color: var(--hoso-salmon);
+    background: rgba(232, 118, 94, .1);
+    border-color: rgba(232, 118, 94, .18);
+}
+
+.dark .vp-doc div[class*='language-'] {
+    border-color: var(--hoso-border);
+}
+.dark .vp-doc div[class*='language-'] pre {
+    background: #0d0c0a !important;
+}
+
+.dark .vp-doc thead { background: var(--hoso-bg-alt); }
+.dark .vp-doc th    { color: var(--hoso-ink-3); border-bottom-color: var(--hoso-border); }
+.dark .vp-doc td    { color: var(--hoso-ink-2); border-bottom-color: var(--hoso-border); }
+.dark .vp-doc tr:hover td { background: var(--hoso-bg-alt); }
+
+.dark .vp-doc .custom-block.tip     { background: rgba(98, 184, 168, .08); border-color: rgba(98, 184, 168, .22); }
+.dark .vp-doc .custom-block.warning { background: rgba(184, 144, 58, .08); border-color: rgba(184, 144, 58, .22); }
+.dark .vp-doc .custom-block.danger  { background: rgba(232, 118, 94, .08); border-color: rgba(232, 118, 94, .22); }
+
+.dark .VPDocAsideOutline a        { color: var(--hoso-ink-3) !important; }
+.dark .VPDocAsideOutline a:hover  { color: var(--hoso-ink)   !important; }
+.dark .VPDocAsideOutline a.active { color: var(--hoso-salmon) !important; }
+
+.dark .VPFooter {
+    background: var(--hoso-bg)    !important;
+    border-top-color: var(--hoso-border) !important;
+}
+.dark .VPFooter .message,
+.dark .VPFooter .copyright { color: var(--hoso-ink-3) !important; }
+
+.dark .VPDocFooter { border-top-color: var(--hoso-border); }
+.dark .VPDocFooter .pager-link {
+    background: var(--hoso-bg);
+    border-color: var(--hoso-border);
+}
+.dark .VPDocFooter .pager-link:hover {
+    background: var(--hoso-bg-alt);
+    border-color: rgba(232, 118, 94, .35);
+}
+.dark .VPDocFooter .pager-link .title { color: var(--hoso-ink); }
+.dark .VPDocFooter .pager-link .desc  { color: var(--hoso-ink-3); }
+
+.dark .VPLocalSearchBox .modal {
+    background: var(--hoso-bg-alt) !important;
+    border-color: var(--hoso-border-2) !important;
+}
+.dark .VPLocalSearchBox input {
+    background: var(--hoso-bg-soft) !important;
+    border-color: var(--hoso-border) !important;
+    color: var(--hoso-ink) !important;
+}
+
+.dark .sitenav {
+    background: rgba(19, 18, 16, .82);
+    border-bottom-color: transparent;
+}
+.dark .sitenav.scrolled {
+    background: rgba(19, 18, 16, .97);
+    border-bottom-color: rgba(232, 228, 220, .08);
+}
+.dark .sn-brand     { color: #e8e4dc; }
+.dark .sn-right a   { color: #9e9a93; }
+.dark .sn-right a:hover { color: #e8e4dc; }
+
+.dark .sn-search {
+    background: rgba(232, 228, 220, .05);
+    border-color: rgba(232, 228, 220, .1);
+    color: #5e5a54;
+}
+.dark .sn-search:hover {
+    background: rgba(232, 228, 220, .09);
+    border-color: rgba(232, 228, 220, .18);
+    color: #e8e4dc;
+}
+.dark .sn-search kbd {
+    color: #5e5a54;
+    background: rgba(232, 228, 220, .06);
+    border-color: rgba(232, 228, 220, .1);
+}
+
+.dark .sn-pill          { background: #e8e4dc !important; color: #131210 !important; }
+.dark .sn-pill:hover    { background: #e8765e !important; color: #fff !important; }
+
+.dark .sn-icon-btn        { color: #9e9a93; }
+.dark .sn-icon-btn:hover  { color: #e8e4dc; }
+.dark .sn-theme-toggle    { color: #9e9a93; }
+.dark .sn-theme-toggle:hover { color: #e8e4dc; background: rgba(232,228,220,.07); }
+.dark .sn-burger span     { background-color: #e8e4dc; }
+
+@media (max-width: 720px) {
+    .dark .sn-right {
+        background: #1c1a17;
+        border-top-color: rgba(232, 228, 220, .08);
+    }
+    .dark .sn-right a {
+        border-bottom-color: rgba(232, 228, 220, .08);
+    }
+    .dark .sn-right .sn-pill {
+        background: none !important;
+        color: #e8765e !important;
+    }
+}
+
+.dark .lp {
+    --bg:     #131210;
+    --bg-alt: #1c1a17;
+    --ink:    #e8e4dc;
+    --ink-2:  #9e9a93;
+    --ink-3:  #5e5a54;
+    --salmon: #e8765e;
+    --teal:   #62b8a8;
+    --border: rgba(232, 228, 220, .08);
+    --on-dark-hi:    rgba(232, 228, 220, .80);
+    --on-dark-mid:   rgba(232, 228, 220, .48);
+    --on-dark-dim:   rgba(232, 228, 220, .28);
+    --on-dark-faint: rgba(232, 228, 220, .18);
+    --dark-card-bg:     rgba(255, 255, 255, .05);
+    --dark-card-border: rgba(255, 255, 255, .08);
+    --dark-hover-bg:    rgba(255, 255, 255, .09);
+    --dark-hover-bdr:   rgba(255, 255, 255, .15);
+    --warn: #d4a84b;
+}
+
+.dark .lp .dark-band,
+.dark .lp .install-band  { background: #0d0c0a; }
+
+.dark .lp .code-block {
+    background: #0d0c0a;
+    border: 1px solid rgba(232, 228, 220, .07);
+}
+
+.dark .lp .cmd-grid          { border-color: var(--border); }
+.dark .lp .cmd-card          { background: var(--bg); border-color: var(--border); }
+.dark .lp .cmd-card:hover    { background: var(--bg-alt); }
+
+.dark .lp .divider           { border-top-color: var(--border); }
+
+.dark .lp .demo-card         { background: #0f0e0c; border-color: rgba(232,228,220,.07); }
+.dark .lp .demo-body         { background: #0f0e0c; }
+.dark .lp .demo-header       { background: rgba(255,255,255,.03); border-bottom-color: rgba(232,228,220,.06); }
+.dark .lp .demo-footer       { border-top-color: rgba(232,228,220,.06); }
+
+.dark .lp .btn-install-primary {
+    background: rgba(232, 228, 220, .1);
+    color: var(--ink);
+    border-color: rgba(232, 228, 220, .15);
+}
+.dark .lp .btn-install-primary:hover {
+    background: var(--salmon);
+    color: #131210;
+    border-color: transparent;
+}
+
+.dark .lp .demos-track-outer {
+    -webkit-mask-image: linear-gradient(
+            to right,
+            transparent 0,
+            #131210 var(--pad),
+            #131210 calc(100% - var(--pad)),
+            transparent 100%
+    );
+    mask-image: linear-gradient(
+            to right,
+            transparent 0,
+            #131210 var(--pad),
+            #131210 calc(100% - var(--pad)),
+            transparent 100%
+    );
+}
+
+.dark .lp .site-footer { border-top-color: var(--border); }

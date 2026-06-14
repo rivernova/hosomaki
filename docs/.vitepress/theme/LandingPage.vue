@@ -3,9 +3,9 @@
 
     <SiteNav />
 
-    <!-- ── HERO ─────────────────────────────────────────────────────── -->
+    <!--hero-->
     <section class="hero">
-      <span class="eyebrow">hosomaki awake</span>
+      <span class="eyebrow">hosomaki</span>
       <h1 class="hero-h1">
         A lightweight<br class="br-md" />
         <em class="c-salmon">intelligence</em> layer<br class="br-md" />
@@ -27,7 +27,7 @@
 
     <div class="divider-wrap"><hr class="divider" /></div>
 
-    <!-- ── COMMANDS ──────────────────────────────────────────────────── -->
+    <!-- commands-->
     <section class="section reveal" aria-labelledby="commands-heading">
       <div class="section-header">
         <div>
@@ -58,8 +58,8 @@
 
     <div class="divider-wrap"><hr class="divider" /></div>
 
-    <!-- ── PIPELINE ──────────────────────────────────────────────────── -->
-    <section class="section reveal" aria-labelledby="pipeline-heading">
+    <!--pipeline-->
+    <section class="section section--pipeline reveal" aria-labelledby="pipeline-heading">
       <div class="pipe-wrap">
         <div class="pipe-left">
           <span class="label">architecture</span>
@@ -81,7 +81,8 @@
             </li>
           </ol>
         </div>
-        <div class="pipe-right" aria-hidden="true">
+        <div class="pipe-right-wrap">
+          <div class="pipe-right" aria-hidden="true">
           <div class="code-block">
             <span class="c-lbl">// every command, no exceptions</span>
             <span class="c-txt">collect</span><br />
@@ -97,10 +98,11 @@
             <span class="c-ok">render</span>
           </div>
         </div>
+          </div>
       </div>
     </section>
 
-    <!-- ── PRIVACY — dark band ────────────────────────────────────────── -->
+    <!-- privacy-->
     <section class="dark-band reveal" aria-labelledby="privacy-heading">
       <div class="dark-inner">
         <div>
@@ -124,7 +126,7 @@
       </div>
     </section>
 
-   <!-- ── STORY ──────────────────────────────────────────────────────── -->
+   <!-- story-->
    <section class="section reveal" aria-labelledby="story-heading">
      <div class="story-wrap">
        <div class="story-left">
@@ -159,7 +161,7 @@
 
     <div class="divider-wrap"><hr class="divider" /></div>
 
-    <!-- ── INSTALL — dark band ────────────────────────────────────────── -->
+    <!--install -->
     <section class="install-band reveal" aria-labelledby="install-heading">
       <div class="install-inner">
 
@@ -217,7 +219,7 @@
       </div>
     </section>
 
-    <!-- ── FOOTER ─────────────────────────────────────────────────────── -->
+    <!-- footer-->
     <footer class="site-footer">
       <span class="footer-copy">
         © 2026–present rivernova ·
@@ -239,10 +241,8 @@
 import { ref, onMounted } from 'vue'
 import SiteNav from './SiteNav.vue'
 
-// ─── hero ──────────────────────────────────────────────────────────────────
 const heroTags = ['No cloud', 'No telemetry', 'Local · Ollama', 'Read-only', 'MPL-2.0']
 
-// ─── commands ──────────────────────────────────────────────────────────────
 const commands = [
   {
     slug: 'explain',
@@ -300,7 +300,6 @@ const commands = [
   },
 ]
 
-// ─── pipeline ──────────────────────────────────────────────────────────────
 const pipelineSteps = [
   {
     num: '01',
@@ -329,7 +328,6 @@ const pipelineSteps = [
   },
 ]
 
-// ─── privacy ───────────────────────────────────────────────────────────────
 const privacyItems = [
   {
     title: 'Local model via Ollama',
@@ -353,7 +351,6 @@ const privacyItems = [
   },
 ]
 
-// ─── install ───────────────────────────────────────────────────────────────
 const manifest = [
   { key: 'license',     val: 'Mozilla Public License 2.0' },
   { key: 'runtime',     val: 'Linux · Go 1.23+' },
@@ -361,7 +358,6 @@ const manifest = [
   { key: 'telemetry',   val: 'none, ever' },
 ]
 
-// Each entry is exactly one shell command — no chaining with &&
 const installSteps = [
   {
     comment: '# install Ollama',
@@ -393,7 +389,6 @@ function copyStep(idx, cmd) {
   })
 }
 
-// ─── scroll reveal ─────────────────────────────────────────────────────────
 onMounted(() => {
   if (!('IntersectionObserver' in window)) {
     document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'))
@@ -415,7 +410,6 @@ onMounted(() => {
 </script>
 
 <style>
-/* ── Design tokens ──────────────────────────────────────────────────── */
 
 .lp {
   --bg:     #f2efe9;
@@ -427,6 +421,15 @@ onMounted(() => {
   --teal:   #5aa89a;
   --border: rgba(46, 43, 39, .1);
   --nav-h:  60px;
+  --on-dark-hi:   rgba(242, 239, 233, .72);  /* primary text on dark bg  */
+  --on-dark-mid:  rgba(242, 239, 233, .44);  /* secondary text on dark   */
+  --on-dark-dim:  rgba(242, 239, 233, .26);  /* tertiary / label on dark */
+  --on-dark-faint:rgba(242, 239, 233, .2);   /* very dim / decorative    */
+  --dark-card-bg:     rgba(255, 255, 255, .04);
+  --dark-card-border: rgba(255, 255, 255, .07);
+  --dark-hover-bg:    rgba(255, 255, 255, .08);
+  --dark-hover-bdr:   rgba(255, 255, 255, .14);
+  --warn: #c49a3c;
   --pad:    clamp(1.25rem, 5vw, 3rem);
   --max:    1100px;
   --mono:   'JetBrains Mono', 'Fira Code', monospace;
@@ -436,10 +439,9 @@ onMounted(() => {
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
-  overflow-x: hidden;
+  overflow-x: clip; /* clip ≠ hidden: no scroll container, sticky still works */
 }
 
-/* ── Shared atoms ───────────────────────────────────────────────────── */
 .label {
   font-family: var(--mono);
   font-size: .66rem;
@@ -509,7 +511,6 @@ onMounted(() => {
   margin: 0 auto;
 }
 
-/* ── Hero ───────────────────────────────────────────────────────────── */
 .hero {
   min-height: 100svh;
   display: flex;
@@ -564,7 +565,6 @@ onMounted(() => {
   letter-spacing: .04em;
 }
 
-/* ── Commands grid ──────────────────────────────────────────────────── */
 .section-header {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -604,12 +604,16 @@ onMounted(() => {
 .cmd-desc  { font-size: .82rem; line-height: 1.65; color: var(--ink-2); }
 .cmd-arrow { font-family: var(--mono); font-size: .69rem; color: var(--teal); margin-top: auto; padding-top: .6rem; transition: color .15s; }
 
-/* ── Pipeline ───────────────────────────────────────────────────────── */
+.section--pipeline {
+  padding-top:    clamp(5rem, 10vw, 9rem);
+  padding-bottom: clamp(5rem, 10vw, 9rem);
+}
+
 .pipe-wrap {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 5rem;
-  align-items: start;
+  align-items: stretch;
 }
 .pipe-lead  { margin-bottom: 2.5rem; max-width: 420px; }
 .pipe-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
@@ -618,7 +622,7 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 2.6rem 1fr;
   gap: .5rem;
-  padding: 1.3rem 0;
+  padding: 2rem 0;
   border-bottom: 1px solid var(--border);
 }
 .pipe-step:first-child { padding-top: 0; }
@@ -636,14 +640,13 @@ onMounted(() => {
   font-size: .75rem;
   line-height: 1.95;
 }
-.c-lbl { display: block; font-size: .58rem; letter-spacing: .12em; text-transform: uppercase; color: rgba(242,239,233,.2); margin-bottom: .6rem; }
-.c-dim { color: rgba(242,239,233,.24); }
+.c-lbl { display: block; font-size: .58rem; letter-spacing: .12em; text-transform: uppercase; color: var(--on-dark-faint); margin-bottom: .6rem; }
+.c-dim { color: var(--on-dark-faint); }
 .c-arr { color: var(--teal); }
 .c-hl  { color: var(--salmon); }
 .c-ok  { color: var(--teal); }
-.c-txt { color: rgba(242,239,233,.7); }
+.c-txt { color: var(--on-dark-hi); }
 
-/* ── Dark band (shared by privacy + install) ─────────────────────────── */
 .dark-band,
 .install-band {
   background: var(--ink);
@@ -658,19 +661,18 @@ onMounted(() => {
   gap: 5rem;
   align-items: start;
 }
-.dark-label { color: rgba(242, 239, 233, .26) !important; }
-.dark-h2    { color: #f2efe9 !important; }
-.dark-lead  { font-size: .95rem; line-height: 1.75; color: rgba(242, 239, 233, .44); }
+.dark-label { color: var(--on-dark-dim) !important; }
+.dark-h2    { color: var(--on-dark-hi) !important; }
+.dark-lead  { font-size: .95rem; line-height: 1.75; color: var(--on-dark-mid); }
 
-/* Privacy list */
 .priv-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .6rem; }
 .priv-item {
   display: flex;
   align-items: flex-start;
   gap: .85rem;
   padding: .95rem 1.1rem;
-  background: rgba(255,255,255,.04);
-  border: 1px solid rgba(255,255,255,.07);
+  background: var(--dark-card-bg);
+  border: 1px solid var(--dark-card-border);
   border-radius: 8px;
 }
 .priv-dot {
@@ -682,10 +684,9 @@ onMounted(() => {
   margin-top: .44rem;
 }
 .priv-dot--accent { background: var(--salmon); }
-.priv-title { font-size: .87rem; font-weight: 500; color: #f2efe9; margin: 0 0 .16rem; }
-.priv-desc  { font-size: .77rem; color: rgba(242,239,233,.36); line-height: 1.6; margin: 0; }
+.priv-title { font-size: .87rem; font-weight: 500; color: var(--on-dark-hi); margin: 0 0 .16rem; }
+.priv-desc  { font-size: .77rem; color: var(--on-dark-dim); line-height: 1.6; margin: 0; }
 
-/* ── Story ──────────────────────────────────────────────────────────── */
 .story-wrap {
   display: grid;
   grid-template-columns: 1fr 1.4fr;
@@ -702,7 +703,6 @@ onMounted(() => {
 .story-right p:last-child { margin-bottom: 0; }
 .story-right em { font-style: normal; color: var(--ink); font-weight: 500; }
 
-/* ── Install band ───────────────────────────────────────────────────── */
 .install-manifest {
   display: flex;
   flex-direction: column;
@@ -714,23 +714,22 @@ onMounted(() => {
   align-items: baseline;
   gap: 1rem;
   padding: .6rem 0;
-  border-bottom: 1px solid rgba(255,255,255,.07);
+  border-bottom: 1px solid var(--dark-card-border);
 }
 .manifest-row:last-child { border-bottom: none; }
 .manifest-key {
   font-family: var(--mono);
   font-size: .7rem;
-  color: rgba(242,239,233,.3);
+  color: var(--on-dark-dim);
   letter-spacing: .06em;
   flex-shrink: 0;
 }
 .manifest-val {
   font-size: .82rem;
-  color: rgba(242,239,233,.65);
+  color: var(--on-dark-hi);
   text-align: right;
 }
 
-/* Install steps */
 .install-steps { list-style: none; margin: 0 0 1.75rem; padding: 0; display: flex; flex-direction: column; }
 .install-step {
   display: grid;
@@ -738,7 +737,7 @@ onMounted(() => {
   gap: .5rem;
   align-items: start;
   padding: 1rem 0;
-  border-bottom: 1px solid rgba(255,255,255,.06);
+  border-bottom: 1px solid var(--dark-card-border);
 }
 .install-step:first-child { padding-top: 0; }
 .install-step:last-child  { border-bottom: none; }
@@ -746,7 +745,7 @@ onMounted(() => {
 .is-num {
   font-family: var(--mono);
   font-size: .6rem;
-  color: rgba(242,239,233,.2);
+  color: var(--on-dark-faint);
   padding-top: .85rem;
   letter-spacing: .06em;
 }
@@ -754,7 +753,7 @@ onMounted(() => {
 .is-comment {
   font-family: var(--mono);
   font-size: .65rem;
-  color: rgba(242,239,233,.3);
+  color: var(--on-dark-dim);
   letter-spacing: .04em;
 }
 
@@ -764,14 +763,14 @@ onMounted(() => {
   gap: .6rem;
   width: 100%;
   padding: .65rem .9rem;
-  background: rgba(255,255,255,.05);
-  border: 1px solid rgba(255,255,255,.08);
+  background: var(--dark-card-bg);
+  border: 1px solid var(--dark-card-border);
   border-radius: 7px;
   cursor: pointer;
   text-align: left;
   transition: background .18s, border-color .18s;
 }
-.is-cmd:hover { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.14); }
+.is-cmd:hover { background: var(--dark-hover-bg); border-color: var(--dark-hover-bdr); }
 .is-cmd--copied { border-color: rgba(90,168,154,.4); background: rgba(90,168,154,.07); }
 
 .is-prompt {
@@ -784,7 +783,7 @@ onMounted(() => {
 .is-text {
   font-family: var(--mono);
   font-size: .75rem;
-  color: rgba(242,239,233,.72);
+  color: var(--on-dark-hi);
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -793,12 +792,12 @@ onMounted(() => {
 .is-hint {
   font-family: var(--mono);
   font-size: .62rem;
-  color: rgba(242,239,233,.22);
+  color: var(--on-dark-faint);
   flex-shrink: 0;
   white-space: nowrap;
   transition: color .18s;
 }
-.is-cmd:hover       .is-hint { color: rgba(242,239,233,.45); }
+.is-cmd:hover       .is-hint { color: var(--on-dark-mid); }
 .is-cmd--copied     .is-hint { color: var(--teal); }
 
 .install-actions { display: flex; gap: .65rem; flex-wrap: wrap; }
@@ -811,13 +810,12 @@ onMounted(() => {
 .btn-install-primary:hover { background: var(--salmon); color: var(--bg); }
 .btn-install-ghost {
   background: transparent;
-  color: rgba(242,239,233,.55);
-  border: 1px solid rgba(255,255,255,.1);
+  color: var(--on-dark-mid);
+  border: 1px solid var(--dark-card-border);
   transition: color .18s, border-color .18s;
 }
-.btn-install-ghost:hover { color: rgba(242,239,233,.9); border-color: rgba(255,255,255,.25); }
+.btn-install-ghost:hover { color: var(--on-dark-hi); border-color: rgba(255,255,255,.25); }
 
-/* ── Footer ─────────────────────────────────────────────────────────── */
 .site-footer {
   display: flex;
   align-items: center;
@@ -836,11 +834,9 @@ onMounted(() => {
 .footer-links a { font-size: .77rem; color: var(--ink-3); text-decoration: none; transition: color .15s; }
 .footer-links a:hover { color: var(--salmon); }
 
-/* ── Scroll reveal ──────────────────────────────────────────────────── */
 .reveal { opacity: 0; transition: opacity .5s ease; }
 .reveal.in { opacity: 1; }
 
-/* ── Inline code inside v-html ──────────────────────────────────────── */
 :deep(.ic) {
   font-family: var(--mono);
   font-size: .82em;
@@ -851,7 +847,173 @@ onMounted(() => {
   padding: .1em .35em;
 }
 
-/* ── Responsive — tablet (≤ 900px) ─────────────────────────────────── */
+.pipe-right-wrap {
+  /* nothing needed — the grid stretch does the work */
+}
+.pipe-right {
+  position: sticky;
+  top: calc(var(--nav-h) + 1.5rem);
+}
+
+.demos-section {
+  padding-bottom: clamp(4rem, 8vw, 7.5rem);
+}
+.demos-header {
+  padding-bottom: 2.5rem;
+}
+
+.demos-track-outer {
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 0 var(--pad) 1rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(46,43,39,.15) transparent;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--pad),
+    #000 calc(100% - var(--pad)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--pad),
+    #000 calc(100% - var(--pad)),
+    transparent 100%
+  );
+}
+.demos-track-outer::-webkit-scrollbar { height: 3px; }
+.demos-track-outer::-webkit-scrollbar-track { background: transparent; }
+.demos-track-outer::-webkit-scrollbar-thumb { background: rgba(46,43,39,.15); border-radius: 2px; }
+
+.demos-track {
+  display: flex;
+  gap: 1rem;
+  width: max-content;
+  padding: 0 var(--pad);
+}
+
+.demo-card {
+  display: flex;
+  flex-direction: column;
+  width: 380px;
+  flex-shrink: 0;
+  background: var(--ink);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--dark-card-border);
+  transition: border-color .2s;
+}
+.demo-card:hover { border-color: var(--dark-hover-bdr); }
+
+.demo-header {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .65rem 1rem;
+  background: var(--dark-card-bg);
+  border-bottom: 1px solid var(--dark-card-border);
+}
+.demo-dots { display: flex; gap: .35rem; }
+.dd-r, .dd-y, .dd-g {
+  display: block;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+}
+.dd-r { background: var(--salmon); opacity: .8; }
+.dd-y { background: var(--warn); opacity: .8; }
+.dd-g { background: var(--teal);   opacity: .8; }
+
+.demo-cmd {
+  font-family: var(--mono);
+  font-size: .72rem;
+  color: var(--on-dark-dim);
+  letter-spacing: .02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.demo-gif-wrap {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  min-height: 220px;
+  background: #0a0908;
+  overflow: hidden;
+}
+.demo-gif {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.demo-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .75rem;
+  padding: 2rem;
+  color: rgba(242, 239, 233, .15);
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .04em;
+  border: 1px dashed rgba(242, 239, 233, .1);
+  margin: .75rem;
+  border-radius: 6px;
+}
+
+.demo-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .65rem 1rem;
+  border-top: 1px solid var(--dark-card-border);
+}
+.demo-tag {
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--on-dark-dim);
+  letter-spacing: .06em;
+}
+.demo-link {
+  font-family: var(--mono);
+  font-size: .7rem;
+  color: var(--teal);
+  text-decoration: none;
+  transition: color .15s;
+}
+.demo-link:hover { color: var(--salmon); }
+
+.demos-scroll-hint {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+  font-family: var(--mono);
+  font-size: .68rem;
+  color: var(--ink-3);
+  letter-spacing: .06em;
+}
+
+@media (max-width: 900px) {
+  .demo-card { width: 320px; }
+  .demo-gif-wrap { min-height: 180px; }
+}
+@media (max-width: 600px) {
+  .demo-card { width: 280px; }
+  .demos-track-outer {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
 @media (max-width: 900px) {
   .section-header { grid-template-columns: 1fr; gap: .85rem; }
   .section-header .section-lead { max-width: 100%; }
@@ -873,7 +1035,6 @@ onMounted(() => {
   .story-h2   { max-width: 100%; }
 }
 
-/* ── Responsive — mobile (≤ 600px) ─────────────────────────────────── */
 @media (max-width: 600px) {
   .cmd-grid { grid-template-columns: 1fr; }
   .cmd-card                      { border-right: none !important; }
@@ -889,17 +1050,15 @@ onMounted(() => {
   .site-footer { flex-direction: column; align-items: flex-start; }
 }
 
-/* ── Responsive — small (≤ 400px) ──────────────────────────────────── */
 @media (max-width: 400px) {
   .hero-tags span { font-size: .62rem; }
 }
 
-/* ── Line breaks — collapse on very small screens ───────────────────── */
 .br-md { display: block; }
 @media (max-width: 480px) { .br-md { display: none; } }
 
-/* ── Reduced motion ─────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1; transition: none; }
 }
+
 </style>

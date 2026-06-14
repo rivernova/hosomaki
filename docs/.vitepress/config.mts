@@ -1,6 +1,5 @@
 import { defineConfig } from 'vitepress'
 
-// https://vitepress.dev/reference/site-config
 export default defineConfig({
     title: 'Hosomaki',
     description: 'Linux diagnostics in plain language. No cloud. No telemetry. Your system, your data.',
@@ -21,13 +20,11 @@ export default defineConfig({
         logo: '/hosomaki_logo.png',
         siteTitle: 'Hosomaki',
 
-        // ─── navigation bar ────────────────────────────────────────────────
         nav: [
             { text: 'Docs', link: '/guide/introduction', activeMatch: '/guide/' },
             { text: 'Reference', link: '/reference/commands', activeMatch: '/reference/' },
         ],
 
-        // ─── sidebar ───────────────────────────────────────────────────────
         sidebar: [
             {
                 text: 'Getting Started',
@@ -83,12 +80,10 @@ export default defineConfig({
             },
         ],
 
-        // ─── social links ──────────────────────────────────────────────────
         socialLinks: [
             { icon: 'github', link: 'https://github.com/rivernova/hosomaki' },
         ],
 
-        // ─── search ────────────────────────────────────────────────────────
         search: {
             provider: 'local',
             options: {
@@ -96,19 +91,16 @@ export default defineConfig({
             },
         },
 
-        // ─── footer ────────────────────────────────────────────────────────
         footer: {
             message: 'Released under the <a href="https://mozilla.org/en-US/MPL/2.0/">Mozilla Public License 2.0</a>.',
             copyright: 'Copyright © 2026–present rivernova',
         },
 
-        // ─── edit link ─────────────────────────────────────────────────────
         editLink: {
             pattern: 'https://github.com/rivernova/hosomaki/edit/main/docs/:path',
             text: 'Edit this page on GitHub',
         },
 
-        // ─── outline ───────────────────────────────────────────────────────
         outline: {
             level: [2, 3],
             label: 'On this page',

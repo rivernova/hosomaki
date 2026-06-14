@@ -8,8 +8,6 @@ import './custom.css'
 export default {
     ...DefaultTheme,
 
-    // Use DocsLayout for all doc pages — it hides VitePress's nav
-    // and renders SiteNav instead, making it identical to the landing page
     Layout: DocsLayout,
 
     enhanceApp({ app }) {
