@@ -1,0 +1,291 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Hosomaki docs theme — parchment/salmon/teal palette
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── Tokens ─────────────────────────────────────────────────────────────── */
+:root {
+    --hoso-bg:       #f2efe9;
+    --hoso-bg-alt:   #ebe8e2;
+    --hoso-bg-soft:  #e4e1da;
+    --hoso-ink:      #2e2b27;
+    --hoso-ink-2:    #6b6660;
+    --hoso-ink-3:    #a09b95;
+    --hoso-salmon:   #e06b50;
+    --hoso-teal:     #5aa89a;
+    --hoso-border:   rgba(46,43,39,.1);
+    --hoso-border-2: rgba(46,43,39,.16);
+
+    /* VitePress brand */
+    --vp-c-brand-1:     var(--hoso-salmon);
+    --vp-c-brand-2:     #c9573e;
+    --vp-c-brand-3:     #f07c64;
+    --vp-c-brand-soft:  rgba(224,107,80,.1);
+
+    /* VitePress surfaces */
+    --vp-c-bg:          var(--hoso-bg);
+    --vp-c-bg-soft:     var(--hoso-bg-alt);
+    --vp-c-bg-mute:     var(--hoso-bg-soft);
+    --vp-c-bg-elv:      var(--hoso-bg);
+
+    /* VitePress text */
+    --vp-c-text-1: var(--hoso-ink);
+    --vp-c-text-2: var(--hoso-ink-2);
+    --vp-c-text-3: var(--hoso-ink-3);
+
+    /* VitePress dividers */
+    --vp-c-divider: var(--hoso-border);
+    --vp-c-gutter:  var(--hoso-bg-alt);
+
+    /* VitePress semantic */
+    --vp-c-tip-1:       var(--hoso-teal);
+    --vp-c-tip-soft:    rgba(90,168,154,.1);
+    --vp-c-warning-1:   #b8903a;
+    --vp-c-warning-soft:rgba(184,144,58,.1);
+    --vp-c-danger-1:    var(--hoso-salmon);
+    --vp-c-danger-soft: rgba(224,107,80,.1);
+
+    /* Typography */
+    --vp-font-family-base: 'JetBrains Mono', 'Fira Code', monospace;
+    --vp-font-family-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+    /* Nav — keep VitePress's own height var intact, just set colours */
+    --vp-nav-height:      60px;
+    --vp-nav-bg-color:    rgba(242,239,233,.88);
+
+    /* Sidebar */
+    --vp-sidebar-bg-color: var(--hoso-bg);
+    --vp-sidebar-width:    260px;
+
+    /* Code */
+    --vp-code-bg:          rgba(46,43,39,.07);
+    --vp-code-block-bg:    var(--hoso-ink);
+    --vp-code-font-size:   .84em;
+    --vp-code-line-height: 1.7;
+    --vp-code-color:       var(--hoso-salmon);
+}
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+* { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
+
+/* ── Nav — rendered by SiteNav.vue; VitePress nav hidden via DocsLayout.vue ──
+   No overrides needed here. */
+
+/* ── Sidebar — DO NOT set padding-top; VitePress handles the nav offset ── */
+.VPSidebar {
+    background: var(--hoso-bg) !important;
+    border-right: 1px solid var(--hoso-border) !important;
+    /* no padding-top override — VitePress uses padding-top: var(--vp-nav-height) */
+}
+
+/* Extra top breathing room inside the nav-offset, after it */
+.VPSidebarNav {
+    padding-top: .75rem !important;
+}
+
+/* Group headers */
+.VPSidebarItem.level-0 > .item .text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .66rem !important;
+    font-weight: 500;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--hoso-ink-3) !important;
+    margin-top: .35rem;
+}
+
+/* Links */
+.VPSidebarItem .link {
+    font-size: .875rem;
+    color: var(--hoso-ink-2) !important;
+    font-weight: 400;
+    border-radius: 6px;
+    padding: .28rem .7rem;
+    transition: color .15s, background .15s;
+}
+.VPSidebarItem .link:hover {
+    color: var(--hoso-ink) !important;
+    background: var(--hoso-bg-alt);
+}
+.VPSidebarItem.is-active > .item .link {
+    color: var(--hoso-salmon) !important;
+    font-weight: 500;
+    background: rgba(224,107,80,.07);
+}
+.VPSidebarItem .caret { color: var(--hoso-ink-3) !important; }
+
+/* ── Content ────────────────────────────────────────────────────────────── */
+.VPContent { background: var(--hoso-bg); }
+
+/* ── Doc typography ─────────────────────────────────────────────────────── */
+.vp-doc {
+    font-family: 'JetBrains Mono', monospace !important;
+}
+.vp-doc h1 {
+    font-size: clamp(1.65rem, 3.5vw, 2.1rem);
+    font-weight: 700; letter-spacing: -.03em; line-height: 1.18;
+    color: var(--hoso-ink);
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--hoso-border);
+    margin-bottom: 1.25rem;
+}
+.vp-doc h2 {
+    font-size: 1.15rem; font-weight: 650; letter-spacing: -.018em;
+    color: var(--hoso-ink);
+    border-top: 1px solid var(--hoso-border);
+    padding-top: 1.4rem; margin-top: 2.4rem; margin-bottom: .7rem;
+}
+.vp-doc h3 {
+    font-size: .98rem; font-weight: 600; letter-spacing: -.01em;
+    color: var(--hoso-ink); margin-top: 1.65rem; margin-bottom: .45rem;
+}
+.vp-doc p {
+    font-size: .95rem; line-height: 1.8; color: var(--hoso-ink-2);
+}
+.vp-doc a {
+    color: var(--hoso-salmon); text-decoration: none; font-weight: 450;
+    border-bottom: 1px solid rgba(224,107,80,.25);
+    transition: border-color .15s;
+}
+.vp-doc a:hover { border-bottom-color: var(--hoso-salmon); }
+.vp-doc strong { color: var(--hoso-ink); font-weight: 600; }
+
+/* ── Inline code ────────────────────────────────────────────────────────── */
+.vp-doc :not(pre) > code {
+    font-family: var(--vp-font-family-mono);
+    font-size: .82em; font-weight: 500;
+    color: var(--hoso-salmon);
+    background: rgba(224,107,80,.08);
+    border: 1px solid rgba(224,107,80,.14);
+    border-radius: 5px; padding: .1em .38em;
+}
+
+/* ── Code blocks ────────────────────────────────────────────────────────── */
+.vp-doc div[class*='language-'] {
+    border-radius: 10px;
+    border: 1px solid var(--hoso-border);
+    overflow: hidden; margin: 1.2rem 0;
+}
+.vp-doc div[class*='language-'] pre {
+    background: var(--hoso-ink) !important;
+    padding: 1.2rem 1.35rem;
+    font-size: .81rem; line-height: 1.75;
+}
+.vp-doc div[class*='language-'] .lang {
+    font-family: var(--vp-font-family-mono);
+    font-size: .62rem; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--hoso-ink-3) !important;
+    top: .8rem; right: .9rem;
+}
+.vp-doc div[class*='language-'] button.copy {
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 5px; color: rgba(242,239,233,.4);
+    transition: background .15s, color .15s;
+}
+.vp-doc div[class*='language-'] button.copy:hover {
+    background: rgba(255,255,255,.12); color: rgba(242,239,233,.8);
+}
+
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+.vp-doc table {
+    border-collapse: collapse; width: 100%; font-size: .875rem;
+    border: 1px solid var(--hoso-border); border-radius: 10px; overflow: hidden;
+}
+.vp-doc thead { background: var(--hoso-bg-alt); }
+.vp-doc th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .66rem; font-weight: 500;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: var(--hoso-ink-3); padding: .62rem 1rem;
+    text-align: left; border-bottom: 1px solid var(--hoso-border);
+}
+.vp-doc td {
+    padding: .72rem 1rem; border-bottom: 1px solid var(--hoso-border);
+    vertical-align: top; color: var(--hoso-ink-2); line-height: 1.6;
+}
+.vp-doc tr:last-child td { border-bottom: none; }
+.vp-doc tr:hover td { background: var(--hoso-bg-alt); }
+
+/* ── Custom containers ──────────────────────────────────────────────────── */
+.vp-doc .custom-block {
+    border-radius: 8px; padding: .95rem 1.2rem; margin: 1.2rem 0;
+    border: 1px solid;
+}
+.vp-doc .custom-block.tip    { background: rgba(90,168,154,.07); border-color: rgba(90,168,154,.22); }
+.vp-doc .custom-block.warning{ background: rgba(184,144,58,.07); border-color: rgba(184,144,58,.22); }
+.vp-doc .custom-block.danger { background: rgba(224,107,80,.07); border-color: rgba(224,107,80,.22); }
+.vp-doc .custom-block.tip .custom-block-title { color: var(--hoso-teal); font-weight: 600; }
+.vp-doc .custom-block p { font-size: .88rem; margin: 0; }
+
+/* ── Right outline (ToC) ────────────────────────────────────────────────── */
+.VPDocAside .outline-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .63rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--hoso-ink-3);
+}
+.VPDocAsideOutline a {
+    font-size: .81rem; color: var(--hoso-ink-3) !important;
+    border: none; transition: color .15s;
+}
+.VPDocAsideOutline a:hover  { color: var(--hoso-ink) !important; }
+.VPDocAsideOutline a.active { color: var(--hoso-salmon) !important; font-weight: 500; }
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+.VPFooter {
+    background: var(--hoso-bg) !important;
+    border-top: 1px solid var(--hoso-border) !important;
+}
+.VPFooter .message, .VPFooter .copyright {
+    font-size: .77rem; color: var(--hoso-ink-3) !important;
+}
+.VPFooter a { color: var(--hoso-ink-3); border: none; transition: color .15s; }
+.VPFooter a:hover { color: var(--hoso-salmon); }
+
+/* ── Doc prev/next ──────────────────────────────────────────────────────── */
+.VPDocFooter { border-top: 1px solid var(--hoso-border); padding-top: 1.4rem; }
+.VPDocFooter .pager-link {
+    border: 1px solid var(--hoso-border); border-radius: 10px;
+    background: var(--hoso-bg); transition: border-color .15s, background .15s;
+}
+.VPDocFooter .pager-link:hover { border-color: rgba(224,107,80,.35); background: var(--hoso-bg-alt); }
+.VPDocFooter .pager-link .title { color: var(--hoso-ink); font-weight: 600; }
+.VPDocFooter .pager-link .desc  { color: var(--hoso-ink-3); font-size: .79rem; }
+
+/* ── Edit link ──────────────────────────────────────────────────────────── */
+.VPDocFooter .edit-link-button {
+    font-size: .81rem; color: var(--hoso-ink-3); border: none; transition: color .15s;
+}
+.VPDocFooter .edit-link-button:hover { color: var(--hoso-salmon); }
+
+/* ── Last updated ───────────────────────────────────────────────────────── */
+.VPLastUpdated { font-size: .77rem; color: var(--hoso-ink-3) !important; }
+
+/* ── Local search ───────────────────────────────────────────────────────── */
+.VPLocalSearchBox { font-family: var(--vp-font-family-base); }
+.VPLocalSearchBox .modal {
+    background: var(--hoso-bg) !important;
+    border: 1px solid var(--hoso-border-2) !important;
+    border-radius: 12px !important;
+}
+.VPLocalSearchBox input {
+    background: var(--hoso-bg-alt) !important;
+    border: 1px solid var(--hoso-border) !important;
+    color: var(--hoso-ink) !important; border-radius: 8px !important;
+}
+.VPLocalSearchBox mark { color: var(--hoso-salmon) !important; background: none !important; }
+
+/* ── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--hoso-border-2); border-radius: 3px; }
+
+/* ── Mobile ─────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .vp-doc h1 { font-size: 1.5rem; }
+    .vp-doc h2 { font-size: 1.05rem; }
+    .vp-doc th, .vp-doc td { padding: .52rem .7rem; }
+}
