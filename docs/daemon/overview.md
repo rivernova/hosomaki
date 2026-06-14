@@ -17,7 +17,6 @@ The Hosomaki daemon will run as a background service, enabling:
 
 - The daemon will not require root. It will use the same read-only collection strategy as the CLI.
 - The same sanitise → prompt → validate → repair pipeline used by the CLI will be reused unchanged.
-- All configuration will be expressed in the existing `~/.hosomaki.yaml` format with additional daemon-specific stanzas.
 
 ## Next steps
 

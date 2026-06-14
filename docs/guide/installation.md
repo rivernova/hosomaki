@@ -1,12 +1,12 @@
 # Installation
 
-Hosomaki runs on Linux and requires [Ollama](https://ollama.com) for the local AI backend.
+Hosomaki runs on Linux and requires [Ollama](https://ollama.com).
 
 ## Prerequisites
 
 | Requirement | Notes |
 |---|---|
-| Linux (x86_64 or arm64) | systemd-based distributions recommended |
+| Linux | systemd-based distributions recommended |
 | [Ollama](https://ollama.com) | Runs the local language model |
 | A compatible Ollama model | `llama3.2` or `qwen2.5` recommended |
 
@@ -29,8 +29,8 @@ ollama pull llama3.2
 ```bash
 git clone https://github.com/rivernova/hosomaki.git
 cd hosomaki
-go build -o hosomaki .
-sudo mv hosomaki /usr/local/bin/
+make build
+sudo make install
 ```
 
 ### Verify
@@ -54,5 +54,5 @@ ollama_url: http://localhost:11434
 See [Configuration](/guide/configuration) for the full reference.
 
 ::: tip Root privileges
-Some commands — particularly `ports` and `crons` — produce richer output when run as root, because reading other users' crontabs and some socket metadata requires elevated privileges. Running as a regular user still works, but scope may be limited.
+Some commands produce richer output when run as root, because reading other users' crontabs and some socket metadata requires elevated privileges. Running as a regular user still works, but scope may be limited.
 :::
