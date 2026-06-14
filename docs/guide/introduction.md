@@ -2,11 +2,11 @@
 
 Hosomaki is a Linux system diagnostics CLI that reads your system and helps you understand what is happening in plain language.
 
-It uses a local language model via [Ollama](https://ollama.com) and **never sends anything off your machine**. No cloud. No telemetry. No account. Your data stays on your system.
+It uses a local language model via [Ollama](https://ollama.com) and **never sends anything off your machine**.
 
 ## What it does
 
-When something goes wrong on a Linux system — a service crashing, a mount hanging, a port appearing that shouldn't be there — the usual path is `journalctl`, `ss`, `systemctl`, and several minutes of reading. Hosomaki shortens that loop by collecting the relevant system state and handing it to a local model with a tightly constrained prompt, then returning a structured, readable analysis.
+When something goes wrong on a Linux system the usual path is `journalctl`, `ss`, `systemctl`, and several minutes of reading. Hosomaki shortens that loop by collecting the relevant system state and handing it to a local model with a tightly constrained prompt, then returning a structured, readable analysis.
 
 Every command follows the same pipeline:
 
@@ -14,7 +14,7 @@ Every command follows the same pipeline:
 collect → sanitise → prompt → validate → repair → render
 ```
 
-The sanitisation step is non-negotiable. It strips IP addresses, hostnames, paths, UUIDs, and credentials before anything enters the model context.
+The sanitisation step is non-negotiable.
 
 ## Core commands
 
@@ -36,11 +36,11 @@ The sanitisation step is non-negotiable. It strips IP addresses, hostnames, path
 
 **Read-only.** Every command collects data and surfaces insights. None of them modify the system.
 
-**Local first.** The AI model runs on your machine via Ollama. Internet connectivity is never required.
+**Local first.** The model runs on your machine via Ollama.
 
-**Sanitise first, always.** Sensitive material is stripped before the model ever sees it. This happens in the `cmd/` layer, before the prompt package is called, and cannot be bypassed.
+**Sanitise first, always.** Sensitive material is stripped before the model ever sees it.
 
-**Structured output.** Every command produces validated, typed JSON from the model. Invalid or semantically empty responses are repaired or rejected — not silently passed through.
+**Structured output.** Every command produces validated, typed JSON from the model. Invalid or semantically empty responses are repaired or rejected.
 
 ## Next steps
 

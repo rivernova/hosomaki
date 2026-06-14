@@ -8,7 +8,7 @@ Get up and running in under two minutes.
 hosomaki status
 ```
 
-Returns a snapshot of uptime, memory, disk, failed services, and recent errors, followed by an AI-generated summary.
+Returns a snapshot of uptime, memory, disk, failed services, and recent errors, followed by a summary.
 
 ```bash
 hosomaki status --brief   # one-sentence summary
@@ -20,17 +20,17 @@ hosomaki status --brief   # one-sentence summary
 hosomaki explain --service nginx
 ```
 
-Hosomaki reads the last 50 lines of the nginx journal, sanitises them, and returns a structured explanation with root cause analysis and suggested investigation steps.
+Hosomaki reads the last lines of the service journal, sanitises them, and returns a structured explanation with root cause analysis and suggested investigation steps.
 
 ```bash
 # Read more lines
-hosomaki explain --service nginx --lines 100
+hosomaki explain --service docker --lines 100
 
 # Scope to a time range
 hosomaki explain --service nginx --since "1 hour ago"
 
 # Correlate two services
-hosomaki explain --context nginx,postgresql
+hosomaki explain --context mongodb,rabbitmq
 ```
 
 ## 3. Full diagnosis
@@ -39,7 +39,7 @@ hosomaki explain --context nginx,postgresql
 hosomaki doctor
 ```
 
-Deeper than `status` — surfaces concrete suggested actions, not just observations.
+Deeper than `status`. Suggests actions too, not just observations.
 
 ## 4. Watch a service in real time
 
@@ -61,7 +61,7 @@ hosomaki audit
 
 ## 6. Shell integration
 
-Install the `explain` wrapper so failed commands are automatically explained:
+Install the `explain` wrapper so failed commands are automatically explained.
 
 ```bash
 hosomaki shell-integration --shell bash >> ~/.bashrc && source ~/.bashrc
@@ -80,8 +80,8 @@ journalctl -p err -n 50 | hosomaki explain
 # Explain a kernel message inline
 hosomaki explain "kernel: OOM killer activated on process 1234"
 
-# Explain what exited with code 137
-hosomaki why 137 --service myapp
+# Explain what exited with code 1
+hosomaki why 1 --service myapp
 
 # Check listening ports
 hosomaki ports

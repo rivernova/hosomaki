@@ -2,43 +2,33 @@
 
 Hosomaki is built around a single principle: **your data stays on your machine**.
 
-## What runs where
-
-| Component | Location |
-|---|---|
-| Hosomaki CLI | Your machine |
-| Language model (Ollama) | Your machine |
-| System data collection | Your machine |
-| Sanitisation | Your machine, before prompting |
-| AI inference | Your machine |
-
-Nothing is sent to Anthropic, OpenAI, or any other external service. There are no analytics, no telemetry, no crash reports, and no usage metrics.
+There are no analytics, no telemetry, no crash reports, and no usage metrics.
 
 ## Data flow
 
 ```
-System (journalctl, ss, proc...)
+System
   │
   ▼
-collector — raw data (never leaves this stage as-is)
+collector. raw data
   │
   ▼
-sanitiser — strips IPs, paths, credentials, hostnames, UUIDs
+sanitiser. strips IPs, paths, credentials, hostnames, UUIDs
   │
   ▼
-prompt builder — constructs constrained prompt from sanitised data
+prompt builder. constructs constrained prompt from sanitised data
   │
   ▼
-Ollama (local) — inference on localhost
+Ollama. local model
   │
   ▼
-validator / repair — structured result verified before display
+validator / repair
   │
   ▼
 terminal output
 ```
 
-No stage after the sanitiser has access to raw system data. The Ollama API call is made to `localhost` (or your configured Ollama URL) and never traverses the internet.
+No stage after the sanitiser has access to raw system data.
 
 ## Audit baseline
 
