@@ -16,7 +16,7 @@ hosomaki timers [flags]
 
 ## What it collects
 
-Runs `systemctl list-timers --all` to collect all active and inactive systemd timers, including:
+Collects all active and inactive systemd timers, including:
 
 - Timer unit name and the service it activates
 - Last run time and result
@@ -27,16 +27,16 @@ Timers with no recorded last run are reported as `last_run: never`.
 
 ## Output
 
-The AI analysis flags timers that have:
+Hosomaki will flag timers that have:
 
 - Failed on last run
 - Never run at all
-- Missed their expected run window (appear overdue)
+- Missed their expected run window
 - Been inactive for an unexpectedly long time
 
 ## Relationship to `crons`
 
-`timers` covers **systemd timers**. Classic crontab files (`/etc/crontab`, `/etc/cron.d/*`, per-user crontabs) are handled by `hosomaki crons`.
+`timers` covers **systemd timers**. Classic crontab files are handled by `hosomaki crons`.
 
 ## Examples
 

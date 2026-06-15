@@ -24,14 +24,6 @@ hosomaki audit [flags]
 ```bash
 hosomaki audit --init
 ```
-
-Snapshots the current state of:
-
-- File hashes in tracked directories
-- Installed packages
-- Listening ports
-- Systemd unit states
-
 Baseline is saved to `~/.local/share/hosomaki/audit-baseline.json` by default.
 
 ### 2. Diff against it
@@ -40,7 +32,7 @@ Baseline is saved to `~/.local/share/hosomaki/audit-baseline.json` by default.
 hosomaki audit
 ```
 
-Compares the current system state against the stored baseline and asks the AI to flag anything significant.
+Compares the current system state against the stored baseline and flags anything significant.
 
 ## Examples
 

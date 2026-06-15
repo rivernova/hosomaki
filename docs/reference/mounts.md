@@ -14,15 +14,9 @@ hosomaki mounts [flags]
 |---|---|---|
 | `--debug` | `false` | Print raw model response to stderr |
 
-## What it collects
-
-- Active mount entries from `/proc/mounts`
-- Disk usage via `df`
-- NFS mount reachability
-
 ## Output
 
-The AI analysis flags:
+Hosomaki will flag:
 
 - Filesystems approaching capacity (typically >80% used)
 - Stale or unresponsive NFS mounts

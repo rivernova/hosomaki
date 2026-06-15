@@ -24,23 +24,6 @@ All commands accept:
 
 | Flag | Description |
 |---|---|
-| `--debug` | Print raw model response to stderr before parsing |
-| `--help` | Show usage and flags for the command |
+| `--debug` | Print raw model response |
 
 Run `hosomaki <command> --help` for the full flag reference of any command.
-
-## Output format
-
-Commands write to stdout. The output structure is:
-
-```
-── <command> ──────────────────────────────────────────────────
-
-  context
-  ─────────────────────────────────────────────────────────
-  key          value
-
-  <ai-generated sections>
-```
-
-The `--debug` flag appends the raw model JSON to stderr.

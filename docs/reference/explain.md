@@ -1,6 +1,6 @@
 # explain
 
-Explain errors from a variety of sources. Hosomaki adapts to whatever you provide — a service name, a log file, a piped stream, an inline message, or a running process PID.
+Explain errors from a variety of sources. Hosomaki adapts to whatever is provided like a service name, a log file, a piped stream, an inline message or a running process PID.
 
 ## Usage
 
@@ -20,14 +20,13 @@ hosomaki explain [flags] [message]
 | `--pid <N>` | — | Inspect a running process by PID |
 | `--diff <from>:<to>` | — | Compare two boots (e.g. `-1` or `-2:-1`) |
 | `--lines <N>` | `50` | Number of lines to read |
-| `--since <time>` | — | Start of time range (journalctl-compatible) |
+| `--since <time>` | — | Start of time range |
 | `--until <time>` | — | End of time range |
-| `--cmd <cmdline>` | — | Original command (used by shell-integration) |
 | `--debug` | `false` | Print raw model response to stderr |
 
 ## Input modes
 
-`explain` accepts input in several mutually exclusive ways:
+`explain` takes whatever you throw at it.
 
 ### Service journal
 
@@ -64,7 +63,7 @@ hosomaki explain --file /var/log/nginx/error.log --lines 200
 
 ```bash
 hosomaki explain --context nginx,postgresql
-hosomaki explain --context app,redis,nginx
+hosomaki explain --context app,mongodb,rabbitmq
 ```
 
 Requires at least two services.
@@ -75,7 +74,7 @@ Requires at least two services.
 hosomaki explain --pid 1234
 ```
 
-Reads `/proc/<pid>/` — cmdline, status, fd count, open files, memory maps — and explains what the process is doing and whether anything looks unusual.
+Reads `/proc/<pid>/` and explains what the process is doing and whether anything looks unusual.
 
 ### Boot diff
 

@@ -12,7 +12,7 @@ hosomaki watch <service> [flags]
 
 | Argument | Description |
 |---|---|
-| `<service>` | Systemd service name to tail (required) |
+| `<service>` | Systemd service name to tail |
 
 ## Flags
 
@@ -25,9 +25,9 @@ hosomaki watch <service> [flags]
 
 ## How it works
 
-On startup, `watch` seeds the view with the last `--lines` lines from the journal (after sanitisation), then enters tail mode.
+On startup, `watch` seeds the view with the last `--lines` lines from the journal, then enters tail mode.
 
-Incoming lines are accumulated into a batch. The batch is flushed to the AI pipeline when:
+Incoming lines are accumulated into a batch. The batch is flushed to the pipeline when:
 
 - A silence window has elapsed **and** the batch contains at least one error or warning line
 - **Or** the batch has reached `--max-lines`

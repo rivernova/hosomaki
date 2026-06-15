@@ -19,10 +19,8 @@ hosomaki shell-integration [flags]
 `shell-integration` prints a shell function called `explain`. When you prefix any command with `explain`, it:
 
 1. Runs the command and captures its output
-2. If the command exits with a non-zero code, pipes the captured output to `hosomaki explain --cmd <cmdline>`
+2. If the command exits with a non-zero code, pipes the captured output
 3. If the command succeeds, prints the output normally
-
-The function is entirely client-side — it doesn't modify how Hosomaki works.
 
 ## Installation
 
@@ -49,7 +47,7 @@ hosomaki shell-integration --shell fish >> ~/.config/fish/config.fish
 ```bash
 explain make build
 explain systemctl start myapp
-explain go test ./...
+explain go test ./... 
 explain apt-get upgrade
 ```
 
@@ -58,7 +56,7 @@ If the command fails, Hosomaki automatically explains what went wrong.
 ## Examples
 
 ```bash
-# Print the bash snippet (without installing)
+# Print the bash snippet
 hosomaki shell-integration --shell bash
 
 # Install to bash
