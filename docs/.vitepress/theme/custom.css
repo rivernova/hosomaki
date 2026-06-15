@@ -1,5 +1,3 @@
-/*  parchment/salmon/teal palette*/
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
@@ -14,22 +12,27 @@
     --hoso-border:   rgba(46,43,39,.1);
     --hoso-border-2: rgba(46,43,39,.16);
 
+
     --vp-c-brand-1:     var(--hoso-salmon);
     --vp-c-brand-2:     #c9573e;
     --vp-c-brand-3:     #f07c64;
     --vp-c-brand-soft:  rgba(224,107,80,.1);
+
 
     --vp-c-bg:          var(--hoso-bg);
     --vp-c-bg-soft:     var(--hoso-bg-alt);
     --vp-c-bg-mute:     var(--hoso-bg-soft);
     --vp-c-bg-elv:      var(--hoso-bg);
 
+
     --vp-c-text-1: var(--hoso-ink);
     --vp-c-text-2: var(--hoso-ink-2);
     --vp-c-text-3: var(--hoso-ink-3);
 
+
     --vp-c-divider: var(--hoso-border);
     --vp-c-gutter:  var(--hoso-bg-alt);
+
 
     --vp-c-tip-1:       var(--hoso-teal);
     --vp-c-tip-soft:    rgba(90,168,154,.1);
@@ -38,17 +41,22 @@
     --vp-c-danger-1:    var(--hoso-salmon);
     --vp-c-danger-soft: rgba(224,107,80,.1);
 
+
     --vp-font-family-base: 'JetBrains Mono', 'Fira Code', monospace;
     --vp-font-family-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
 
     --vp-nav-height:      60px;
     --vp-nav-bg-color:    rgba(242,239,233,.88);
 
+
     --vp-sidebar-bg-color: var(--hoso-bg);
     --vp-sidebar-width:    260px;
 
+
     --vp-code-bg:          rgba(46,43,39,.07);
     --vp-code-block-bg:    var(--hoso-ink);
+    --vp-code-block-color: rgba(242, 239, 233, .78);
     --vp-code-font-size:   .84em;
     --vp-code-line-height: 1.7;
     --vp-code-color:       var(--hoso-salmon);
@@ -61,6 +69,7 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
 .VPSidebar {
     background: var(--hoso-bg) !important;
     border-right: 1px solid var(--hoso-border) !important;
+
 }
 
 .VPSidebarNav {
@@ -165,6 +174,10 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
     background: rgba(255,255,255,.12); color: rgba(242,239,233,.8);
 }
 
+html:not(.dark) .vp-code span {
+    color: var(--shiki-dark, inherit) !important;
+}
+
 .vp-doc table {
     border-collapse: collapse; width: 100%; font-size: .875rem;
     border: 1px solid var(--hoso-border); border-radius: 10px; overflow: hidden;
@@ -255,9 +268,8 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
     .vp-doc th, .vp-doc td { padding: .52rem .7rem; }
 }
 
-/* dark mode */
-
 .dark {
+
     --hoso-bg:       #131210;
     --hoso-bg-alt:   #1c1a17;
     --hoso-bg-soft:  #242118;
@@ -269,23 +281,29 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
     --hoso-border:   rgba(232, 228, 220, .08);
     --hoso-border-2: rgba(232, 228, 220, .13);
 
+
     --vp-c-bg:         var(--hoso-bg);
     --vp-c-bg-soft:    var(--hoso-bg-alt);
     --vp-c-bg-mute:    var(--hoso-bg-soft);
     --vp-c-bg-elv:     var(--hoso-bg-alt);
 
+
     --vp-c-text-1: var(--hoso-ink);
     --vp-c-text-2: var(--hoso-ink-2);
     --vp-c-text-3: var(--hoso-ink-3);
 
+
     --vp-c-divider: var(--hoso-border);
     --vp-c-gutter:  var(--hoso-bg-alt);
+
 
     --vp-code-bg:       rgba(232, 228, 220, .07);
     --vp-code-block-bg: #0d0c0a;
     --vp-code-color:    var(--hoso-salmon);
 
+
     --vp-nav-bg-color: rgba(19, 18, 16, .85);
+
 
     --vp-sidebar-bg-color: var(--hoso-bg);
 }
@@ -415,6 +433,7 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
     .dark .sn-right a {
         border-bottom-color: rgba(232, 228, 220, .08);
     }
+
     .dark .sn-right .sn-pill {
         background: none !important;
         color: #e8765e !important;
@@ -430,6 +449,7 @@ html, body { background: var(--hoso-bg); color: var(--hoso-ink); }
     --salmon: #e8765e;
     --teal:   #62b8a8;
     --border: rgba(232, 228, 220, .08);
+
     --on-dark-hi:    rgba(232, 228, 220, .80);
     --on-dark-mid:   rgba(232, 228, 220, .48);
     --on-dark-dim:   rgba(232, 228, 220, .28);
