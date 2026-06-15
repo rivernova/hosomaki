@@ -1,0 +1,16 @@
+{
+  "name": "hosomaki-docs",
+  "version": "0.0.1",
+  "description": "Documentation site for the Hosomaki ecosystem",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.3",
+    "vue": "^3.5.13"
+  }
+}
