@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
     base: '/hosomaki/',
-
+    appearance: 'force-light',
     title: 'Hosomaki',
     description: 'Linux diagnostics in plain language. No cloud. No telemetry. Your system, your data.',
 
