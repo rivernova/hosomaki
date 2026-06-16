@@ -8,7 +8,7 @@ export default defineConfig({
 
     lang: 'en-US',
     lastUpdated: true,
-    cleanUrls: true,
+    cleanUrls: false,
 
     head: [
         ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
