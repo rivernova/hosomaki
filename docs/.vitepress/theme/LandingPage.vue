@@ -16,8 +16,8 @@
         No cloud. No telemetry.
       </p>
       <div class="hero-btns">
-        <a class="btn btn-primary" href="/guide/installation">Get started</a>
-        <a class="btn btn-ghost"  href="/guide/introduction">Read the docs</a>
+        <a class="btn btn-primary" :href="withBase('/guide/installation')">Get started</a>
+        <a class="btn btn-ghost"  :href="withBase('/guide/introduction')">Read the docs</a>
         <a class="btn btn-ghost"  href="https://github.com/rivernova/hosomaki" target="_blank" rel="noopener">GitHub</a>
       </div>
       <div class="hero-tags">
@@ -46,7 +46,7 @@
           v-for="cmd in commands"
           :key="cmd.slug"
           class="cmd-card"
-          :href="`/reference/${cmd.slug}`"
+          :href="withBase(`/reference/${cmd.slug}`)"
         >
           <span class="cmd-mono">{{ cmd.name }}</span>
           <span class="cmd-title">{{ cmd.title }}</span>
@@ -132,19 +132,19 @@
        <div class="story-left">
          <span class="label">why Hosomaki exists</span>
          <h2 id="story-heading" class="section-h2 story-h2">
-           Your system has always known what’s happening. Hosomaki just grew into the layer that reveals it.
+           Your system has always known what's happening. Hosomaki just grew into the layer that reveals it.
          </h2>
        </div>
        <div class="story-right">
          <p>
            Hosomaki began as a simple idea. It started as a tool that could translate logs into something
            mortals like you and me could read without digging through journal entries or kernel messages.
-           But the deeper the project went, the clearer it became that translation wasn’t
+           But the deeper the project went, the clearer it became that translation wasn't
            the real goal. Linux already speaks, constantly. The challenge is making
            sense of everything it says.
          </p>
          <p>
-           That’s where Hosomaki evolved. It no longer just interprets logs. It builds a
+           That's where Hosomaki evolved. It no longer just interprets logs. It builds a
            structured understanding of your system by correlating signals, validating
            assumptions, and explaining what matters and why. It reads the same sources you
            would, strips anything sensitive, and produces a grounded analysis. Not a
@@ -209,7 +209,7 @@
             </li>
           </ol>
           <div class="install-actions">
-            <a class="btn btn-install-primary" href="/guide/installation">Full install guide</a>
+            <a class="btn btn-install-primary" :href="withBase('/guide/installation')">Full install guide</a>
             <a class="btn btn-install-ghost"   href="https://github.com/rivernova/hosomaki" target="_blank" rel="noopener">
               GitHub →
             </a>
@@ -227,10 +227,10 @@
         · <a href="https://github.com/rivernova/hosomaki" target="_blank" rel="noopener">GitHub</a>
       </span>
       <nav class="footer-links" aria-label="Footer navigation">
-        <a href="/guide/introduction">Docs</a>
-        <a href="/reference/commands">Reference</a>
-        <a href="/guide/architecture">Architecture</a>
-        <a href="/guide/privacy">Privacy</a>
+        <a :href="withBase('/guide/introduction')">Docs</a>
+        <a :href="withBase('/reference/commands')">Reference</a>
+        <a :href="withBase('/guide/architecture')">Architecture</a>
+        <a :href="withBase('/guide/privacy')">Privacy</a>
       </nav>
     </footer>
 
@@ -239,6 +239,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { withBase } from 'vitepress'
 import SiteNav from './SiteNav.vue'
 
 const heroTags = ['No cloud', 'No telemetry', 'Local · Ollama', 'Read-only', 'MPL-2.0']
@@ -421,10 +422,10 @@ onMounted(() => {
   --teal:   #5aa89a;
   --border: rgba(46, 43, 39, .1);
   --nav-h:  60px;
-  --on-dark-hi:   rgba(242, 239, 233, .72);  /* primary text on dark bg  */
-  --on-dark-mid:  rgba(242, 239, 233, .44);  /* secondary text on dark   */
-  --on-dark-dim:  rgba(242, 239, 233, .26);  /* tertiary / label on dark */
-  --on-dark-faint:rgba(242, 239, 233, .2);   /* very dim / decorative    */
+  --on-dark-hi:   rgba(242, 239, 233, .72);
+  --on-dark-mid:  rgba(242, 239, 233, .44);
+  --on-dark-dim:  rgba(242, 239, 233, .26);
+  --on-dark-faint:rgba(242, 239, 233, .2);
   --dark-card-bg:     rgba(255, 255, 255, .04);
   --dark-card-border: rgba(255, 255, 255, .07);
   --dark-hover-bg:    rgba(255, 255, 255, .08);
@@ -439,7 +440,7 @@ onMounted(() => {
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
-  overflow-x: clip; /* clip ≠ hidden: no scroll container, sticky still works */
+  overflow-x: clip;
 }
 
 .label {
