@@ -1,14 +1,14 @@
 <template>
   <nav class="sitenav" :class="{ scrolled: isScrolled }">
 
-    <a class="sn-brand" href="/">
+    <a class="sn-brand" :href="withBase('/')">
       <img src="/hosomaki_logo.png" alt="Hosomaki" />
       <span>Hosomaki</span>
     </a>
 
     <div class="sn-right" :class="{ open: menuOpen }">
-      <a href="/guide/introduction" @click="menuOpen = false">Docs</a>
-      <a href="/reference/commands" @click="menuOpen = false">Reference</a>
+      <a :href="withBase('/guide/introduction')" @click="menuOpen = false">Docs</a>
+      <a :href="withBase('/reference/commands')" @click="menuOpen = false">Reference</a>
       <a href="https://github.com/rivernova/hosomaki" target="_blank" rel="noopener" @click="menuOpen = false">GitHub</a>
 
       <button
@@ -48,7 +48,7 @@
         </svg>
       </button>
 
-      <a href="/guide/installation" class="sn-pill" @click="menuOpen = false">Get started</a>
+      <a :href="withBase('/guide/installation')" class="sn-pill" @click="menuOpen = false">Get started</a>
     </div>
 
     <div class="sn-mobile-actions">
@@ -99,7 +99,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
-import { useData } from 'vitepress'
+import { useData, withBase } from 'vitepress'
 
 const VPLocalSearchBox = defineAsyncComponent(() =>
   import('vitepress/dist/client/theme-default/components/VPLocalSearchBox.vue')
@@ -261,5 +261,4 @@ onUnmounted(() => {
   transition: color .15s, background .15s;
 }
 .sn-theme-toggle:hover { color: #2e2b27; background: rgba(46,43,39,.06); }
-
 </style>
