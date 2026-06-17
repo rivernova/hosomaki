@@ -1,0 +1,26 @@
+name: hosomaki
+arch: ${GOARCH}
+platform: linux
+version: ${VERSION}
+section: utils
+priority: optional
+maintainer: rivernova <hosomaki@rivernova.dev>
+description: |
+  Linux system diagnostics CLI powered by local AI inference.
+  Surfaces system insights through an AI pipeline with sanitisation,
+  validation, and repair stages.
+vendor: rivernova
+homepage: https://rivernova.github.io/hosomaki/
+license: MPL-2.0
+
+contents:
+  - src: ./bin/hosomaki
+    dst: /usr/bin/hosomaki
+    file_info:
+      mode: 0755
+
+  - src: ./README.md
+    dst: /usr/share/doc/hosomaki/README.md
+
+  - src: ./LICENSE
+    dst: /usr/share/doc/hosomaki/LICENSE

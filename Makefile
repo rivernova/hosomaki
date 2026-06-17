@@ -124,3 +124,33 @@ deps: ## download and tidy dependencies
 clean: ## remove build artifacts and coverage files
 	rm -rf $(BUILD_DIR) coverage.txt coverage.html
 	@echo "✓ Cleaned"
+
+# packaging
+
+PKG_ARCHES   := amd64 arm64
+DIST_DIR     := ./dist
+NFPM_VERSION := $(VERSION:v%=%)
+
+.PHONY: package
+package: $(addprefix package-,$(PKG_ARCHES)) ## build .deb and .rpm packages for all target arches
+
+.PHONY: package-%
+package-%: ## build .deb and .rpm for a single arch, e.g. make package-amd64
+	@mkdir -p $(DIST_DIR)
+	GOOS=linux GOARCH=$* go build $(LDFLAGS) -o $(BUILD_DIR)/hosomaki-linux-$* $(CMD_DIR)
+	@ln -sf hosomaki-linux-$* $(BUILD_DIR)/hosomaki
+	GOARCH=$* VERSION=$(NFPM_VERSION) nfpm package \
+		--config .nfpm.yaml \
+		--packager deb \
+		--target $(DIST_DIR)/hosomaki_$(NFPM_VERSION)_$*.deb
+	GOARCH=$* VERSION=$(NFPM_VERSION) nfpm package \
+		--config .nfpm.yaml \
+		--packager rpm \
+		--target $(DIST_DIR)/hosomaki_$(NFPM_VERSION)_$*.rpm
+	@rm -f $(BUILD_DIR)/hosomaki
+	@echo "✓ Packaged $* ($(NFPM_VERSION))"
+
+.PHONY: package-clean
+package-clean: ## remove packaging artifacts
+	rm -rf $(DIST_DIR)
+	@echo "✓ Cleaned packages"
