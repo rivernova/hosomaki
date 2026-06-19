@@ -160,7 +160,11 @@ Examples:
 				}
 			}
 
-			fmt.Print(ui.RenderUpdatesResultSummary(result))
+			if len(result.Updates) == 0 {
+				fmt.Print(ui.UpdatesCleanResult())
+			} else {
+				fmt.Print(ui.RenderUpdatesResultSummary(result))
+			}
 			fmt.Print(ui.Done())
 			return nil
 		},

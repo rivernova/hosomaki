@@ -72,7 +72,12 @@ FIELD RULES
   - "installed": currently installed version string, or "" if unknown (string).
   - "available": version string that would be installed after update (string).
   - "category": MUST be exactly one of: "security", "major", "minor", "unknown".
-  - "reboot_required": boolean.
+    Use "security" when flagged as a security fix or advisory (CVE, DSA, RHSA, etc).
+    Use "major" for significant version jumps (e.g. 1.x to 2.x) with likely
+    breaking changes. Use "minor" for routine patch or feature releases.
+    Use "unknown" only when you truly cannot determine the category.
+  - "reboot_required": boolean. True when the package is a kernel, init system,
+    graphics driver (nvidia), libc/glibc, or firmware update. Default to false.
 - If there are no pending updates, return {"summary":"...","updates":[]}.
 - Do not invent updates not present in the list.
 

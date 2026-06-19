@@ -353,7 +353,7 @@ func RenderUpdatesSummaryLive(summary string) string {
 
 func RenderUpdatesFindingLive(u prompt.UpdateFinding, _ int) string {
 	title := strings.TrimSpace(u.Package)
-	auto := strings.TrimSpace(u.Available)
+	avail := strings.TrimSpace(u.Available)
 	if title == "" {
 		return ""
 	}
@@ -386,11 +386,11 @@ func RenderUpdatesFindingLive(u prompt.UpdateFinding, _ int) string {
 		inst = "?"
 	}
 
-	if auto != "" && inst != "?" {
-		return bullet + "  " + inst + " → " + auto + "\n"
+	if avail != "" && inst != "?" {
+		return bullet + "  " + inst + " → " + avail + "\n"
 	}
-	if auto != "" {
-		return bullet + "  → " + auto + "\n"
+	if avail != "" {
+		return bullet + "  → " + avail + "\n"
 	}
 	return bullet
 }
