@@ -358,7 +358,6 @@ func RenderUpdatesFindingLive(u prompt.UpdateFinding, _ int) string {
 		return ""
 	}
 
-	// Build the display line: package [category] [reboot] installed → available
 	var label strings.Builder
 	label.WriteString(title)
 

@@ -10,7 +10,8 @@ import (
 	"strings"
 )
 
-// Update represents a single pending package update.
+// pending package updates collected
+
 type Update struct {
 	Package        string
 	Installed      string
@@ -19,9 +20,6 @@ type Update struct {
 	RebootRequired bool
 }
 
-// Updates collects pending package updates from the system's
-// package manager. Accepts the detected environment (caller must obtain
-// it via Env() or inject a mock in tests).
 func Updates(env Environment) ([]Update, error) {
 	mgr := env.PackageManager
 	if mgr == "" {
@@ -42,8 +40,6 @@ func collectUpdates(mgr string) ([]Update, error) {
 	return parseUpdatesOutput(mgr, strings.TrimSpace(string(raw)))
 }
 
-// updatesCommand returns a shell command that lists pending updates
-// for the given package manager. LC_ALL=C ensures locale-independent output.
 func updatesCommand(mgr string) string {
 	switch mgr {
 	case "apt":
@@ -67,9 +63,6 @@ func updatesCommand(mgr string) string {
 	}
 }
 
-// FormatUpdatesForPrompt formats pending updates as a plain-text string
-// suitable for the AI prompt. Sanitise the return value before passing
-// it to prompt.Updates.
 func FormatUpdatesForPrompt(updates []Update) string {
 	if len(updates) == 0 {
 		return "(no pending updates)"
@@ -93,7 +86,6 @@ func FormatUpdatesForPrompt(updates []Update) string {
 	return strings.TrimSpace(b.String())
 }
 
-// isRebootRequired returns true if the package name suggests a reboot.
 func isRebootRequired(pkg string) bool {
 	pkg = strings.ToLower(pkg)
 	return strings.HasPrefix(pkg, "linux-image") ||

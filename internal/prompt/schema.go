@@ -29,3 +29,5 @@ const SchemaTimers = `{"summary":"string","timers":[{"name":"string","schedule":
 const SchemaCrons = `{"summary":"string","jobs":[{"source":"string","schedule":"string","command":"string","what_it_does":"string","last_run":"string","status":"string","detail":"string"}]}`
 
 const SchemaMounts = `{"summary":"string","findings":[{"severity":"string","mount_point":"string","title":"string","detail":"string"}]}`
+
+const SchemaUpdates = `{"summary":"string","updates":[{"package":"string","installed":"string","available":"string","category":"string","reboot_required":false}]}`

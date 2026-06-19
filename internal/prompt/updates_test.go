@@ -11,6 +11,8 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
+// unit tests for the updates prompt builder
+
 func TestUpdatesPrompt_ContainsSchema(t *testing.T) {
 	in := UpdatesInput{
 		Environment: collector.Environment{DistroID: "test"},
@@ -63,8 +65,8 @@ func TestUpdatesPrompt_WithUpdates(t *testing.T) {
 
 func TestUpdatesPrompt_NoFilterNoteByDefault(t *testing.T) {
 	in := UpdatesInput{
-		Environment: collector.Environment{DistroID: "test"},
-		Updates:     "",
+		Environment:  collector.Environment{DistroID: "test"},
+		Updates:      "",
 		SecurityOnly: false,
 	}
 	result := Updates(in)
@@ -75,8 +77,8 @@ func TestUpdatesPrompt_NoFilterNoteByDefault(t *testing.T) {
 
 func TestUpdatesPrompt_HasFilterNoteWhenSecurityOnly(t *testing.T) {
 	in := UpdatesInput{
-		Environment: collector.Environment{DistroID: "test"},
-		Updates:     "",
+		Environment:  collector.Environment{DistroID: "test"},
+		Updates:      "",
 		SecurityOnly: true,
 	}
 	result := Updates(in)
