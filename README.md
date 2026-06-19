@@ -88,11 +88,9 @@ explain make build
 
 ## Data Privacy & Security
 
-Hosomaki is designed around a simple principle: your data should remain yours.
+Hosomaki is designed around a simple principle: your data should remain yours. Before anything reaches the local model, a mandatory sanitisation layer strips IPs, hostnames, paths, UUIDs, emails, and credentials from collected data.
 
-Before anything reaches the local language model, Hosomaki applies a strict sanitisation layer directly on your system. This layer aggressively detects and removes sensitive material like IP addresses, paths, UUIDs, credentials, hostnames, before it ever enters the model context.
-
-Sanitisation is not an optional feature. It is the first and mandatory step of every pipeline.
+See [Data Privacy](https://rivernova.github.io/hosomaki/guide/privacy), [Sanitisation](https://rivernova.github.io/hosomaki/guide/sanitisation), and [SECURITY.md](SECURITY.md) for the full data handling policy and threat model.
 
 ---
 
@@ -100,7 +98,7 @@ Sanitisation is not an optional feature. It is the first and mandatory step of e
 
 <img src="assets/hosomaki_flowchart.svg" alt="Dataflow"/>
 
-Each command sanitises its input locally, sends it to the local model, then validates and repairs the response against a strict schema before rendering.
+Each command sanitises its input locally, sends it to the local model, then validates and repairs the response against a strict schema before rendering. See [Architecture](https://rivernova.github.io/hosomaki/guide/architecture) for the full pipeline breakdown.
 
 ---
 
@@ -176,33 +174,13 @@ Hosomaki works best with instruction-tuned local models for text generation, sum
 
 ---
 
-## Configuration
-
-Copy the example config and edit as needed:
+### Configuration
 
 ```bash
-cp config.example.yml ~/.config/hosomaki/config.yaml
+mkdir -p ~/.config/hosomaki && cp config.example.yml ~/.config/hosomaki/config.yaml
 ```
 
-```yaml
-# ~/.config/hosomaki/config.yaml
-ai:
-  provider: ollama
-  endpoint: http://localhost:11434
-  model: llama3.1:8b
-  timeout: 120s        # increase for slow hardware or large models
-output:
-  color: true
-  language: en
-```
-
-Environment variables are also supported, prefixed with `HOSOMAKI_`:
-
-```bash
-HOSOMAKI_AI_MODEL=mistral hosomaki explain --service nginx
-```
-
----
+See the [configuration guide](https://rivernova.github.io/hosomaki/guide/configuration) for the full schema and environment variable overrides.
 
 ## Development
 

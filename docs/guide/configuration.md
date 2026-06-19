@@ -1,41 +1,42 @@
 # Configuration
 
-Hosomaki is zero-configuration by default. The optional config file lets you override the Ollama endpoint and model.
+Hosomaki is zero-configuration by default. The optional config file lets you override the LLM provider, model, endpoint, and output behavior.
 
 ## Config file
 
-Hosomaki searches for configuration in the following locations:
+Hosomaki searches for a config file named `config.yaml` in:
 
-1. `$XDG_CONFIG_HOME/hosomaki/config.yaml`
-2. `~/.hosomaki.yaml`
-3. `./hosomaki.yaml` 
+1. `~/.config/hosomaki/`
+2. `$HOME`
 
 ### Example
 
 ```yaml
-# ~/.hosomaki.yaml
-
-# Ollama model
-# Any model available via `ollama list` is valid.
-model: llama3.2
-
-# Ollama API endpoint
-# Override if Ollama is running on a different host or port.
-ollama_url: http://localhost:11434
+# ~/.config/hosomaki/config.yaml
+ai:
+  provider: ollama
+  endpoint: http://localhost:11434
+  model: llama3.1:8b
+  timeout: 120s        # increase for slow hardware or large models
+output:
+  color: true
+  language: en
 ```
+
+| Key | Default | Description |
+|---|---|---|
+| `ai.provider` | `ollama` | AI backend (currently only `ollama` is supported) |
+| `ai.endpoint` | `http://localhost:11434` | Ollama API endpoint |
+| `ai.model` | `llama3.1:8b` | Any model available via `ollama list` |
+| `ai.timeout` | `120s` | Request timeout |
+| `output.color` | `true` | Colorized terminal output |
+| `output.language` | `en` | Language for AI responses |
 
 ## Environment variables
 
-Every config key can be overridden with an environment variable prefixed `HOSOMAKI_`:
+Every config key can be overridden with an environment variable prefixed `HOSOMAKI_`, using the nested key path:
 
 ```bash
-HOSOMAKI_MODEL=qwen2.5 hosomaki status
-HOSOMAKI_OLLAMA_URL=http://gpu-box:11434 hosomaki doctor
+HOSOMAKI_AI_MODEL=mistral hosomaki status
+HOSOMAKI_AI_ENDPOINT=http://gpu-box:11434 hosomaki doctor
 ```
-
-## Audit baseline location
-
-The audit baseline is stored separately from the main config:
-
-- Default: `$XDG_DATA_HOME/hosomaki/audit-baseline.json` (falls back to `~/.local/share/hosomaki/audit-baseline.json`)
-- Override per invocation: `hosomaki audit --baseline /path/to/baseline.json`

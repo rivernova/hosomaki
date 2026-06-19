@@ -42,13 +42,14 @@ hosomaki status
 
 ## Configuration
 
-Hosomaki works out of the box with no configuration required. The default Ollama endpoint (`http://localhost:11434`) and model (`llama3.2`) are used automatically.
+Hosomaki works out of the box with no configuration required. The default Ollama endpoint (`http://localhost:11434`) and model (`llama3.1:8b`) are used automatically.
 
-To override, create `~/.hosomaki.yaml`:
+To override, create `~/.config/hosomaki/config.yaml`:
 
 ```yaml
-model: qwen2.5
-ollama_url: http://localhost:11434
+ai:
+  model: qwen2.5
+  endpoint: http://localhost:11434
 ```
 
 See [Configuration](/guide/configuration) for the full reference.
