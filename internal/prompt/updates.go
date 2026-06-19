@@ -11,33 +11,27 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// SchemaUpdates is the JSON schema for the updates command output.
-const SchemaUpdates = `{"summary":"...","updates":[{"package":"...","installed":"...","available":"...","category":"...","reboot_required":false}]}`
+// prompt logic for the updates command
 
-// UpdateFinding represents a single pending update with AI analysis.
 type UpdateFinding struct {
 	Package        string `json:"package"`
 	Installed      string `json:"installed"`
 	Available      string `json:"available"`
-	Category       string `json:"category"`        // "security", "major", "minor", "unknown"
-	RebootRequired bool   `json:"reboot_required"` // heuristic, may be false
+	Category       string `json:"category"` // "security", "major", "minor", "unknown"
+	RebootRequired bool   `json:"reboot_required"`
 }
 
-// UpdatesResult is the full AI response for the updates command.
 type UpdatesResult struct {
 	Summary string          `json:"summary"`
 	Updates []UpdateFinding `json:"updates"`
 }
 
-// UpdatesInput carries the data needed to build the updates prompt.
-// Updates is a pre-formatted, pre-sanitised plain-text string.
 type UpdatesInput struct {
 	Environment  collector.Environment
 	Updates      string
 	SecurityOnly bool
 }
 
-// Updates builds the AI prompt for the updates command.
 func Updates(in UpdatesInput) string {
 	pkgsText := strings.TrimSpace(in.Updates)
 	if pkgsText == "" {

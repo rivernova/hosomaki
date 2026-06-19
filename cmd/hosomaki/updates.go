@@ -57,7 +57,7 @@ Examples:
 				return nil
 			}
 
-			// Filter by --security-only
+			// security-only
 			filtered := pending
 			if securityOnly {
 				var sec []collector.Update
@@ -81,11 +81,9 @@ Examples:
 
 			fmt.Print(ui.UpdatesPendingList(filtered, securityOnly))
 
-			// Sanitise before passing to prompt
 			san := sanitiser.Default()
 			sanitisedText := san.Sanitise(collector.FormatUpdatesForPrompt(filtered))
 
-			
 			p := prompt.Updates(prompt.UpdatesInput{
 				Environment:  env,
 				Updates:      sanitisedText,
