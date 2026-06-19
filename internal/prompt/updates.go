@@ -7,8 +7,6 @@ package prompt
 import (
 	"fmt"
 	"strings"
-
-	"github.com/rivernova/hosomaki/internal/collector"
 )
 
 // SchemaUpdates is the JSON schema for the updates command output.
@@ -30,16 +28,17 @@ type UpdatesResult struct {
 }
 
 // UpdatesInput carries the data needed to build the updates prompt.
+// Updates is a pre-formatted, pre-sanitised plain-text string.
 type UpdatesInput struct {
-	Environment    collector.Environment
-	PendingUpdates []collector.PendingUpdate
-	SecurityOnly   bool
+	Environment  string
+	Updates      string
+	SecurityOnly bool
 }
 
 // Updates builds the AI prompt for the updates command.
 func Updates(in UpdatesInput) string {
-	pkgsText := formatPendingUpdates(in.PendingUpdates)
-	if strings.TrimSpace(pkgsText) == "" {
+	pkgsText := strings.TrimSpace(in.Updates)
+	if pkgsText == "" {
 		pkgsText = "(no pending updates)"
 	}
 
@@ -48,15 +47,20 @@ func Updates(in UpdatesInput) string {
 		filterNote = "\nOnly security-related updates were requested (--security-only)."
 	}
 
-	prompt := fmt.Sprintf(`You are a Linux security and operations expert reviewing pending system package updates.
+	envText := ""
+	if in.Environment != "" {
+		envText = fmt.Sprintf("System: %s\n", in.Environment)
+	}
+
+	return fmt.Sprintf(`You are a Linux security and operations expert reviewing pending system package updates.
 
 %s
 TASK
-Below is a list of pending package updates available on this system. %s
+Below is a list of pending package updates available on this system.%s
 Analyse each update and help the operator understand what is changing, what the risk is,
 and which updates should be prioritised.
 
-Return ONLY a JSON object — no prose, no markdown fences, no text outside the JSON.
+Return ONLY a JSON object -- no prose, no markdown fences, no text outside the JSON.
 The JSON must use exactly these field names. Do not rename, abbreviate, or add fields.
 
 SCHEMA
@@ -71,53 +75,14 @@ FIELD RULES
   - "installed": currently installed version string, or "" if unknown (string).
   - "available": version string that would be installed after update (string).
   - "category": MUST be exactly one of: "security", "major", "minor", "unknown".
-    Use "security" only if flagged as a security fix. Use "major" for significant
-    version jumps (e.g. 1.x to 2.x). Use "minor" for routine releases. Use "unknown"
-    when you cannot determine the category.
-  - "reboot_required": boolean, true if kernel/systemd/nvidia/drivers, else false.
-  Default to false.
+  - "reboot_required": boolean.
 - If there are no pending updates, return {"summary":"...","updates":[]}.
 - Do not invent updates not present in the list.
-- If --security-only was requested and no security updates are pending,
-  say so in the summary and return {"summary":"...","updates":[]}.
 
 OUTPUT FORMAT
-No markdown. No bullet points. No numbered lists. No headers.
-All string values are plain prose. "package" is a short name, not a full sentence.
+No markdown. No bullet points. No headers.
+All string values are plain prose.
 
 Pending updates:
-%s`,
-		EnvironmentSection(in.Environment),
-		filterNote,
-		SchemaUpdates,
-		pkgsText,
-	)
-
-	return prompt
-}
-
-func formatPendingUpdates(updates []collector.PendingUpdate) string {
-	if len(updates) == 0 {
-		return "(no pending updates)"
-	}
-
-	var b strings.Builder
-	for i, u := range updates {
-		tag := ""
-		if u.Security {
-			tag = " [SECURITY]"
-		}
-		if u.RebootRequired {
-			tag += " [REBOOT]"
-		}
-
-		inst := u.Installed
-		if inst == "" {
-			inst = "(unknown)"
-		}
-
-		_, _ = fmt.Fprintf(&b, "%d. %s%s  installed: %s -> available: %s\n",
-			i+1, u.Package, tag, inst, u.Available)
-	}
-	return strings.TrimSpace(b.String())
+%s`, envText, filterNote, SchemaUpdates, pkgsText)
 }

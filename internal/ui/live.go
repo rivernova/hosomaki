@@ -340,3 +340,45 @@ func RenderMountsFindingLive(f prompt.MountFinding, _ int) string {
 	}
 	return bullet + indentProse(detail)
 }
+
+func UpdatesFindingsHeader() string { return sectionHeader("ai analysis") }
+
+func RenderUpdatesSummaryLive(summary string) string {
+	t := strings.TrimSpace(summary)
+	if t == "" {
+		return ""
+	}
+	return t + "\n"
+}
+
+func RenderUpdatesFindingLive(u prompt.UpdateFinding, _ int) string {
+	title := strings.TrimSpace(u.Package)
+	detail := strings.TrimSpace(u.Available)
+	if title == "" {
+		return ""
+	}
+
+	inst := u.Installed
+	if inst == "" {
+		inst = "?"
+	}
+
+	var bullet string
+	switch u.Category {
+	case "security":
+		bullet = BulletTitleFail(title)
+	case "major":
+		bullet = BulletTitleWarn(title)
+	default:
+		bullet = BulletOK(title)
+	}
+
+	if detail != "" && inst != "?" {
+		return bullet + "  " + inst + " → " + detail + "\n"
+	}
+	if detail != "" {
+		return bullet + "  → " + detail + "\n"
+	}
+	return bullet
+}
+

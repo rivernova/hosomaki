@@ -5,6 +5,8 @@
 package hosomaki
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -12,6 +14,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/ai"
 	"github.com/rivernova/hosomaki/internal/collector"
 	"github.com/rivernova/hosomaki/internal/prompt"
+	"github.com/rivernova/hosomaki/internal/sanitiser"
 	"github.com/rivernova/hosomaki/internal/spinner"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
@@ -26,7 +29,7 @@ func newUpdatesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "updates",
 		Short: "Explain pending package updates before applying them",
-		Long: `Lists pending package updates and explains what each one changes —
+		Long: `Lists pending package updates and explains what each one changes -
 flagging security fixes, major version bumps, and updates that require a
 reboot.
 
@@ -39,8 +42,8 @@ Examples:
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			env := collector.Env()
 
-			spin := spinner.Start("checking for pending updates…")
-			pending, err := collector.PendingUpdates(env)
+			spin := spinner.Start("checking for pending updates\u2026")
+			pending, err := collector.Updates(env)
 			spin.Stop()
 			if err != nil {
 				return fmt.Errorf("updates: %w", err)
@@ -57,7 +60,7 @@ Examples:
 			// Filter by --security-only
 			filtered := pending
 			if securityOnly {
-				var sec []collector.PendingUpdate
+				var sec []collector.Update
 				for _, p := range pending {
 					if p.Security {
 						sec = append(sec, p)
@@ -78,29 +81,86 @@ Examples:
 
 			fmt.Print(ui.UpdatesPendingList(filtered, securityOnly))
 
-			// Build AI prompt and explain
+			// Sanitise before passing to prompt
+			san := sanitiser.Default()
+			sanitisedText := san.Sanitise(collector.FormatUpdatesForPrompt(filtered))
+
+			envStr := env.DistroID + "/" + env.PackageManager
 			p := prompt.Updates(prompt.UpdatesInput{
-				Environment:    env,
-				PendingUpdates: filtered,
-				SecurityOnly:   securityOnly,
+				Environment:  envStr,
+				Updates:      sanitisedText,
+				SecurityOnly: securityOnly,
 			})
 
-			spin = spinner.Start("thinking…")
+			spin = spinner.Start("thinking\u2026")
 			pipe := updatesStreamPipeline()
 			if debug {
 				pipe = pipe.WithDebug(os.Stderr)
 			}
 
-			result, err := pipe.Run(cmd.Context(), p, ai.StreamOptions{
-				OnFirstToken: func() { spin.SetLabel("responding…") },
-			})
+			summaryPrinted := false
+
+			result, err := pipe.Run(
+				context.Background(),
+				p,
+				ai.StreamOptions{
+					OnFirstToken: func() { spin.SetLabel("responding\u2026") },
+					OnRepairStart: func(n int) {
+						spin.SetLabel(fmt.Sprintf("repairing (attempt %d)\u2026", n))
+					},
+					OnItem: func(key, raw string) {
+						switch key {
+						case "summary":
+							var s string
+							if jsonErr := json.Unmarshal([]byte(raw), &s); jsonErr != nil {
+								return
+							}
+							s = strings.TrimSpace(s)
+							if s == "" {
+								return
+							}
+							spin.ClearLine()
+							if !summaryPrinted {
+								fmt.Print(ui.UpdatesFindingsHeader())
+								summaryPrinted = true
+							}
+							fmt.Print(ui.RenderUpdatesSummaryLive(s))
+
+						case "updates":
+							var u prompt.UpdateFinding
+							if jsonErr := json.Unmarshal([]byte(raw), &u); jsonErr != nil {
+								return
+							}
+							spin.ClearLine()
+							if !summaryPrinted {
+								fmt.Print(ui.UpdatesFindingsHeader())
+								summaryPrinted = true
+							}
+							fmt.Print(ui.RenderUpdatesFindingLive(u, 0))
+						}
+					},
+				},
+			)
+
 			spin.Stop()
 
 			if err != nil {
-				return fmt.Errorf("updates: %w", err)
+				_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				if ferr != nil {
+					return ferr
+				}
+				return err
 			}
 
-			fmt.Print(ui.UpdatesResultSection(&result))
+			if !summaryPrinted {
+				fmt.Print(ui.UpdatesFindingsHeader())
+				fmt.Print(ui.RenderUpdatesSummaryLive(result.Summary))
+				for _, u := range result.Updates {
+					fmt.Print(ui.RenderUpdatesFindingLive(u, 0))
+				}
+			}
+
+			fmt.Print(ui.RenderUpdatesResultSummary(result))
 			fmt.Print(ui.Done())
 			return nil
 		},

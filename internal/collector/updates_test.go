@@ -12,13 +12,13 @@ func TestParseAptLine(t *testing.T) {
 	tests := []struct {
 		name  string
 		line  string
-		want  *PendingUpdate
-		match func(*PendingUpdate) bool
+		want  *Update
+		match func(*Update) bool
 	}{
 		{
 			name: "normal upgrade",
 			line: "nginx/stable 1.24.0-1 amd64 [upgradable from: 1.22.0-1]",
-			match: func(u *PendingUpdate) bool {
+			match: func(u *Update) bool {
 				return u.Package == "nginx" &&
 					u.Installed == "1.22.0-1" &&
 					u.Available == "1.24.0-1" &&
@@ -28,7 +28,7 @@ func TestParseAptLine(t *testing.T) {
 		{
 			name: "security upgrade",
 			line: "libssl3/stable-security 3.0.2-1 amd64 [upgradable from: 3.0.1-1]",
-			match: func(u *PendingUpdate) bool {
+			match: func(u *Update) bool {
 				return u.Package == "libssl3" &&
 					u.Available == "3.0.2-1" &&
 					u.Security
@@ -37,21 +37,21 @@ func TestParseAptLine(t *testing.T) {
 		{
 			name: "listing header ignored",
 			line: "Listing... Done",
-			match: func(u *PendingUpdate) bool {
+			match: func(u *Update) bool {
 				return u == nil
 			},
 		},
 		{
 			name: "empty line ignored",
 			line: "",
-			match: func(u *PendingUpdate) bool {
+			match: func(u *Update) bool {
 				return u == nil
 			},
 		},
 		{
 			name: "package with epoch version (not security)",
 			line: "libc6/stable 2.36-9+deb12u7 amd64 [upgradable from: 2.36-9+deb12u4]",
-			match: func(u *PendingUpdate) bool {
+			match: func(u *Update) bool {
 				return u.Package == "libc6" &&
 					u.Installed == "2.36-9+deb12u4" &&
 					u.Available == "2.36-9+deb12u7" &&
@@ -74,12 +74,12 @@ func TestParseDnfLine(t *testing.T) {
 	tests := []struct {
 		name  string
 		line  string
-		match func(*PendingUpdate) bool
+		match func(*Update) bool
 	}{
 		{
 			name: "normal update",
 			line: "nginx.x86_64 1.24.0-1 upstream",
-			match: func(u *PendingUpdate) bool {
+			match: func(u *Update) bool {
 				return u.Package == "nginx" &&
 					u.Available == "1.24.0-1"
 			},
@@ -87,14 +87,14 @@ func TestParseDnfLine(t *testing.T) {
 		{
 			name: "header line ignored",
 			line: "Last metadata expiration check: 0:30:00 ago",
-			match: func(u *PendingUpdate) bool {
+			match: func(u *Update) bool {
 				return u == nil
 			},
 		},
 		{
 			name: "empty line ignored",
 			line: "",
-			match: func(u *PendingUpdate) bool {
+			match: func(u *Update) bool {
 				return u == nil
 			},
 		},
@@ -114,12 +114,12 @@ func TestParsePacmanLine(t *testing.T) {
 	tests := []struct {
 		name  string
 		line  string
-		match func(*PendingUpdate) bool
+		match func(*Update) bool
 	}{
 		{
 			name: "normal update",
 			line: "nginx 1.22.0-1 -> 1.24.0-1",
-			match: func(u *PendingUpdate) bool {
+			match: func(u *Update) bool {
 				return u.Package == "nginx" &&
 					u.Installed == "1.22.0-1" &&
 					u.Available == "1.24.0-1"
@@ -128,7 +128,7 @@ func TestParsePacmanLine(t *testing.T) {
 		{
 			name: "empty line ignored",
 			line: "",
-			match: func(u *PendingUpdate) bool {
+			match: func(u *Update) bool {
 				return u == nil
 			},
 		},
@@ -148,9 +148,9 @@ func TestParsePendingOutput(t *testing.T) {
 	input := `nginx/stable 1.24.0-1 amd64 [upgradable from: 1.22.0-1]
 libssl3/stable-security 3.0.2-1 amd64 [upgradable from: 3.0.1-1]`
 
-	updates, err := parsePendingOutput("apt", input)
+	updates, err := parseUpdatesOutput("apt", input)
 	if err != nil {
-		t.Fatalf("parsePendingOutput() error = %v", err)
+		t.Fatalf("parseUpdatesOutput() error = %v", err)
 	}
 
 	if len(updates) != 2 {
@@ -166,9 +166,9 @@ libssl3/stable-security 3.0.2-1 amd64 [upgradable from: 3.0.1-1]`
 }
 
 func TestParsePendingOutputEmpty(t *testing.T) {
-	updates, err := parsePendingOutput("apt", "")
+	updates, err := parseUpdatesOutput("apt", "")
 	if err != nil {
-		t.Fatalf("parsePendingOutput() error = %v", err)
+		t.Fatalf("parseUpdatesOutput() error = %v", err)
 	}
 	if len(updates) != 0 {
 		t.Errorf("got %d updates, want 0", len(updates))
@@ -179,9 +179,9 @@ func TestParsePendingOutputDnf(t *testing.T) {
 	input := `nginx.x86_64 1.24.0-1 upstream
 openssl.x86_64 3.0.2-1 updates`
 
-	updates, err := parsePendingOutput("dnf", input)
+	updates, err := parseUpdatesOutput("dnf", input)
 	if err != nil {
-		t.Fatalf("parsePendingOutput() error = %v", err)
+		t.Fatalf("parseUpdatesOutput() error = %v", err)
 	}
 
 	if len(updates) != 2 {
@@ -197,9 +197,9 @@ func TestParsePendingOutputPacman(t *testing.T) {
 	input := `nginx 1.22.0-1 -> 1.24.0-1
 openssl 3.0.1-1 -> 3.0.2-1`
 
-	updates, err := parsePendingOutput("pacman", input)
+	updates, err := parseUpdatesOutput("pacman", input)
 	if err != nil {
-		t.Fatalf("parsePendingOutput() error = %v", err)
+		t.Fatalf("parseUpdatesOutput() error = %v", err)
 	}
 
 	if len(updates) != 2 {
@@ -213,37 +213,37 @@ openssl 3.0.1-1 -> 3.0.2-1`
 
 func TestParsePendingOutputNoiseOnly(t *testing.T) {
 	input := "Listing... Done"
-	updates, err := parsePendingOutput("apt", input)
+	updates, err := parseUpdatesOutput("apt", input)
 	if err != nil {
-		t.Fatalf("parsePendingOutput() error = %v", err)
+		t.Fatalf("parseUpdatesOutput() error = %v", err)
 	}
 	if len(updates) != 0 {
 		t.Errorf("noise-only input should yield 0 updates, got %d", len(updates))
 	}
 }
 
-func TestPendingUpdatesEmptyManager(t *testing.T) {
+func TestUpdatesEmptyManager(t *testing.T) {
 	env := Environment{PackageManager: ""}
-	_, err := PendingUpdates(env)
+	_, err := Updates(env)
 	if err == nil {
 		t.Error("expected error for empty package manager")
 	}
 }
 
-func TestPendingUpdatesUnsupportedManager(t *testing.T) {
+func TestUpdatesUnsupportedManager(t *testing.T) {
 	env := Environment{PackageManager: "nonexistent"}
-	_, err := PendingUpdates(env)
+	_, err := Updates(env)
 	if err == nil {
 		t.Error("expected error for unsupported package manager")
 	}
 }
 
-func TestPendingUpdatesCommandAllManagers(t *testing.T) {
-	managers := []string{"apt", "dnf", "yum", "pacman", "zypper", "apk", "xbps"}
+func TestUpdatesCommandAllManagers(t *testing.T) {
+	managers := []string{"apt", "dnf", "yum", "pacman", "zypper", "apk", "xbps", "emerge", "nix"}
 	for _, mgr := range managers {
-		cmd := pendingUpdatesCommand(mgr)
+		cmd := updatesCommand(mgr)
 		if cmd == "" {
-			t.Errorf("pendingUpdatesCommand(%q) returned empty string", mgr)
+			t.Errorf("updatesCommand(%q) returned empty string", mgr)
 		}
 	}
 }
@@ -277,4 +277,65 @@ func TestIsRebootRequired(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFormatUpdatesForPrompt(t *testing.T) {
+	updates := []Update{
+		{Package: "nginx", Installed: "1.22", Available: "1.24"},
+		{Package: "openssl", Available: "3.0", Security: true},
+	}
+	result := FormatUpdatesForPrompt(updates)
+	if result == "" {
+		t.Fatal("FormatUpdatesForPrompt returned empty string")
+	}
+	if !contains(result, "nginx") {
+		t.Error("result should contain 'nginx'")
+	}
+	if !contains(result, "1.22") {
+		t.Error("result should contain '1.22'")
+	}
+	if !contains(result, "[SECURITY]") {
+		t.Error("security update should have [SECURITY] tag")
+	}
+}
+
+func TestFormatUpdatesForPromptEmpty(t *testing.T) {
+	result := FormatUpdatesForPrompt(nil)
+	if result != "(no pending updates)" {
+		t.Errorf("nil input should return '(no pending updates)', got %q", result)
+	}
+
+	result = FormatUpdatesForPrompt([]Update{})
+	if result != "(no pending updates)" {
+		t.Errorf("empty input should return '(no pending updates)', got %q", result)
+	}
+}
+
+func TestFormatUpdatesForPromptRebootTag(t *testing.T) {
+	updates := []Update{
+		{Package: "linux-image-x86", Available: "6.1", RebootRequired: true},
+	}
+	result := FormatUpdatesForPrompt(updates)
+	if !contains(result, "[REBOOT]") {
+		t.Error("reboot-required update should have [REBOOT] tag")
+	}
+}
+
+func TestFormatUpdatesForPromptUnknownInstalled(t *testing.T) {
+	updates := []Update{
+		{Package: "pkg", Available: "2.0"}, // Installed is ""
+	}
+	result := FormatUpdatesForPrompt(updates)
+	if !contains(result, "(unknown)") {
+		t.Error("update with empty Installed should show '(unknown)'")
+	}
+}
+
+func contains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

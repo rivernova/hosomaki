@@ -7,14 +7,12 @@ package prompt
 import (
 	"strings"
 	"testing"
-
-	"github.com/rivernova/hosomaki/internal/collector"
 )
 
 func TestUpdatesPrompt_ContainsSchema(t *testing.T) {
 	in := UpdatesInput{
-		Environment:    collector.Environment{DistroID: "test", PackageManager: "apt"},
-		PendingUpdates: []collector.PendingUpdate{},
+		Environment:  "test environment",
+		Updates:      "",
 	}
 	result := Updates(in)
 	if !strings.Contains(result, SchemaUpdates) {
@@ -24,32 +22,30 @@ func TestUpdatesPrompt_ContainsSchema(t *testing.T) {
 
 func TestUpdatesPrompt_ContainsEnvironment(t *testing.T) {
 	in := UpdatesInput{
-		Environment:    collector.Environment{DistroID: "testos", PackageManager: "apt"},
-		PendingUpdates: []collector.PendingUpdate{},
+		Environment:  "testos",
+		Updates:      "",
 	}
 	result := Updates(in)
 	if !strings.Contains(result, "testos") {
-		t.Error("prompt should contain environment distro ID")
+		t.Error("prompt should contain environment string")
 	}
 }
 
 func TestUpdatesPrompt_NoPendingText(t *testing.T) {
 	in := UpdatesInput{
-		Environment:    collector.Environment{PackageManager: "apt"},
-		PendingUpdates: []collector.PendingUpdate{},
+		Environment:  "test env",
+		Updates:      "",
 	}
 	result := Updates(in)
 	if !strings.Contains(result, "(no pending updates)") {
-		t.Error("prompt should say '(no pending updates)' when list is empty")
+		t.Error("prompt should say '(no pending updates)' when Updates is empty")
 	}
 }
 
 func TestUpdatesPrompt_WithUpdates(t *testing.T) {
 	in := UpdatesInput{
-		Environment: collector.Environment{PackageManager: "apt"},
-		PendingUpdates: []collector.PendingUpdate{
-			{Package: "nginx", Installed: "1.22", Available: "1.24"},
-		},
+		Environment:  "test env",
+		Updates:      "1. nginx  installed: 1.22 -> available: 1.24",
 	}
 	result := Updates(in)
 	if !strings.Contains(result, "nginx") {
@@ -65,9 +61,9 @@ func TestUpdatesPrompt_WithUpdates(t *testing.T) {
 
 func TestUpdatesPrompt_NoFilterNoteByDefault(t *testing.T) {
 	in := UpdatesInput{
-		Environment:    collector.Environment{PackageManager: "apt"},
-		PendingUpdates: []collector.PendingUpdate{},
-		SecurityOnly:   false,
+		Environment:  "test env",
+		Updates:      "",
+		SecurityOnly: false,
 	}
 	result := Updates(in)
 	if strings.Contains(result, "Only security-related") {
@@ -77,71 +73,12 @@ func TestUpdatesPrompt_NoFilterNoteByDefault(t *testing.T) {
 
 func TestUpdatesPrompt_HasFilterNoteWhenSecurityOnly(t *testing.T) {
 	in := UpdatesInput{
-		Environment:    collector.Environment{PackageManager: "apt"},
-		PendingUpdates: []collector.PendingUpdate{},
-		SecurityOnly:   true,
+		Environment:  "test env",
+		Updates:      "",
+		SecurityOnly: true,
 	}
 	result := Updates(in)
 	if !strings.Contains(result, "security-only") {
 		t.Error("prompt should contain security-only note when --security-only is set")
-	}
-}
-
-func TestUpdatesPrompt_UpdatesListedInOrder(t *testing.T) {
-	in := UpdatesInput{
-		Environment: collector.Environment{PackageManager: "apt"},
-		PendingUpdates: []collector.PendingUpdate{
-			{Package: "aaa", Available: "1.0"},
-			{Package: "bbb", Available: "2.0"},
-		},
-	}
-	result := Updates(in)
-	if !strings.Contains(result, "1. aaa") {
-		t.Error("first package should be numbered '1.'")
-	}
-	if !strings.Contains(result, "2. bbb") {
-		t.Error("second package should be numbered '2.'")
-	}
-}
-
-func TestUpdatesPrompt_FormatPendingUpdatesEmpty(t *testing.T) {
-	result := formatPendingUpdates(nil)
-	if result != "(no pending updates)" {
-		t.Errorf("nil input should return '(no pending updates)', got %q", result)
-	}
-
-	result = formatPendingUpdates([]collector.PendingUpdate{})
-	if result != "(no pending updates)" {
-		t.Errorf("empty input should return '(no pending updates)', got %q", result)
-	}
-}
-
-func TestUpdatesPrompt_FormatPendingUpdatesSecurityTag(t *testing.T) {
-	updates := []collector.PendingUpdate{
-		{Package: "openssl", Available: "3.0", Security: true},
-	}
-	result := formatPendingUpdates(updates)
-	if !strings.Contains(result, "[SECURITY]") {
-		t.Error("security update should have [SECURITY] tag")
-	}
-}
-
-func TestUpdatesPrompt_FormatPendingUpdatesRebootTag(t *testing.T) {
-	updates := []collector.PendingUpdate{
-		{Package: "linux-image-x86", Available: "6.1", RebootRequired: true},
-	}
-	result := formatPendingUpdates(updates)
-	if !strings.Contains(result, "[REBOOT]") {
-		t.Error("reboot-required update should have [REBOOT] tag")
-	}
-}
-
-func TestUpdatesPrompt_FormatPendingUpdatesUnknownInstalled(t *testing.T) {
-	updates := []collector.PendingUpdate{
-		{Package: "pkg", Available: "2.0"}, // Installed is ""
-	}
-	result := formatPendingUpdates(updates)
-	if !strings.Contains(result, "(unknown)") {
-		t.Error("update with empty Installed should show '(unknown)'")
 	}
 }

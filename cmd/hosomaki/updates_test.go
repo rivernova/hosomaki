@@ -64,9 +64,3 @@ func TestUpdatesCmd_DescriptionsNonEmpty(t *testing.T) {
 		t.Errorf("updates command Use should be 'updates', got %q", cmd.Use)
 	}
 }
-
-func TestUpdatesStreamPipelineType(t *testing.T) {
-	// Verify the pipeline function compiles and returns the right type.
-	_ = updatesStreamPipeline()
-	t.Log("updatesStreamPipeline compiles (provider is nil outside integration)")
-}
