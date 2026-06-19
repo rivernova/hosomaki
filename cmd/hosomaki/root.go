@@ -113,5 +113,6 @@ func init() {
 		newCronsCmd(),
 		newTimersCmd(),
 		newMountsCmd(),
+		newUpdatesCmd(),
 	)
 }
