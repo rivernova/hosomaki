@@ -213,6 +213,6 @@ func renderWhyResult(result prompt.WhyResult) {
 	}
 
 	fmt.Print(ui.RenderWhySummary(result))
-			fmt.Print(ui.Done())
-			_ = historian.Record("why", result)
+	_ = historian.Record("why", result)
+	fmt.Print(ui.Done())
 }

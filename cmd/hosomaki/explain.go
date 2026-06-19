@@ -247,8 +247,8 @@ func runExplain(p string, debug bool) error {
 		fmt.Print(ui.ExplainEmptyResult())
 	}
 
-			fmt.Print(ui.Done())
-			_ = historian.Record("explain", result)
+	_ = historian.Record("explain", result)
+	fmt.Print(ui.Done())
 	return nil
 }
 
