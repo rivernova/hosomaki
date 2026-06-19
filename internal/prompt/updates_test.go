@@ -7,12 +7,14 @@ package prompt
 import (
 	"strings"
 	"testing"
+
+	"github.com/rivernova/hosomaki/internal/collector"
 )
 
 func TestUpdatesPrompt_ContainsSchema(t *testing.T) {
 	in := UpdatesInput{
-		Environment:  "test environment",
-		Updates:      "",
+		Environment: collector.Environment{DistroID: "test"},
+		Updates:     "",
 	}
 	result := Updates(in)
 	if !strings.Contains(result, SchemaUpdates) {
@@ -22,8 +24,8 @@ func TestUpdatesPrompt_ContainsSchema(t *testing.T) {
 
 func TestUpdatesPrompt_ContainsEnvironment(t *testing.T) {
 	in := UpdatesInput{
-		Environment:  "testos",
-		Updates:      "",
+		Environment: collector.Environment{DistroID: "testos"},
+		Updates:     "",
 	}
 	result := Updates(in)
 	if !strings.Contains(result, "testos") {
@@ -33,8 +35,8 @@ func TestUpdatesPrompt_ContainsEnvironment(t *testing.T) {
 
 func TestUpdatesPrompt_NoPendingText(t *testing.T) {
 	in := UpdatesInput{
-		Environment:  "test env",
-		Updates:      "",
+		Environment: collector.Environment{DistroID: "test"},
+		Updates:     "",
 	}
 	result := Updates(in)
 	if !strings.Contains(result, "(no pending updates)") {
@@ -44,8 +46,8 @@ func TestUpdatesPrompt_NoPendingText(t *testing.T) {
 
 func TestUpdatesPrompt_WithUpdates(t *testing.T) {
 	in := UpdatesInput{
-		Environment:  "test env",
-		Updates:      "1. nginx  installed: 1.22 -> available: 1.24",
+		Environment: collector.Environment{DistroID: "test"},
+		Updates:     "1. nginx  installed: 1.22 -> available: 1.24",
 	}
 	result := Updates(in)
 	if !strings.Contains(result, "nginx") {
@@ -61,8 +63,8 @@ func TestUpdatesPrompt_WithUpdates(t *testing.T) {
 
 func TestUpdatesPrompt_NoFilterNoteByDefault(t *testing.T) {
 	in := UpdatesInput{
-		Environment:  "test env",
-		Updates:      "",
+		Environment: collector.Environment{DistroID: "test"},
+		Updates:     "",
 		SecurityOnly: false,
 	}
 	result := Updates(in)
@@ -73,8 +75,8 @@ func TestUpdatesPrompt_NoFilterNoteByDefault(t *testing.T) {
 
 func TestUpdatesPrompt_HasFilterNoteWhenSecurityOnly(t *testing.T) {
 	in := UpdatesInput{
-		Environment:  "test env",
-		Updates:      "",
+		Environment: collector.Environment{DistroID: "test"},
+		Updates:     "",
 		SecurityOnly: true,
 	}
 	result := Updates(in)

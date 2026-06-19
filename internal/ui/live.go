@@ -353,9 +353,32 @@ func RenderUpdatesSummaryLive(summary string) string {
 
 func RenderUpdatesFindingLive(u prompt.UpdateFinding, _ int) string {
 	title := strings.TrimSpace(u.Package)
-	detail := strings.TrimSpace(u.Available)
+	auto := strings.TrimSpace(u.Available)
 	if title == "" {
 		return ""
+	}
+
+	// Build the display line: package [category] [reboot] installed → available
+	var label strings.Builder
+	label.WriteString(title)
+
+	if u.Category != "" && u.Category != "unknown" {
+		label.WriteString(" [")
+		label.WriteString(u.Category)
+		label.WriteString("]")
+	}
+	if u.RebootRequired {
+		label.WriteString(" [reboot required]")
+	}
+
+	var bullet string
+	switch u.Category {
+	case "security":
+		bullet = BulletTitleFail(label.String())
+	case "major":
+		bullet = BulletTitleWarn(label.String())
+	default:
+		bullet = BulletOK(label.String())
 	}
 
 	inst := u.Installed
@@ -363,22 +386,11 @@ func RenderUpdatesFindingLive(u prompt.UpdateFinding, _ int) string {
 		inst = "?"
 	}
 
-	var bullet string
-	switch u.Category {
-	case "security":
-		bullet = BulletTitleFail(title)
-	case "major":
-		bullet = BulletTitleWarn(title)
-	default:
-		bullet = BulletOK(title)
+	if auto != "" && inst != "?" {
+		return bullet + "  " + inst + " → " + auto + "\n"
 	}
-
-	if detail != "" && inst != "?" {
-		return bullet + "  " + inst + " → " + detail + "\n"
-	}
-	if detail != "" {
-		return bullet + "  → " + detail + "\n"
+	if auto != "" {
+		return bullet + "  → " + auto + "\n"
 	}
 	return bullet
 }
-

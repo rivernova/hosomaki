@@ -85,9 +85,9 @@ Examples:
 			san := sanitiser.Default()
 			sanitisedText := san.Sanitise(collector.FormatUpdatesForPrompt(filtered))
 
-			envStr := env.DistroID + "/" + env.PackageManager
+			
 			p := prompt.Updates(prompt.UpdatesInput{
-				Environment:  envStr,
+				Environment:  env,
 				Updates:      sanitisedText,
 				SecurityOnly: securityOnly,
 			})

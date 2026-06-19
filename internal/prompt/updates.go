@@ -7,6 +7,8 @@ package prompt
 import (
 	"fmt"
 	"strings"
+
+	"github.com/rivernova/hosomaki/internal/collector"
 )
 
 // SchemaUpdates is the JSON schema for the updates command output.
@@ -17,7 +19,7 @@ type UpdateFinding struct {
 	Package        string `json:"package"`
 	Installed      string `json:"installed"`
 	Available      string `json:"available"`
-	Category       string `json:"category"`       // "security", "major", "minor", "unknown"
+	Category       string `json:"category"`        // "security", "major", "minor", "unknown"
 	RebootRequired bool   `json:"reboot_required"` // heuristic, may be false
 }
 
@@ -30,7 +32,7 @@ type UpdatesResult struct {
 // UpdatesInput carries the data needed to build the updates prompt.
 // Updates is a pre-formatted, pre-sanitised plain-text string.
 type UpdatesInput struct {
-	Environment  string
+	Environment  collector.Environment
 	Updates      string
 	SecurityOnly bool
 }
@@ -45,11 +47,6 @@ func Updates(in UpdatesInput) string {
 	filterNote := ""
 	if in.SecurityOnly {
 		filterNote = "\nOnly security-related updates were requested (--security-only)."
-	}
-
-	envText := ""
-	if in.Environment != "" {
-		envText = fmt.Sprintf("System: %s\n", in.Environment)
 	}
 
 	return fmt.Sprintf(`You are a Linux security and operations expert reviewing pending system package updates.
@@ -84,5 +81,5 @@ No markdown. No bullet points. No headers.
 All string values are plain prose.
 
 Pending updates:
-%s`, envText, filterNote, SchemaUpdates, pkgsText)
+%s`, EnvironmentSection(in.Environment), filterNote, SchemaUpdates, pkgsText)
 }

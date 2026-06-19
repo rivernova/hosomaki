@@ -59,9 +59,9 @@ func updatesCommand(mgr string) string {
 	case "xbps":
 		return "LC_ALL=C xbps-install -nuM 2>/dev/null"
 	case "emerge":
-		return "LC_ALL=C emerge -up --ask=n --quiet @world 2>/dev/null | grep -E '^\\[ebuild' | sed 's/.*\\] //' | head -n -1"
+		return "LC_ALL=C emerge -up --ask=n @world 2>/dev/null | grep -E '^\\[ebuild' | sed 's/.*\\] //' | head -n -1"
 	case "nix":
-		return "LC_ALL=C nix-env -qa --outdated 2>/dev/null | grep -v '^$'"
+		return "LC_ALL=C nix-env -q --outdated 2>/dev/null | grep -v '^$'"
 	default:
 		return ""
 	}
@@ -217,4 +217,3 @@ func parsePacmanLine(line string) *Update {
 		RebootRequired: isRebootRequired(pkgName),
 	}
 }
-
