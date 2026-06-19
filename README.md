@@ -6,7 +6,7 @@ Hosomaki reads your system and helps you understand what's happening in plain la
 
 It uses a local model via [Ollama](https://ollama.com) and never sends anything off your machine.
 
-📖 **[See ull documentation here→](https://rivernova.github.io/hosomaki/guide/introduction)**
+📖 **[See full documentation here→](https://rivernova.github.io/hosomaki/guide/introduction)**
 
 ---
 
