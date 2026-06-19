@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/rivernova/hosomaki/internal/auditor"
+	"github.com/rivernova/hosomaki/internal/collector"
 )
 
 // generates the various sections outputs
@@ -468,3 +469,58 @@ func MountsCollectedSection(total, real, nfs, staleNFS int, warnings []string) s
 func MountsCleanResult() string {
 	return Section("result", BulletOK("all mount points are healthy"))
 }
+
+
+// updates UI
+
+func UpdatesHeader() string {
+	return Title("pending updates")
+}
+
+func UpdatesNoPending() string {
+	return Section("results", "No pending package updates found.\n")
+}
+
+func UpdatesNoPendingMsg(msg string) string {
+	return Section("results", msg+"\n")
+}
+
+func UpdatesPendingList(updates []collector.Update, securityOnly bool) string {
+	var b strings.Builder
+
+	label := "pending updates"
+	if securityOnly {
+		label = "security-related updates"
+	}
+
+	b.WriteString(Section(label, fmt.Sprintf("%d package(s)\n", len(updates))))
+
+	for _, u := range updates {
+		flags := ""
+		if u.Security {
+			flags += " [" + styleWarn + "SECURITY" + styleReset + "]"
+		}
+		if u.RebootRequired {
+			flags += " [" + styleWarn + "REBOOT" + styleReset + "]"
+		}
+
+		inst := u.Installed
+		if inst == "" {
+			inst = "?"
+		}
+		avail := u.Available
+		if avail == "" {
+			avail = "?"
+		}
+
+		_, _ = fmt.Fprintf(&b, "  %s%s  %s → %s\n",
+			u.Package, flags, inst, avail)
+	}
+
+	return b.String()
+}
+
+func UpdatesCleanResult() string {
+	return Section("result", BulletOK("no issues found in pending updates"))
+}
+

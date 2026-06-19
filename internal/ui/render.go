@@ -148,3 +148,30 @@ func RenderMountsResultSummary(result prompt.MountsResult) string {
 	}
 	return SectionSummary(b.String())
 }
+
+func RenderUpdatesResultSummary(result prompt.UpdatesResult) string {
+	critical, warnings, minor, unknown := 0, 0, 0, 0
+	for _, u := range result.Updates {
+		switch u.Category {
+		case "security":
+			critical++
+		case "major":
+			warnings++
+		case "minor":
+			minor++
+		default:
+			unknown++
+		}
+	}
+	var b strings.Builder
+	b.WriteString(SummaryLine(plural(critical, "security update", "security updates")))
+	b.WriteString(SummaryLine(plural(warnings, "major update", "major updates")))
+	if minor > 0 {
+		b.WriteString(SummaryLine(plural(minor, "minor update", "minor updates")))
+	}
+	if unknown > 0 {
+		b.WriteString(SummaryLine(plural(unknown, "unknown update", "unknown updates")))
+	}
+	return SectionSummary(b.String())
+}
+

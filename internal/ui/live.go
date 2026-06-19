@@ -340,3 +340,57 @@ func RenderMountsFindingLive(f prompt.MountFinding, _ int) string {
 	}
 	return bullet + indentProse(detail)
 }
+
+func UpdatesFindingsHeader() string { return sectionHeader("ai analysis") }
+
+func RenderUpdatesSummaryLive(summary string) string {
+	t := strings.TrimSpace(summary)
+	if t == "" {
+		return ""
+	}
+	return t + "\n"
+}
+
+func RenderUpdatesFindingLive(u prompt.UpdateFinding, _ int) string {
+	title := strings.TrimSpace(u.Package)
+	avail := strings.TrimSpace(u.Available)
+	if title == "" {
+		return ""
+	}
+
+	// Build the display line: package [category] [reboot] installed → available
+	var label strings.Builder
+	label.WriteString(title)
+
+	if u.Category != "" && u.Category != "unknown" {
+		label.WriteString(" [")
+		label.WriteString(u.Category)
+		label.WriteString("]")
+	}
+	if u.RebootRequired {
+		label.WriteString(" [reboot required]")
+	}
+
+	var bullet string
+	switch u.Category {
+	case "security":
+		bullet = BulletTitleFail(label.String())
+	case "major":
+		bullet = BulletTitleWarn(label.String())
+	default:
+		bullet = BulletOK(label.String())
+	}
+
+	inst := u.Installed
+	if inst == "" {
+		inst = "?"
+	}
+
+	if avail != "" && inst != "?" {
+		return bullet + "  " + inst + " → " + avail + "\n"
+	}
+	if avail != "" {
+		return bullet + "  → " + avail + "\n"
+	}
+	return bullet
+}
