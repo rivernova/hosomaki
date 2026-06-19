@@ -400,6 +400,28 @@ func RenderUpdatesFindingLive(u prompt.UpdateFinding, _ int) string {
 	if (u.Category == "security" || u.Category == "major") && strings.TrimSpace(u.Detail) != "" {
 		out.WriteString(indentProse(u.Detail))
 	}
-
-	return out.String()
 }
+
+func HistoryFindingsHeader() string { return sectionHeader("ai analysis") }
+
+func RenderHistorySummaryLive(summary string) string {
+	t := strings.TrimSpace(summary)
+	if t == "" {
+		return ""
+	}
+	return t + "\n"
+}
+
+func RenderHistoryEntryLive(e prompt.HistoryEntry, _ int) string {
+	ts := strings.TrimSpace(e.Timestamp)
+	cmd := strings.TrimSpace(e.Command)
+	sum := strings.TrimSpace(e.Summary)
+	if cmd == "" {
+		return ""
+	}
+	label := fmt.Sprintf("[%s] %s", ts, cmd)
+	bullet := BulletOK(label)
+	if sum == "" {
+		return bullet
+	}
+	return bullet + indentProse(sum)

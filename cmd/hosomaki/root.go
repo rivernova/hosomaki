@@ -114,5 +114,6 @@ func init() {
 		newTimersCmd(),
 		newMountsCmd(),
 		newUpdatesCmd(),
+		newHistoryCmd(),
 	)
 }

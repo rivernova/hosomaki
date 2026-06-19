@@ -17,6 +17,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/spinner"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
+	"github.com/rivernova/hosomaki/internal/historian"
 )
 
 // doctor command logic
@@ -228,6 +229,7 @@ func runDoctorBrief(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	fmt.Print(ui.RenderDoctorBrief(result))
+	_ = historian.Record("doctor", result)
 	fmt.Print(ui.Done())
 	return nil
 }

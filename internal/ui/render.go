@@ -175,3 +175,8 @@ func RenderUpdatesResultSummary(result prompt.UpdatesResult) string {
 	return SectionSummary(b.String())
 }
 
+func RenderHistoryResultSummary(result prompt.HistoryResult) string {
+	var b strings.Builder
+	b.WriteString(SummaryLine(plural(len(result.Entries), "entry", "entries")))
+	return SectionSummary(b.String())
+}

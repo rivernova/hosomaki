@@ -18,6 +18,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/spinner"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
+	"github.com/rivernova/hosomaki/internal/historian"
 )
 
 // why command logic
@@ -212,5 +213,6 @@ func renderWhyResult(result prompt.WhyResult) {
 	}
 
 	fmt.Print(ui.RenderWhySummary(result))
-	fmt.Print(ui.Done())
+			fmt.Print(ui.Done())
+			_ = historian.Record("why", result)
 }

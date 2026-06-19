@@ -18,6 +18,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/spinner"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
+	"github.com/rivernova/hosomaki/internal/historian"
 )
 
 // status command logic
@@ -212,6 +213,7 @@ func runStatusBrief(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	fmt.Print(ui.RenderStatusBrief(result))
+	_ = historian.Record("status", result)
 	fmt.Print(ui.Done())
 	return nil
 }

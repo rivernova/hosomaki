@@ -21,6 +21,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/spinner"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
+	"github.com/rivernova/hosomaki/internal/historian"
 )
 
 // audit command logic
@@ -291,6 +292,7 @@ func runAuditAI(ctx context.Context, diff *auditor.AuditDiff, age string, env co
 	}
 
 	fmt.Print(ui.RenderAuditResultSummary(result))
+	_ = historian.Record("audit", result)
 	fmt.Print(ui.Done())
 	return nil
 }
