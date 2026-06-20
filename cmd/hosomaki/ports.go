@@ -29,7 +29,7 @@ func newPortsCmd() *cobra.Command {
 		Use:   "ports",
 		Short: "List listening ports with process names and flag anything unexpected",
 		Long: `Collects all currently listening TCP and UDP ports with their associated
-process names, then asks the AI to identify anything unexpected or potentially
+process names, then asks the LLM to identify anything unexpected or potentially
 concerning.
 
 This command shows the current state of listening sockets. For tracking how ports

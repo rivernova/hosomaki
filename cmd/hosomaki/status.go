@@ -31,9 +31,9 @@ func newStatusCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Show an AI summary of current system health",
+		Short: "Show a summary of current system health",
 		Long: `Collects a snapshot of the system (uptime, memory, disk, failed services,
-recent errors) and asks the AI to summarise what's going on.
+recent errors) and asks the LLM to summarise what's going on.
 
 All output is validated and repaired automatically before being printed.
 
