@@ -8,12 +8,6 @@ List all listening TCP and UDP ports with associated process names, flags anythi
 hosomaki ports [flags]
 ```
 
-## Flags
-
-| Flag | Default | Description |
-|---|---|---|
-| `--debug` | `false` | Print raw model response to stderr |
-
 ## What it collects
 
 All listening TCP and UDP sockets, including:

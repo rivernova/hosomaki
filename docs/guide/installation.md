@@ -8,7 +8,7 @@ Hosomaki runs on Linux and requires [Ollama](https://ollama.com).
 |---|---|
 | Linux | systemd-based distributions recommended |
 | [Ollama](https://ollama.com) | Runs the local language model |
-| A compatible Ollama model | `llama3.2` or `qwen2.5` recommended |
+| A compatible Ollama model | `gemma3:4b` or `qwen2.5` recommended |
 
 ### Install Ollama
 
@@ -19,7 +19,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 Pull a model before running Hosomaki for the first time:
 
 ```bash
-ollama pull llama3.2
+ollama pull gemma3:4b
 ```
 
 ## Install Hosomaki
@@ -42,7 +42,7 @@ hosomaki status
 
 ## Configuration
 
-Hosomaki works out of the box with no configuration required. The default Ollama endpoint (`http://localhost:11434`) and model (`llama3.1:8b`) are used automatically.
+Hosomaki works out of the box with no configuration required. The default Ollama endpoint (`http://localhost:11434`) and model (`gemma3:4b`) are used automatically.
 
 To override, create `~/.config/hosomaki/config.yaml`:
 

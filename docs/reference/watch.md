@@ -21,7 +21,6 @@ hosomaki watch <service> [flags]
 | `--lines <N>` | `10` | Lines to seed from the journal on startup (0 to skip) |
 | `--window <duration>` | `5s` | Silence window after an error/warning before flushing the batch |
 | `--max-lines <N>` | `30` | Flush the batch when it reaches this many lines regardless of the window |
-| `--debug` | `false` | Print raw model response to stderr |
 
 ## How it works
 

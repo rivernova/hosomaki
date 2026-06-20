@@ -8,12 +8,6 @@ Read all classic crontab files and explain what each job does in plain language.
 hosomaki crons [flags]
 ```
 
-## Flags
-
-| Flag | Default | Description |
-|---|---|---|
-| `--debug` | `false` | Print raw model response to stderr |
-
 ## What it collects
 
 Reads all classic crontab files on the system.

@@ -24,14 +24,14 @@ func TestPing_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := New(srv.URL, "llama3", 30*time.Second)
+	c := New(srv.URL, "gemma3:4b", 30*time.Second)
 	if err := c.Ping(context.Background()); err != nil {
 		t.Fatalf("Ping() returned unexpected error: %v", err)
 	}
 }
 
 func TestPing_Unreachable(t *testing.T) {
-	c := New("http://localhost:1", "llama3", 30*time.Second)
+	c := New("http://localhost:1", "gemma3:4b", 30*time.Second)
 	err := c.Ping(context.Background())
 	if err == nil {
 		t.Fatal("Ping() expected error for unreachable endpoint, got nil")
@@ -47,7 +47,7 @@ func TestPing_UnexpectedStatus(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := New(srv.URL, "llama3", 30*time.Second)
+	c := New(srv.URL, "gemma3:4b", 30*time.Second)
 	err := c.Ping(context.Background())
 	if err == nil {
 		t.Fatal("Ping() expected error for non-200 status, got nil")
@@ -63,7 +63,7 @@ func TestPing_RespectsShortTimeout(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := New(srv.URL, "llama3", 30*time.Second)
+	c := New(srv.URL, "gemma3:4b", 30*time.Second)
 	err := c.Ping(context.Background())
 	if err == nil {
 		t.Fatal("Ping() expected timeout error for hanging server, got nil")

@@ -94,4 +94,12 @@ hosomaki crons
 
 # Mount health
 hosomaki mounts
+
+# Check for pending package updates
+hosomaki updates
+hosomaki updates --security-only
+
+# Review past results
+hosomaki history
+hosomaki history --command doctor --since 7d
 ```

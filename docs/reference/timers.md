@@ -8,12 +8,6 @@ Inspect all systemd timers and flag failures or overdue schedules.
 hosomaki timers [flags]
 ```
 
-## Flags
-
-| Flag | Default | Description |
-|---|---|---|
-| `--debug` | `false` | Print raw model response to stderr |
-
 ## What it collects
 
 Collects all active and inactive systemd timers, including:

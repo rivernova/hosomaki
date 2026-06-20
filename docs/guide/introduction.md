@@ -30,11 +30,13 @@ The sanitisation step is non-negotiable.
 | `timers` | Inspect systemd timers and flag failures or overdue schedules |
 | `crons` | Read all crontabs and explain what each job does |
 | `mounts` | Inspect active mounts, detect stale NFS, and flag disks nearing capacity |
+| `updates` | Explain pending package updates before applying them |
+| `history` | Review past diagnostic results |
 | `shell-integration` | Install a shell wrapper that explains failed commands automatically |
 
 ## Design principles
 
-**Read-only.** Every command collects data and surfaces insights. None of them modify the system.
+**Read-only.** Every command collects data and surfaces insights without modifying the system being diagnosed. `audit --init` and `history --clear` are the exceptions. They write to Hosomaki's own local state directory, not to anything on the system itself.
 
 **Local first.** The model runs on your machine via Ollama.
 
