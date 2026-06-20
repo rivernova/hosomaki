@@ -8,7 +8,7 @@ package prompt
 
 const SchemaExplain = `{"issues":[{"what":"string","why":"string"}]}`
 
-const SchemaDoctorFull = `{"issues":[{"severity":"string","title":"string","detail":"string"}],"actions":[{"description":"string","disruptive":false}]}`
+const SchemaDoctorFull = `{"issues":[{"severity":"string","title":"string","detail":"string"}],"actions":[{"description":"string","disruptive":bool}]}`
 
 const SchemaDoctorBrief = `{"summary":"string"}`
 
@@ -31,3 +31,5 @@ const SchemaCrons = `{"summary":"string","jobs":[{"source":"string","schedule":"
 const SchemaMounts = `{"summary":"string","findings":[{"severity":"string","mount_point":"string","title":"string","detail":"string"}]}`
 
 const SchemaUpdates = `{"summary":"string","updates":[{"package":"string","installed":"string","available":"string","category":"string","reboot_required":false,"detail":"string"}]}`
+
+const SchemaHistory = `{"summary":"string","entries":[{"timestamp":"string","command":"string","summary":"string"}]}`

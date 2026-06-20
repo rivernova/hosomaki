@@ -16,9 +16,9 @@ import (
 	"github.com/rivernova/hosomaki/internal/prompt"
 	"github.com/rivernova/hosomaki/internal/sanitiser"
 	"github.com/rivernova/hosomaki/internal/spinner"
+	"github.com/rivernova/hosomaki/internal/store"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
-	"github.com/rivernova/hosomaki/internal/historian"
 )
 
 // status command logic
@@ -179,7 +179,7 @@ func runStatusFull(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	fmt.Print(ui.RenderStatusSummary(result))
-	if err := historian.Record("status", result); err != nil && debug {
+	if err := store.Record("status", result); err != nil && debug {
 		_, _ = fmt.Fprintf(os.Stderr, "history: record status: %v\n", err)
 	}
 	fmt.Print(ui.Done())
@@ -216,7 +216,7 @@ func runStatusBrief(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	fmt.Print(ui.RenderStatusBrief(result))
-	if err := historian.Record("status", result); err != nil && debug {
+	if err := store.Record("status", result); err != nil && debug {
 		_, _ = fmt.Fprintf(os.Stderr, "history: record status: %v\n", err)
 	}
 	fmt.Print(ui.Done())

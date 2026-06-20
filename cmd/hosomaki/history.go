@@ -15,21 +15,23 @@ import (
 
 	"github.com/rivernova/hosomaki/internal/ai"
 	"github.com/rivernova/hosomaki/internal/collector"
-	"github.com/rivernova/hosomaki/internal/historian"
 	"github.com/rivernova/hosomaki/internal/prompt"
 	"github.com/rivernova/hosomaki/internal/sanitiser"
 	"github.com/rivernova/hosomaki/internal/spinner"
+	"github.com/rivernova/hosomaki/internal/store"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
 )
 
+// history command logic
+
 func newHistoryCmd() *cobra.Command {
 	var (
-		limit    int
-		since    string
+		limit     int
+		since     string
 		filterCmd string
-		clear    bool
-		debug    bool
+		clear     bool
+		debug     bool
 	)
 
 	cmd := &cobra.Command{
@@ -49,12 +51,12 @@ Examples:
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			env := collector.Env()
 
-			path, err := historian.DefaultPath()
+			path, err := store.DefaultPath()
 			if err != nil {
 				return err
 			}
 
-			// --clear just deletes the log
+			// clears the store
 			if clear {
 				if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 					return fmt.Errorf("history: %w", err)
@@ -64,7 +66,7 @@ Examples:
 				return nil
 			}
 
-			log, err := historian.Load(path)
+			log, err := store.Load(path)
 			if err != nil {
 				fmt.Print(ui.HistoryHeader())
 				fmt.Print(ui.HistoryNoHistory())
@@ -72,10 +74,10 @@ Examples:
 				return nil
 			}
 
-			// Filter
+			// filter
 			entries := log.Entries
 			if filterCmd != "" {
-				var filtered []historian.HistoryEntry
+				var filtered []store.HistoryEntry
 				for _, e := range entries {
 					if e.Command == filterCmd {
 						filtered = append(filtered, e)
@@ -98,7 +100,7 @@ Examples:
 					}
 				}
 				cutoff := time.Now().Add(-dur)
-				var filtered []historian.HistoryEntry
+				var filtered []store.HistoryEntry
 				for _, e := range entries {
 					if e.Timestamp.After(cutoff) {
 						filtered = append(filtered, e)
@@ -121,10 +123,8 @@ Examples:
 
 			fmt.Print(ui.HistoryEntryCount(len(entries)))
 
-			// Build filter description
 			filterDesc := buildFilterDesc(filterCmd, since, limit)
 
-			// Sanitise before prompt
 			san := sanitiser.Default()
 			sanitised := san.Sanitise(formatHistoryForPrompt(entries))
 
@@ -247,7 +247,7 @@ func validateHistoryResult(r prompt.HistoryResult) []string {
 	return errs
 }
 
-func formatHistoryForPrompt(entries []historian.HistoryEntry) string {
+func formatHistoryForPrompt(entries []store.HistoryEntry) string {
 	if len(entries) == 0 {
 		return "(no history entries)"
 	}
@@ -260,7 +260,7 @@ func formatHistoryForPrompt(entries []historian.HistoryEntry) string {
 	return strings.TrimSpace(b.String())
 }
 
-func extractSummary(e historian.HistoryEntry) string {
+func extractSummary(e store.HistoryEntry) string {
 	switch e.Command {
 	case "explain":
 		var r struct {
@@ -282,14 +282,13 @@ func extractSummary(e historian.HistoryEntry) string {
 			return strings.TrimSpace(r.Summary)
 		}
 	case "status":
-		// Try full status result first (Overview)
 		var full struct {
 			Overview string `json:"overview"`
 		}
 		if err := json.Unmarshal(e.Result, &full); err == nil && full.Overview != "" {
 			return strings.TrimSpace(full.Overview)
 		}
-		// Fallback to brief (Summary)
+		// fallback
 		var brief struct {
 			Summary string `json:"summary"`
 		}
@@ -297,7 +296,6 @@ func extractSummary(e historian.HistoryEntry) string {
 			return strings.TrimSpace(brief.Summary)
 		}
 	case "doctor":
-		// Try full doctor result first (Issues/Actions)
 		var raw map[string]any
 		if err := json.Unmarshal(e.Result, &raw); err == nil {
 			if issues, ok := raw["issues"]; ok {
@@ -312,12 +310,11 @@ func extractSummary(e historian.HistoryEntry) string {
 					}
 					return "no issues detected"
 				}
-				// "issues": null — healthy system
+				// healthy
 				return "no issues detected"
 			}
-			// No "issues" key — might be brief result, fall through
 		}
-		// Fallback to brief (Summary)
+		// fallback
 		var brief struct {
 			Summary string `json:"summary"`
 		}
@@ -325,7 +322,7 @@ func extractSummary(e historian.HistoryEntry) string {
 			return strings.TrimSpace(brief.Summary)
 		}
 	}
-	// Fallback: show raw truncated
+
 	raw := string(e.Result)
 	if len(raw) > 80 {
 		raw = raw[:80] + "..."

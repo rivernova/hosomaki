@@ -19,9 +19,9 @@ import (
 	"github.com/rivernova/hosomaki/internal/prompt"
 	"github.com/rivernova/hosomaki/internal/sanitiser"
 	"github.com/rivernova/hosomaki/internal/spinner"
+	"github.com/rivernova/hosomaki/internal/store"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
-	"github.com/rivernova/hosomaki/internal/historian"
 )
 
 // audit command logic
@@ -292,7 +292,7 @@ func runAuditAI(ctx context.Context, diff *auditor.AuditDiff, age string, env co
 	}
 
 	fmt.Print(ui.RenderAuditResultSummary(result))
-	if err := historian.Record("audit", result); err != nil && debug {
+	if err := store.Record("audit", result); err != nil && debug {
 		_, _ = fmt.Fprintf(os.Stderr, "history: record audit: %v\n", err)
 	}
 	fmt.Print(ui.Done())

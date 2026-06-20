@@ -11,30 +11,25 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
-// SchemaHistory is the JSON schema for the history command output.
-const SchemaHistory = `{"summary":"...","entries":[{"timestamp":"...","command":"...","summary":"..."}]}`
+// prompt logic for the history command
 
-// HistoryEntry represents one past diagnostic in the AI response.
 type HistoryEntry struct {
 	Timestamp string `json:"timestamp"`
 	Command   string `json:"command"`
-	Summary   string `json:"summary"` // one-line preview of the result
+	Summary   string `json:"summary"`
 }
 
-// HistoryResult is the full AI response for the history command.
 type HistoryResult struct {
 	Summary string         `json:"summary"`
 	Entries []HistoryEntry `json:"entries"`
 }
 
-// HistoryInput carries the data needed to build the history prompt.
 type HistoryInput struct {
 	Environment collector.Environment
-	History     string // pre-formatted, pre-sanitised text of past entries
-	FilterDesc  string // e.g. "last 10 entries" or "explain entries from last 7 days"
+	History     string
+	FilterDesc  string
 }
 
-// History builds the AI prompt for the history command.
 func History(in HistoryInput) string {
 	historyText := strings.TrimSpace(in.History)
 	if historyText == "" {
@@ -71,7 +66,7 @@ FIELD RULES
   - "summary": one plain-prose sentence summarising that specific diagnostic
     result. Capture the key finding — was it healthy, what was the issue,
     what action was suggested.
-- If there are no history entries, return {"summary":"...","entries":[]}.
+- If there are no history entries, return {"summary":"string","entries":[]}.
 - Do not invent entries not present in the input.
 
 OUTPUT FORMAT

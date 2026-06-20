@@ -11,6 +11,8 @@ import (
 	"github.com/rivernova/hosomaki/internal/collector"
 )
 
+// unit test for history prompt logic
+
 func TestHistoryPrompt_ContainsSchema(t *testing.T) {
 	in := HistoryInput{
 		Environment: collector.Environment{DistroID: "test"},

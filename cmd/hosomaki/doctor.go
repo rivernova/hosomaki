@@ -15,9 +15,9 @@ import (
 	"github.com/rivernova/hosomaki/internal/prompt"
 	"github.com/rivernova/hosomaki/internal/sanitiser"
 	"github.com/rivernova/hosomaki/internal/spinner"
+	"github.com/rivernova/hosomaki/internal/store"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
-	"github.com/rivernova/hosomaki/internal/historian"
 )
 
 // doctor command logic
@@ -195,7 +195,7 @@ func runDoctorFull(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	fmt.Print(ui.RenderDoctorSummary(result))
-	if err := historian.Record("doctor", result); err != nil && debug {
+	if err := store.Record("doctor", result); err != nil && debug {
 		_, _ = fmt.Fprintf(os.Stderr, "history: record doctor: %v\n", err)
 	}
 	fmt.Print(ui.Done())
@@ -232,7 +232,7 @@ func runDoctorBrief(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	fmt.Print(ui.RenderDoctorBrief(result))
-	if err := historian.Record("doctor", result); err != nil && debug {
+	if err := store.Record("doctor", result); err != nil && debug {
 		_, _ = fmt.Fprintf(os.Stderr, "history: record doctor: %v\n", err)
 	}
 	fmt.Print(ui.Done())

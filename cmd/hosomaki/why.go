@@ -16,9 +16,9 @@ import (
 	"github.com/rivernova/hosomaki/internal/prompt"
 	"github.com/rivernova/hosomaki/internal/sanitiser"
 	"github.com/rivernova/hosomaki/internal/spinner"
+	"github.com/rivernova/hosomaki/internal/store"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
-	"github.com/rivernova/hosomaki/internal/historian"
 )
 
 // why command logic
@@ -213,7 +213,7 @@ func renderWhyResult(result prompt.WhyResult, debug bool) {
 	}
 
 	fmt.Print(ui.RenderWhySummary(result))
-	if err := historian.Record("why", result); err != nil && debug {
+	if err := store.Record("why", result); err != nil && debug {
 		_, _ = fmt.Fprintf(os.Stderr, "history: record why: %v\n", err)
 	}
 	fmt.Print(ui.Done())

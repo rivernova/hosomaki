@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/rivernova/hosomaki/internal/historian"
+	"github.com/rivernova/hosomaki/internal/store"
 )
+
+// unit testing for extracting summaries for storing history
 
 func TestExtractSummaryExplain(t *testing.T) {
 	result, _ := json.Marshal(map[string]any{
@@ -13,7 +15,7 @@ func TestExtractSummaryExplain(t *testing.T) {
 			{"what": "High CPU usage from kernel process", "why": "Memory pressure"},
 		},
 	})
-	e := historian.HistoryEntry{Command: "explain", Result: result}
+	e := store.HistoryEntry{Command: "explain", Result: result}
 	got := extractSummary(e)
 	want := "High CPU usage from kernel process"
 	if got != want {
@@ -25,7 +27,7 @@ func TestExtractSummaryWhy(t *testing.T) {
 	result, _ := json.Marshal(map[string]any{
 		"summary": "Service failed due to OOM kill",
 	})
-	e := historian.HistoryEntry{Command: "why", Result: result}
+	e := store.HistoryEntry{Command: "why", Result: result}
 	got := extractSummary(e)
 	want := "Service failed due to OOM kill"
 	if got != want {
@@ -40,7 +42,7 @@ func TestExtractSummaryAudit(t *testing.T) {
 			{"title": "SSH config modified"},
 		},
 	})
-	e := historian.HistoryEntry{Command: "audit", Result: result}
+	e := store.HistoryEntry{Command: "audit", Result: result}
 	got := extractSummary(e)
 	want := "3 config files changed since last audit"
 	if got != want {
@@ -55,7 +57,7 @@ func TestExtractSummaryStatusFull(t *testing.T) {
 			{"title": "High disk I/O"},
 		},
 	})
-	e := historian.HistoryEntry{Command: "status", Result: result}
+	e := store.HistoryEntry{Command: "status", Result: result}
 	got := extractSummary(e)
 	want := "System healthy, 2 anomalies detected"
 	if got != want {
@@ -67,7 +69,7 @@ func TestExtractSummaryStatusBrief(t *testing.T) {
 	result, _ := json.Marshal(map[string]any{
 		"summary": "System running smoothly",
 	})
-	e := historian.HistoryEntry{Command: "status", Result: result}
+	e := store.HistoryEntry{Command: "status", Result: result}
 	got := extractSummary(e)
 	want := "System running smoothly"
 	if got != want {
@@ -84,7 +86,7 @@ func TestExtractSummaryDoctorFull(t *testing.T) {
 			{"description": "Start nginx", "disruptive": false},
 		},
 	})
-	e := historian.HistoryEntry{Command: "doctor", Result: result}
+	e := store.HistoryEntry{Command: "doctor", Result: result}
 	got := extractSummary(e)
 	want := "Nginx not running"
 	if got != want {
@@ -96,7 +98,7 @@ func TestExtractSummaryDoctorBrief(t *testing.T) {
 	result, _ := json.Marshal(map[string]any{
 		"summary": "System needs attention",
 	})
-	e := historian.HistoryEntry{Command: "doctor", Result: result}
+	e := store.HistoryEntry{Command: "doctor", Result: result}
 	got := extractSummary(e)
 	want := "System needs attention"
 	if got != want {
@@ -108,7 +110,7 @@ func TestExtractSummaryFallback(t *testing.T) {
 	result, _ := json.Marshal(map[string]any{
 		"weird": "shape",
 	})
-	e := historian.HistoryEntry{Command: "unknown", Result: result}
+	e := store.HistoryEntry{Command: "unknown", Result: result}
 	got := extractSummary(e)
 	if got == "" {
 		t.Error("extractSummary(unknown) returned empty string, expected truncated fallback")
@@ -116,7 +118,7 @@ func TestExtractSummaryFallback(t *testing.T) {
 }
 
 func TestExtractSummaryEmptyResult(t *testing.T) {
-	e := historian.HistoryEntry{Command: "explain", Result: json.RawMessage("{}")}
+	e := store.HistoryEntry{Command: "explain", Result: json.RawMessage("{}")}
 	got := extractSummary(e)
 	if got == "" {
 		t.Error("extractSummary({}) returned empty string, expected fallback message")
@@ -127,7 +129,7 @@ func TestExtractSummaryExplainEmptyIssues(t *testing.T) {
 	result, _ := json.Marshal(map[string]any{
 		"issues": []map[string]any{},
 	})
-	e := historian.HistoryEntry{Command: "explain", Result: result}
+	e := store.HistoryEntry{Command: "explain", Result: result}
 	got := extractSummary(e)
 	want := "no issues detected"
 	if got != want {
@@ -139,7 +141,7 @@ func TestExtractSummaryExplainNullIssues(t *testing.T) {
 	result, _ := json.Marshal(map[string]any{
 		"issues": nil,
 	})
-	e := historian.HistoryEntry{Command: "explain", Result: result}
+	e := store.HistoryEntry{Command: "explain", Result: result}
 	got := extractSummary(e)
 	want := "no issues detected"
 	if got != want {
@@ -151,7 +153,7 @@ func TestExtractSummaryDoctorNullIssues(t *testing.T) {
 	result, _ := json.Marshal(map[string]any{
 		"issues": nil,
 	})
-	e := historian.HistoryEntry{Command: "doctor", Result: result}
+	e := store.HistoryEntry{Command: "doctor", Result: result}
 	got := extractSummary(e)
 	want := "no issues detected"
 	if got != want {
@@ -163,7 +165,7 @@ func TestExtractSummaryDoctorEmptyIssues(t *testing.T) {
 	result, _ := json.Marshal(map[string]any{
 		"issues": []map[string]any{},
 	})
-	e := historian.HistoryEntry{Command: "doctor", Result: result}
+	e := store.HistoryEntry{Command: "doctor", Result: result}
 	got := extractSummary(e)
 	want := "no issues detected"
 	if got != want {
