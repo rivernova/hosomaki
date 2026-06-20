@@ -179,7 +179,7 @@ func runStatusFull(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	fmt.Print(ui.RenderStatusSummary(result))
-	_ = historian.Record("status", result)
+	if err := historian.Record("status", result); err != nil && debug { fmt.Fprintf(os.Stderr, "history: record status: %v\n", err) }
 	fmt.Print(ui.Done())
 	return nil
 }
@@ -214,7 +214,7 @@ func runStatusBrief(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	fmt.Print(ui.RenderStatusBrief(result))
-	_ = historian.Record("status", result)
+	if err := historian.Record("status", result); err != nil && debug { fmt.Fprintf(os.Stderr, "history: record status: %v\n", err) }
 	fmt.Print(ui.Done())
 	return nil
 }

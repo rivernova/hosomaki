@@ -191,6 +191,9 @@ func runWhy(generationPrompt string, debug bool) error {
 	}
 
 	renderWhyResult(result)
+	if err := historian.Record("why", result); err != nil && debug {
+		fmt.Fprintf(os.Stderr, "history: record why: %v\n", err)
+	}
 	return nil
 }
 
@@ -213,6 +216,5 @@ func renderWhyResult(result prompt.WhyResult) {
 	}
 
 	fmt.Print(ui.RenderWhySummary(result))
-	_ = historian.Record("why", result)
 	fmt.Print(ui.Done())
 }
