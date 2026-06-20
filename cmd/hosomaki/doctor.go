@@ -32,7 +32,7 @@ func newDoctorCmd() *cobra.Command {
 		Use:   "doctor",
 		Short: "Full system diagnosis with concrete suggested actions",
 		Long: `Collects a snapshot of the system (uptime, memory, disk, failed services,
-recent errors) and asks the AI to diagnose what is wrong and what to do about it.
+recent errors) and asks the LLM to diagnose what is wrong and what to do about it.
 
 Unlike ` + "`hosomaki status`" + `, which only describes what it sees, doctor goes further:
 for each detected issue it explains the likely cause and proposes specific actions

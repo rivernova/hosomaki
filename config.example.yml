@@ -9,4 +9,4 @@ ai:
 
 output:
   color: true
-  language: en                         # language for AI responses (en, es, fr, de, …)
+  language: en                         # language for LLM responses (en, es, fr, de, …)
