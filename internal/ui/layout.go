@@ -470,9 +470,6 @@ func MountsCleanResult() string {
 	return Section("result", BulletOK("all mount points are healthy"))
 }
 
-
-// updates UI
-
 func UpdatesHeader() string {
 	return Title("pending updates")
 }
@@ -488,9 +485,9 @@ func UpdatesNoPendingMsg(msg string) string {
 func UpdatesPendingList(updates []collector.Update, securityOnly bool) string {
 	var b strings.Builder
 
-	label := "pending updates"
+	label := "collected"
 	if securityOnly {
-		label = "security-related updates"
+		label = "collected (security-only)"
 	}
 
 	b.WriteString(Section(label, fmt.Sprintf("%d package(s)\n", len(updates))))
@@ -523,4 +520,3 @@ func UpdatesPendingList(updates []collector.Update, securityOnly bool) string {
 func UpdatesCleanResult() string {
 	return Section("result", BulletOK("no issues found in pending updates"))
 }
-

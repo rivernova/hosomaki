@@ -86,3 +86,25 @@ func TestUpdatesPrompt_HasFilterNoteWhenSecurityOnly(t *testing.T) {
 		t.Error("prompt should contain security-only note when --security-only is set")
 	}
 }
+
+func TestUpdatesPrompt_InstalledAndAvailableMustBeCopiedVerbatim(t *testing.T) {
+	in := UpdatesInput{
+		Environment: collector.Environment{DistroID: "test"},
+		Updates:     "",
+	}
+	result := Updates(in)
+	if !strings.Contains(result, "verbatim") {
+		t.Error("prompt must instruct the model to copy installed/available verbatim")
+	}
+}
+
+func TestUpdatesPrompt_DetailRequiredForSecurityAndMajor(t *testing.T) {
+	in := UpdatesInput{
+		Environment: collector.Environment{DistroID: "test"},
+		Updates:     "",
+	}
+	result := Updates(in)
+	if !strings.Contains(result, "REQUIRED") {
+		t.Error("prompt must explicitly require detail for security/major findings")
+	}
+}

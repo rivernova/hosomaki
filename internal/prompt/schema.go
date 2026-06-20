@@ -30,4 +30,4 @@ const SchemaCrons = `{"summary":"string","jobs":[{"source":"string","schedule":"
 
 const SchemaMounts = `{"summary":"string","findings":[{"severity":"string","mount_point":"string","title":"string","detail":"string"}]}`
 
-const SchemaUpdates = `{"summary":"string","updates":[{"package":"string","installed":"string","available":"string","category":"string","reboot_required":false}]}`
+const SchemaUpdates = `{"summary":"string","updates":[{"package":"string","installed":"string","available":"string","category":"string","reboot_required":false,"detail":"string"}]}`
