@@ -268,8 +268,11 @@ func extractSummary(e historian.HistoryEntry) string {
 				What string `json:"what"`
 			} `json:"issues"`
 		}
-		if err := json.Unmarshal(e.Result, &r); err == nil && len(r.Issues) > 0 {
-			return strings.TrimSpace(r.Issues[0].What)
+		if err := json.Unmarshal(e.Result, &r); err == nil {
+			if len(r.Issues) > 0 {
+				return strings.TrimSpace(r.Issues[0].What)
+			}
+			return "no issues detected"
 		}
 	case "why", "audit":
 		var r struct {
@@ -297,17 +300,22 @@ func extractSummary(e historian.HistoryEntry) string {
 		// Try full doctor result first (Issues/Actions)
 		var raw map[string]any
 		if err := json.Unmarshal(e.Result, &raw); err == nil {
-			if issues, ok := raw["issues"]; ok && issues != nil {
-				issuesArr, _ := issues.([]any)
-				if len(issuesArr) > 0 {
-					if first, ok := issuesArr[0].(map[string]any); ok {
-						if title, ok := first["title"].(string); ok && title != "" {
-							return strings.TrimSpace(title)
+			if issues, ok := raw["issues"]; ok {
+				if issues != nil {
+					issuesArr, _ := issues.([]any)
+					if len(issuesArr) > 0 {
+						if first, ok := issuesArr[0].(map[string]any); ok {
+							if title, ok := first["title"].(string); ok && title != "" {
+								return strings.TrimSpace(title)
+							}
 						}
 					}
+					return "no issues detected"
 				}
+				// "issues": null — healthy system
 				return "no issues detected"
 			}
+			// No "issues" key — might be brief result, fall through
 		}
 		// Fallback to brief (Summary)
 		var brief struct {

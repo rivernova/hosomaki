@@ -119,6 +119,54 @@ func TestExtractSummaryEmptyResult(t *testing.T) {
 	e := historian.HistoryEntry{Command: "explain", Result: json.RawMessage("{}")}
 	got := extractSummary(e)
 	if got == "" {
-		t.Error("extractSummary({}) returned empty string, expected truncated fallback")
+		t.Error("extractSummary({}) returned empty string, expected fallback message")
+	}
+}
+
+func TestExtractSummaryExplainEmptyIssues(t *testing.T) {
+	result, _ := json.Marshal(map[string]any{
+		"issues": []map[string]any{},
+	})
+	e := historian.HistoryEntry{Command: "explain", Result: result}
+	got := extractSummary(e)
+	want := "no issues detected"
+	if got != want {
+		t.Errorf("extractSummary(explain empty) = %q, want %q", got, want)
+	}
+}
+
+func TestExtractSummaryExplainNullIssues(t *testing.T) {
+	result, _ := json.Marshal(map[string]any{
+		"issues": nil,
+	})
+	e := historian.HistoryEntry{Command: "explain", Result: result}
+	got := extractSummary(e)
+	want := "no issues detected"
+	if got != want {
+		t.Errorf("extractSummary(explain null) = %q, want %q", got, want)
+	}
+}
+
+func TestExtractSummaryDoctorNullIssues(t *testing.T) {
+	result, _ := json.Marshal(map[string]any{
+		"issues": nil,
+	})
+	e := historian.HistoryEntry{Command: "doctor", Result: result}
+	got := extractSummary(e)
+	want := "no issues detected"
+	if got != want {
+		t.Errorf("extractSummary(doctor null) = %q, want %q", got, want)
+	}
+}
+
+func TestExtractSummaryDoctorEmptyIssues(t *testing.T) {
+	result, _ := json.Marshal(map[string]any{
+		"issues": []map[string]any{},
+	})
+	e := historian.HistoryEntry{Command: "doctor", Result: result}
+	got := extractSummary(e)
+	want := "no issues detected"
+	if got != want {
+		t.Errorf("extractSummary(doctor empty) = %q, want %q", got, want)
 	}
 }
