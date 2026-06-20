@@ -400,6 +400,8 @@ func RenderUpdatesFindingLive(u prompt.UpdateFinding, _ int) string {
 	if (u.Category == "security" || u.Category == "major") && strings.TrimSpace(u.Detail) != "" {
 		out.WriteString(indentProse(u.Detail))
 	}
+
+	return out.String()
 }
 
 func HistoryFindingsHeader() string { return sectionHeader("ai analysis") }
@@ -425,3 +427,5 @@ func RenderHistoryEntryLive(e prompt.HistoryEntry, _ int) string {
 		return bullet
 	}
 	return bullet + indentProse(sum)
+
+}

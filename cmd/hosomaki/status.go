@@ -179,6 +179,7 @@ func runStatusFull(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	fmt.Print(ui.RenderStatusSummary(result))
+	_ = historian.Record("status", result)
 	fmt.Print(ui.Done())
 	return nil
 }

@@ -195,6 +195,7 @@ func runDoctorFull(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	fmt.Print(ui.RenderDoctorSummary(result))
+	_ = historian.Record("doctor", result)
 	fmt.Print(ui.Done())
 	return nil
 }

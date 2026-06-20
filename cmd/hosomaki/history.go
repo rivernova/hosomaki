@@ -206,7 +206,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().IntVar(&limit, "limit", 0, "show the last N entries (default: all)")
+	cmd.Flags().IntVar(&limit, "limit", 10, "show the last N entries (default: all)")
 	cmd.Flags().StringVar(&since, "since", "", "show entries newer than duration (e.g. 24h, 7d)")
 	cmd.Flags().StringVar(&filterCmd, "command", "", "filter by source command (explain, why, audit, status, doctor)")
 	cmd.Flags().BoolVar(&clear, "clear", false, "clear the history log")
@@ -255,12 +255,55 @@ func formatHistoryForPrompt(entries []historian.HistoryEntry) string {
 }
 
 func extractSummary(e historian.HistoryEntry) string {
-	// Try to extract a summary field from the raw JSON result
-	var wrapper struct {
-		Summary string `json:"summary"`
-	}
-	if err := json.Unmarshal(e.Result, &wrapper); err == nil && wrapper.Summary != "" {
-		return strings.TrimSpace(wrapper.Summary)
+	switch e.Command {
+	case "explain":
+		var r struct {
+			Issues []struct {
+				What string `json:"what"`
+			} `json:"issues"`
+		}
+		if err := json.Unmarshal(e.Result, &r); err == nil && len(r.Issues) > 0 {
+			return strings.TrimSpace(r.Issues[0].What)
+		}
+	case "why", "audit":
+		var r struct {
+			Summary string `json:"summary"`
+		}
+		if err := json.Unmarshal(e.Result, &r); err == nil && r.Summary != "" {
+			return strings.TrimSpace(r.Summary)
+		}
+	case "status":
+		// Try full status result first (Overview)
+		var full struct {
+			Overview string `json:"overview"`
+		}
+		if err := json.Unmarshal(e.Result, &full); err == nil && full.Overview != "" {
+			return strings.TrimSpace(full.Overview)
+		}
+		// Fallback to brief (Summary)
+		var brief struct {
+			Summary string `json:"summary"`
+		}
+		if err := json.Unmarshal(e.Result, &brief); err == nil && brief.Summary != "" {
+			return strings.TrimSpace(brief.Summary)
+		}
+	case "doctor":
+		// Try full doctor result first (Issues/Actions)
+		var full struct {
+			Issues []struct {
+				Title string `json:"title"`
+			} `json:"issues"`
+		}
+		if err := json.Unmarshal(e.Result, &full); err == nil && len(full.Issues) > 0 {
+			return strings.TrimSpace(full.Issues[0].Title)
+		}
+		// Fallback to brief (Summary)
+		var brief struct {
+			Summary string `json:"summary"`
+		}
+		if err := json.Unmarshal(e.Result, &brief); err == nil && brief.Summary != "" {
+			return strings.TrimSpace(brief.Summary)
+		}
 	}
 	// Fallback: show raw truncated
 	raw := string(e.Result)
