@@ -292,7 +292,9 @@ func runAuditAI(ctx context.Context, diff *auditor.AuditDiff, age string, env co
 	}
 
 	fmt.Print(ui.RenderAuditResultSummary(result))
-	if err := historian.Record("audit", result); err != nil && debug { fmt.Fprintf(os.Stderr, "history: record audit: %v\n", err) }
+	if err := historian.Record("audit", result); err != nil && debug {
+		_, _ = fmt.Fprintf(os.Stderr, "history: record audit: %v\n", err)
+	}
 	fmt.Print(ui.Done())
 	return nil
 }

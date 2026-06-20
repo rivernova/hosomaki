@@ -195,7 +195,9 @@ func runDoctorFull(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	fmt.Print(ui.RenderDoctorSummary(result))
-	if err := historian.Record("doctor", result); err != nil && debug { fmt.Fprintf(os.Stderr, "history: record doctor: %v\n", err) }
+	if err := historian.Record("doctor", result); err != nil && debug {
+		_, _ = fmt.Fprintf(os.Stderr, "history: record doctor: %v\n", err)
+	}
 	fmt.Print(ui.Done())
 	return nil
 }
@@ -230,7 +232,9 @@ func runDoctorBrief(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	fmt.Print(ui.RenderDoctorBrief(result))
-	if err := historian.Record("doctor", result); err != nil && debug { fmt.Fprintf(os.Stderr, "history: record doctor: %v\n", err) }
+	if err := historian.Record("doctor", result); err != nil && debug {
+		_, _ = fmt.Fprintf(os.Stderr, "history: record doctor: %v\n", err)
+	}
 	fmt.Print(ui.Done())
 	return nil
 }

@@ -247,7 +247,9 @@ func runExplain(p string, debug bool) error {
 		fmt.Print(ui.ExplainEmptyResult())
 	}
 
-	if err := historian.Record("explain", result); err != nil && debug { fmt.Fprintf(os.Stderr, "history: record explain: %v\n", err) }
+	if err := historian.Record("explain", result); err != nil && debug {
+		_, _ = fmt.Fprintf(os.Stderr, "history: record explain: %v\n", err)
+	}
 	fmt.Print(ui.Done())
 	return nil
 }

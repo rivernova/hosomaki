@@ -536,7 +536,7 @@ func HistoryNoMatching(msg string) string {
 }
 
 func HistoryEntryCount(n int) string {
-	return Section("entries", fmt.Sprintf("%d entry(s)\n", n))
+	return Section("entries", plural(n, "entry", "entries")+"\n")
 }
 
 func HistoryCleared() string {

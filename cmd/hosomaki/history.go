@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -85,11 +86,16 @@ Examples:
 			if since != "" {
 				dur, err := time.ParseDuration(since)
 				if err != nil {
-					d, err2 := time.ParseDuration(since + "h")
-					if err2 != nil {
+					if strings.HasSuffix(since, "d") {
+						numStr := strings.TrimSuffix(since, "d")
+						n, convErr := strconv.Atoi(numStr)
+						if convErr != nil || n < 0 {
+							return fmt.Errorf("history: invalid duration %q (try 24h, 7d, 30m)", since)
+						}
+						dur = time.Duration(n) * 24 * time.Hour
+					} else {
 						return fmt.Errorf("history: invalid duration %q (try 24h, 7d, 30m)", since)
 					}
-					dur = d
 				}
 				cutoff := time.Now().Add(-dur)
 				var filtered []historian.HistoryEntry
