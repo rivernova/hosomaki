@@ -385,11 +385,21 @@ func RenderUpdatesFindingLive(u prompt.UpdateFinding, _ int) string {
 		inst = "?"
 	}
 
-	if avail != "" && inst != "?" {
-		return bullet + "  " + inst + " → " + avail + "\n"
+	var out strings.Builder
+	out.WriteString(bullet)
+
+	switch {
+	case avail != "" && inst != "?":
+		out.WriteString("  " + inst + " → " + avail + "\n")
+	case avail != "":
+		out.WriteString("  → " + avail + "\n")
+	default:
+		out.WriteString("\n")
 	}
-	if avail != "" {
-		return bullet + "  → " + avail + "\n"
+
+	if (u.Category == "security" || u.Category == "major") && strings.TrimSpace(u.Detail) != "" {
+		out.WriteString(indentProse(u.Detail))
 	}
-	return bullet
+
+	return out.String()
 }

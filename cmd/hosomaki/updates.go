@@ -20,6 +20,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// updates command logic
+
 func newUpdatesCmd() *cobra.Command {
 	var (
 		securityOnly bool
@@ -196,6 +198,9 @@ func validateUpdatesResult(r prompt.UpdatesResult) []string {
 		cat := u.Category
 		if cat != "security" && cat != "major" && cat != "minor" && cat != "unknown" {
 			errs = append(errs, fmt.Sprintf("updates[%d].category must be 'security'/'major'/'minor'/'unknown', got %q", i, cat))
+		}
+		if (cat == "security" || cat == "major") && strings.TrimSpace(u.Detail) == "" {
+			errs = append(errs, fmt.Sprintf("updates[%d].detail must not be empty when category is %q", i, cat))
 		}
 	}
 	return errs

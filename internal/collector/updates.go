@@ -5,6 +5,7 @@
 package collector
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -20,47 +21,169 @@ type Update struct {
 	RebootRequired bool
 }
 
+type updateCollector func() ([]Update, error)
+
+var updateCollectors = map[string]updateCollector{
+	"apt":    collectAptUpdates,
+	"dnf":    collectDnfUpdates,
+	"yum":    collectDnfUpdates,
+	"pacman": collectPacmanUpdates,
+	"zypper": collectZypperUpdates,
+	"apk":    collectApkUpdates,
+	"xbps":   collectXbpsUpdates,
+	"emerge": collectEmergeUpdates,
+	"nix":    collectNixUpdates,
+}
+
 func Updates(env Environment) ([]Update, error) {
 	mgr := env.PackageManager
 	if mgr == "" {
 		return nil, fmt.Errorf("no supported package manager found")
 	}
-	return collectUpdates(mgr)
-}
-
-func collectUpdates(mgr string) ([]Update, error) {
-	cmd := updatesCommand(mgr)
-	if cmd == "" {
+	collect, ok := updateCollectors[mgr]
+	if !ok {
 		return nil, fmt.Errorf("pending updates not supported for %q", mgr)
 	}
-	raw, err := exec.Command("sh", "-c", cmd).Output()
+	updates, err := collect()
 	if err != nil {
 		return nil, fmt.Errorf("collect updates (%s): %w", mgr, err)
 	}
-	return parseUpdatesOutput(mgr, strings.TrimSpace(string(raw)))
+	if updates == nil {
+		updates = []Update{}
+	}
+	return updates, nil
 }
 
-func updatesCommand(mgr string) string {
-	switch mgr {
-	case "apt":
-		return "LC_ALL=C apt list --upgradable 2>/dev/null | tail -n +2"
-	case "dnf", "yum":
-		return "LC_ALL=C dnf list updates 2>/dev/null | tail -n +3 | head -n -1"
-	case "pacman":
-		return "LC_ALL=C pacman -Qu 2>/dev/null"
-	case "zypper":
-		return "LC_ALL=C zypper list-updates 2>/dev/null | tail -n +5 | head -n -1"
-	case "apk":
-		return "LC_ALL=C apk list --upgradable 2>/dev/null"
-	case "xbps":
-		return "LC_ALL=C xbps-install -nuM 2>/dev/null"
-	case "emerge":
-		return "LC_ALL=C emerge -up --ask=n @world 2>/dev/null | grep -E '^\\[ebuild' | sed 's/.*\\] //' | head -n -1"
-	case "nix":
-		return "LC_ALL=C nix-env -q --outdated 2>/dev/null | grep -v '^$'"
-	default:
-		return ""
+// Most managers' update-listing commands are pipelines (filtering
+// with tail/head/grep)
+func shellLines(cmd string) ([]string, error) {
+	out, err := exec.Command("sh", "-c", cmd).Output()
+	if err != nil {
+		return nil, err
 	}
+	return nonEmptyLines(strings.TrimSpace(string(out))), nil
+}
+
+func collectAptUpdates() ([]Update, error) {
+	lines, err := shellLines("LC_ALL=C apt list --upgradable 2>/dev/null | tail -n +2")
+	if err != nil {
+		return nil, err
+	}
+	updates := make([]Update, 0, len(lines))
+	for _, line := range lines {
+		if u := parseAptLine(line); u != nil {
+			updates = append(updates, *u)
+		}
+	}
+	return updates, nil
+}
+
+func collectPacmanUpdates() ([]Update, error) {
+	lines, err := shellLines("LC_ALL=C pacman -Qu 2>/dev/null")
+	if err != nil {
+		return nil, err
+	}
+	updates := make([]Update, 0, len(lines))
+	for _, line := range lines {
+		if u := parsePacmanLine(line); u != nil {
+			updates = append(updates, *u)
+		}
+	}
+	return updates, nil
+}
+
+func collectZypperUpdates() ([]Update, error) {
+	lines, err := shellLines("LC_ALL=C zypper list-updates 2>/dev/null | tail -n +5 | head -n -1")
+	if err != nil {
+		return nil, err
+	}
+	return packageNameUpdates(lines), nil
+}
+
+func collectApkUpdates() ([]Update, error) {
+	lines, err := shellLines("LC_ALL=C apk list --upgradable 2>/dev/null")
+	if err != nil {
+		return nil, err
+	}
+	return packageNameUpdates(lines), nil
+}
+
+func collectXbpsUpdates() ([]Update, error) {
+	lines, err := shellLines("LC_ALL=C xbps-install -nuM 2>/dev/null")
+	if err != nil {
+		return nil, err
+	}
+	return packageNameUpdates(lines), nil
+}
+
+func collectEmergeUpdates() ([]Update, error) {
+	lines, err := shellLines("LC_ALL=C emerge -up --ask=n @world 2>/dev/null | grep -E '^\\[ebuild' | sed 's/.*\\] //' | head -n -1")
+	if err != nil {
+		return nil, err
+	}
+	return packageNameUpdates(lines), nil
+}
+
+func collectNixUpdates() ([]Update, error) {
+	lines, err := shellLines("LC_ALL=C nix-env -q --outdated 2>/dev/null | grep -v '^$'")
+	if err != nil {
+		return nil, err
+	}
+	return packageNameUpdates(lines), nil
+}
+
+func packageNameUpdates(lines []string) []Update {
+	updates := make([]Update, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		updates = append(updates, Update{Package: line})
+	}
+	return updates
+}
+
+func collectDnfUpdates() ([]Update, error) {
+	cmd := exec.Command("dnf", "check-update")
+	cmd.Env = append(cmd.Environ(), "LC_ALL=C")
+	out, err := cmd.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) || exitErr.ExitCode() != 100 {
+			return nil, err
+		}
+	}
+
+	installed := rpmInstalledVersions()
+
+	updates := make([]Update, 0)
+	for _, line := range nonEmptyLines(strings.TrimSpace(string(out))) {
+		u := parseDnfLine(line)
+		if u == nil {
+			continue
+		}
+		u.Installed = installed[u.Package]
+		updates = append(updates, *u)
+	}
+	return updates, nil
+}
+
+func rpmInstalledVersions() map[string]string {
+	cmd := exec.Command("rpm", "-qa", "--queryformat", "%{NAME} %{VERSION}-%{RELEASE}\n")
+	cmd.Env = append(cmd.Environ(), "LC_ALL=C")
+	out, err := cmd.Output()
+	if err != nil {
+		return map[string]string{}
+	}
+	versions := make(map[string]string)
+	for _, line := range nonEmptyLines(strings.TrimSpace(string(out))) {
+		parts := strings.Fields(line)
+		if len(parts) == 2 {
+			versions[parts[0]] = parts[1]
+		}
+	}
+	return versions
 }
 
 func FormatUpdatesForPrompt(updates []Update) string {
@@ -102,34 +225,6 @@ func isRebootRequired(pkg string) bool {
 		pkg == "udev"
 }
 
-func parseUpdatesOutput(mgr, raw string) ([]Update, error) {
-	lines := nonEmptyLines(raw)
-	if len(lines) == 0 {
-		return []Update{}, nil
-	}
-	updates := make([]Update, 0, len(lines))
-	for _, line := range lines {
-		u := parseLine(mgr, line)
-		if u != nil {
-			updates = append(updates, *u)
-		}
-	}
-	return updates, nil
-}
-
-func parseLine(mgr, line string) *Update {
-	switch mgr {
-	case "apt":
-		return parseAptLine(line)
-	case "dnf", "yum":
-		return parseDnfLine(line)
-	case "pacman":
-		return parsePacmanLine(line)
-	default:
-		return &Update{Package: strings.TrimSpace(line)}
-	}
-}
-
 func parseAptLine(line string) *Update {
 	line = strings.TrimSpace(line)
 	if line == "" || strings.Contains(line, "Listing...") {
@@ -166,16 +261,13 @@ func parseAptLine(line string) *Update {
 
 func parseDnfLine(line string) *Update {
 	line = strings.TrimSpace(line)
-	if line == "" || strings.Contains(line, "Last metadata") ||
-		strings.Contains(line, "Available Upgrades") || strings.Contains(line, "---") {
-		return nil
-	}
 	parts := strings.Fields(line)
-	if len(parts) < 2 {
+	if len(parts) != 3 || !strings.Contains(parts[0], ".") {
 		return nil
 	}
 	pkgName := parts[0]
-	if idx := strings.IndexByte(pkgName, '.'); idx >= 0 {
+
+	if idx := strings.LastIndexByte(pkgName, '.'); idx >= 0 {
 		pkgName = pkgName[:idx]
 	}
 	security := strings.Contains(strings.ToLower(line), "security")

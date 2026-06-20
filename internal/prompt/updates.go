@@ -19,6 +19,7 @@ type UpdateFinding struct {
 	Available      string `json:"available"`
 	Category       string `json:"category"` // "security", "major", "minor", "unknown"
 	RebootRequired bool   `json:"reboot_required"`
+	Detail         string `json:"detail"`
 }
 
 type UpdatesResult struct {
@@ -63,8 +64,9 @@ FIELD RULES
   Do not list individual updates here.
 - "updates": array of objects. Each object has these fields:
   - "package": the exact package name from the list (string).
-  - "installed": currently installed version string, or "" if unknown (string).
-  - "available": version string that would be installed after update (string).
+  - "installed": copy the installed version verbatim from the input. Use ""
+    only if the input genuinely has no installed version for that package.
+  - "available": copy the available version verbatim from the input.
   - "category": MUST be exactly one of: "security", "major", "minor", "unknown".
     Use "security" when flagged as a security fix or advisory (CVE, DSA, RHSA, etc).
     Use "major" for significant version jumps (e.g. 1.x to 2.x) with likely
@@ -72,6 +74,16 @@ FIELD RULES
     Use "unknown" only when you truly cannot determine the category.
   - "reboot_required": boolean. True when the package is a kernel, init system,
     graphics driver (nvidia), libc/glibc, or firmware update. Default to false.
+  - "detail": REQUIRED (1-2 plain-text sentences, non-empty) whenever category
+    is "security" or "major" - do not leave it empty for these. For "security"
+    updates, state what the fix addresses and why it matters (CVE/advisory if
+    known from the package name or version, otherwise describe the general
+    risk). For "major" updates, state what is likely to break and what the
+    operator should check before upgrading. If a "major" update is part of a
+    related group already explained on another package (e.g. docker-ce and
+    docker-ce-cli bumping together), still write a short detail specific to
+    this package rather than leaving it blank. For "minor" or "unknown"
+    updates with nothing notable, an empty string is acceptable.
 - If there are no pending updates, return {"summary":"...","updates":[]}.
 - Do not invent updates not present in the list.
 
