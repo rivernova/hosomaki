@@ -52,6 +52,8 @@ export default defineConfig({
                     { text: 'timers', link: '/reference/timers' },
                     { text: 'crons', link: '/reference/crons' },
                     { text: 'mounts', link: '/reference/mounts' },
+                    { text: 'updates', link: '/reference/updates' },
+                    { text: 'history', link: '/reference/history' },
                     { text: 'shell-integration', link: '/reference/shell-integration' },
                 ],
             },

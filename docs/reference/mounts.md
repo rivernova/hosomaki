@@ -8,12 +8,6 @@ Inspect active mounts, detect stale NFS, and flag disks approaching capacity.
 hosomaki mounts [flags]
 ```
 
-## Flags
-
-| Flag | Default | Description |
-|---|---|---|
-| `--debug` | `false` | Print raw model response to stderr |
-
 ## Output
 
 Hosomaki will flag:

@@ -1,6 +1,4 @@
-# Command Reference
-
-All Hosomaki commands are read-only. None of them modify the system.
+All Hosomaki commands are read-only with respect to the system they're diagnosing, none of them modify system state. Two commands write to Hosomaki's own local state directory: `audit --init` creates the baseline snapshot, and `history --clear` deletes the history log.
 
 ## Commands at a glance
 
@@ -16,6 +14,8 @@ All Hosomaki commands are read-only. None of them modify the system.
 | [`timers`](/reference/timers) | Inspect systemd timers and flag failures or overdue schedules |
 | [`crons`](/reference/crons) | Read all crontabs and explain what each job does |
 | [`mounts`](/reference/mounts) | Inspect active mounts, detect stale NFS, and flag disks nearing capacity |
+| [`updates`](/reference/updates) | Explain pending package updates before applying them |
+| [`history`](/reference/history) | Review past diagnostic results |
 | [`shell-integration`](/reference/shell-integration) | Install a shell wrapper that explains failed commands automatically |
 
 ## Common flags

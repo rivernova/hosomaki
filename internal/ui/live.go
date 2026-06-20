@@ -100,7 +100,7 @@ func RenderExplainEntryLive(entry prompt.ExplainEntry, index int, multi bool) st
 		Section("why it is happening", why)
 }
 
-func AuditFindingsHeader() string { return sectionHeader("ai analysis") }
+func AuditFindingsHeader() string { return sectionHeader("analysis") }
 
 func RenderAuditSummaryLive(summary string) string {
 	t := strings.TrimSpace(summary)
@@ -208,7 +208,7 @@ func RenderPortsFindingLive(f prompt.PortsFinding, _ int) string {
 	return bullet + indentProse(detail)
 }
 
-func TimersFindingsHeader() string { return sectionHeader("ai analysis") }
+func TimersFindingsHeader() string { return sectionHeader("analysis") }
 
 func RenderTimersSummaryLive(summary string) string {
 	t := strings.TrimSpace(summary)
@@ -257,7 +257,7 @@ func RenderTimerLive(entry prompt.TimerEntry, _ int) string {
 	return bullet + meta.String()
 }
 
-func CronsFindingsHeader() string { return sectionHeader("ai analysis") }
+func CronsFindingsHeader() string { return sectionHeader("analysis") }
 
 func RenderCronsSummaryLive(summary string) string {
 	t := strings.TrimSpace(summary)
@@ -303,7 +303,7 @@ func RenderCronJobLive(entry prompt.CronJobEntry, _ int) string {
 	return bullet + indentProse(detail)
 }
 
-func MountsFindingsHeader() string { return sectionHeader("ai analysis") }
+func MountsFindingsHeader() string { return sectionHeader("analysis") }
 
 func RenderMountsSummaryLive(summary string) string {
 	t := strings.TrimSpace(summary)
@@ -341,7 +341,7 @@ func RenderMountsFindingLive(f prompt.MountFinding, _ int) string {
 	return bullet + indentProse(detail)
 }
 
-func UpdatesFindingsHeader() string { return sectionHeader("ai analysis") }
+func UpdatesFindingsHeader() string { return sectionHeader("analysis") }
 
 func RenderUpdatesSummaryLive(summary string) string {
 	t := strings.TrimSpace(summary)
@@ -404,7 +404,7 @@ func RenderUpdatesFindingLive(u prompt.UpdateFinding, _ int) string {
 	return out.String()
 }
 
-func HistoryFindingsHeader() string { return sectionHeader("ai analysis") }
+func HistoryFindingsHeader() string { return sectionHeader("analysis") }
 
 func RenderHistorySummaryLive(summary string) string {
 	t := strings.TrimSpace(summary)

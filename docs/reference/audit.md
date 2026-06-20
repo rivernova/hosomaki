@@ -15,7 +15,6 @@ hosomaki audit [flags]
 | `--init` | `false` | Take a new baseline and save it to disk |
 | `--baseline <path>` | `~/.local/share/hosomaki/audit-baseline.json` | Path to baseline file |
 | `--dirs <path,...>` | — | Additional directories to track (comma-separated) |
-| `--debug` | `false` | Print raw model response to stderr |
 
 ## Workflow
 

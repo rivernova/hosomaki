@@ -22,7 +22,6 @@ hosomaki explain [flags] [message]
 | `--lines <N>` | `50` | Number of lines to read |
 | `--since <time>` | — | Start of time range |
 | `--until <time>` | — | End of time range |
-| `--debug` | `false` | Print raw model response to stderr |
 
 ## Input modes
 

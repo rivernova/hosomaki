@@ -21,7 +21,6 @@ hosomaki why <exit-code> --service <name> [flags]
 | `--service <name>` | — | Service whose journal to read |
 | `--lines <N>` | `50` | Number of journal lines to include |
 | `--since <time>` | — | Start of time range |
-| `--debug` | `false` | Print raw model response to stderr |
 
 ## Examples
 

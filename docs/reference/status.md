@@ -13,7 +13,6 @@ hosomaki status [flags]
 | Flag | Default | Description |
 |---|---|---|
 | `--brief` | `false` | One-sentence summary instead of full output |
-| `--debug` | `false` | Print raw model response to stderr |
 
 ## Examples
 

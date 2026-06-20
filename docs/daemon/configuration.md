@@ -10,7 +10,7 @@ The daemon configuration will extend the existing `~/.hosomaki.yaml` with a `dae
 
 ```yaml
 # Existing CLI config
-model: llama3.2
+model: gemma3:4b
 ollama_url: http://localhost:11434
 
 # Planned daemon config

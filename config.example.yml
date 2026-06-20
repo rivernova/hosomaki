@@ -2,11 +2,11 @@
 # Copy this file to ~/.config/hosomaki/config.yaml and edit as needed.
 
 ai:
-  provider: ollama                   # currently the only supported provider
-  endpoint: http://localhost:11434   # Ollama default
-  model: llama3                      # any model you have pulled: llama3, mistral, codellama…
-  timeout: 120s                      # increase for slow hardware or large models
+  provider: ollama                     # currently the only supported provider
+  endpoint: http://localhost:11434     # Ollama default
+  model: gemma3:4b                     # any model you have pulled: llama3, mistral, qwen3…
+  timeout: 120s                        # increase for slow hardware or large models
 
 output:
   color: true
-  language: en                       # language for AI responses (en, es, fr, de, …)
+  language: en                         # language for AI responses (en, es, fr, de, …)

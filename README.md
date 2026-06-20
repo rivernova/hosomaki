@@ -24,6 +24,8 @@ It uses a local model via [Ollama](https://ollama.com) and never sends anything 
 | `timers` | Inspect all systemd timers and flag failures or overdue schedules |
 | `crons` | Read all crontabs and explain what each job does |
 | `mounts` | Inspect active mounts, detect stale NFS, and flag disks approaching capacity |
+| `updates` | Explain pending package updates before applying them |
+| `history` | Review past diagnostic results |
 | `shell-integration` | Install a shell wrapper that explains failed commands automatically |
 
 Run `hosomaki <command> --help` for flags and usage details.
@@ -77,7 +79,17 @@ hosomaki timers
 hosomaki crons
 
 # Mount health, stale NFS, disk thresholds
- hosomaki mounts                                  
+ hosomaki mounts        
+ 
+# Pending package updates
+hosomaki updates
+hosomaki updates --security-only                  # only security-related updates
+
+# Review past diagnostic results
+hosomaki history
+hosomaki history --command explain                # filter by source command
+hosomaki history --since 7d                       # only entries from the last week
+hosomaki history --clear                          # wipe the log                          
 
 # Auto-explain failed commands
 hosomaki shell-integration --shell bash >> ~/.bashrc && source ~/.bashrc
@@ -141,7 +153,7 @@ docker run -d -p 11434:11434 --name ollama ollama/ollama
 ### Pull a model
 
 ```bash
-ollama pull llama3.1
+ollama pull gemma3:4b
 ```
 
 Any model works. Larger models produce better results, smaller models are faster.
@@ -149,7 +161,7 @@ Any model works. Larger models produce better results, smaller models are faster
 If using Docker:
 
 ```bash
-docker exec -it ollama ollama pull llama3.1
+docker exec -it ollama ollama pull gemma3:4b
 ```
 
 ### Install Hosomaki

@@ -37,8 +37,8 @@
           </h2>
         </div>
         <p class="section-lead">
-          Eleven commands. One pipeline. Each one sanitised before
-          prompting and interpreted entirely on your machine.
+          One pipeline behind every command. Each run is sanitised before
+          it reaches the model, and interpreted entirely on your machine.
         </p>
       </div>
       <div class="cmd-grid">
@@ -294,6 +294,24 @@ const commands = [
     desc: 'Reads all crontab files and explains each job. Flags broken or suspicious entries.',
   },
   {
+    slug: 'mounts',
+    name: 'hosomaki mounts',
+    title: 'Mount health',
+    desc: 'Inspects active mounts, flags stale NFS, and warns on disks approaching capacity.',
+  },
+  {
+    slug: 'updates',
+    name: 'hosomaki updates',
+    title: 'Pending updates',
+    desc: 'Explains what each pending package update changes before you apply it. Flags security fixes and reboot requirements.',
+  },
+  {
+    slug: 'history',
+    name: 'hosomaki history',
+    title: 'Past results',
+    desc: 'Revisit and summarise past results from explain, why, audit, status, and doctor without re-collecting system state.',
+  },
+  {
     slug: 'shell-integration',
     name: 'shell-integration',
     title: 'Auto-explain failures',
@@ -365,8 +383,8 @@ const installSteps = [
     cmd: 'curl -fsSL https://ollama.com/install.sh | sh',
   },
   {
-    comment: '# pull a model (llama3.1 is the default)',
-    cmd: 'ollama pull llama3.1',
+    comment: '# pull a model (gemma3:4b is the default)',
+    cmd: 'ollama pull gemma3:4b',
   },
   {
     comment: '# clone the repo',
