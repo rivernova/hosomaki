@@ -21,6 +21,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/spinner"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
+	"github.com/rivernova/hosomaki/internal/historian"
 )
 
 // explain command logic
@@ -246,6 +247,9 @@ func runExplain(p string, debug bool) error {
 		fmt.Print(ui.ExplainEmptyResult())
 	}
 
+	if err := historian.Record("explain", result); err != nil && debug {
+		_, _ = fmt.Fprintf(os.Stderr, "history: record explain: %v\n", err)
+	}
 	fmt.Print(ui.Done())
 	return nil
 }

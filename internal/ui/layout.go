@@ -520,3 +520,29 @@ func UpdatesPendingList(updates []collector.Update, securityOnly bool) string {
 func UpdatesCleanResult() string {
 	return Section("result", BulletOK("no issues found in pending updates"))
 }
+
+// history UI
+
+func HistoryHeader() string {
+	return Title("diagnostic history")
+}
+
+func HistoryNoHistory() string {
+	return Section("results", "No diagnostic history found. Run explain, why, audit, status, or doctor to populate it.\n")
+}
+
+func HistoryNoMatching(msg string) string {
+	return Section("results", msg+"\n")
+}
+
+func HistoryEntryCount(n int) string {
+	return Section("entries", plural(n, "entry", "entries")+"\n")
+}
+
+func HistoryCleared() string {
+	return Section("results", "History log cleared.\n")
+}
+
+func HistoryCleanResult() string {
+	return Section("result", BulletOK("no issues found in diagnostic history"))
+}

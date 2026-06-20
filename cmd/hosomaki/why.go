@@ -18,6 +18,7 @@ import (
 	"github.com/rivernova/hosomaki/internal/spinner"
 	"github.com/rivernova/hosomaki/internal/ui"
 	"github.com/spf13/cobra"
+	"github.com/rivernova/hosomaki/internal/historian"
 )
 
 // why command logic
@@ -189,11 +190,11 @@ func runWhy(generationPrompt string, debug bool) error {
 		return err
 	}
 
-	renderWhyResult(result)
+	renderWhyResult(result, debug)
 	return nil
 }
 
-func renderWhyResult(result prompt.WhyResult) {
+func renderWhyResult(result prompt.WhyResult, debug bool) {
 	fmt.Print(ui.WhySummaryHeader())
 	fmt.Print(ui.RenderWhySummaryLive(result.Summary))
 
@@ -212,5 +213,8 @@ func renderWhyResult(result prompt.WhyResult) {
 	}
 
 	fmt.Print(ui.RenderWhySummary(result))
+	if err := historian.Record("why", result); err != nil && debug {
+		_, _ = fmt.Fprintf(os.Stderr, "history: record why: %v\n", err)
+	}
 	fmt.Print(ui.Done())
 }
