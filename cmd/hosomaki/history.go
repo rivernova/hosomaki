@@ -206,7 +206,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().IntVar(&limit, "limit", 10, "show the last N entries (default: all)")
+	cmd.Flags().IntVar(&limit, "limit", 10, "show the last N entries (default: 10)")
 	cmd.Flags().StringVar(&since, "since", "", "show entries newer than duration (e.g. 24h, 7d)")
 	cmd.Flags().StringVar(&filterCmd, "command", "", "filter by source command (explain, why, audit, status, doctor)")
 	cmd.Flags().BoolVar(&clear, "clear", false, "clear the history log")
@@ -289,13 +289,19 @@ func extractSummary(e historian.HistoryEntry) string {
 		}
 	case "doctor":
 		// Try full doctor result first (Issues/Actions)
-		var full struct {
-			Issues []struct {
-				Title string `json:"title"`
-			} `json:"issues"`
-		}
-		if err := json.Unmarshal(e.Result, &full); err == nil && len(full.Issues) > 0 {
-			return strings.TrimSpace(full.Issues[0].Title)
+		var raw map[string]any
+		if err := json.Unmarshal(e.Result, &raw); err == nil {
+			if issues, ok := raw["issues"]; ok && issues != nil {
+				issuesArr, _ := issues.([]any)
+				if len(issuesArr) > 0 {
+					if first, ok := issuesArr[0].(map[string]any); ok {
+						if title, ok := first["title"].(string); ok && title != "" {
+							return strings.TrimSpace(title)
+						}
+					}
+				}
+				return "no issues detected"
+			}
 		}
 		// Fallback to brief (Summary)
 		var brief struct {
