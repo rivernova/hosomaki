@@ -95,22 +95,16 @@ func TestValidator_NullForRequiredNonSliceField(t *testing.T) {
 func TestValidator_UnexpectedTopLevelKey(t *testing.T) {
 	raw := `{"name":"x","count":1,"items":[],"junk":"extra"}`
 	r := newValidator().Validate(raw)
-	if r.Valid() {
-		t.Fatal("expected invalid (unexpected top-level 'junk')")
-	}
-	if !containsError(r.StructuralErrors(), `unexpected field "junk"`) {
-		t.Fatalf("expected unexpected-field error, got: %v", r.StructuralErrors())
+	if !r.Valid() {
+		t.Fatalf("unknown top-level fields must be tolerated, got: %v", r.Errors())
 	}
 }
 
 func TestValidator_UnexpectedNestedKey(t *testing.T) {
 	raw := `{"name":"x","count":1,"items":[{"label":"a","active":true,"junk":1}]}`
 	r := newValidator().Validate(raw)
-	if r.Valid() {
-		t.Fatal("expected invalid (unexpected nested 'junk')")
-	}
-	if !containsError(r.StructuralErrors(), `unexpected field "items[0].junk"`) {
-		t.Fatalf("expected nested unexpected-field error, got: %v", r.StructuralErrors())
+	if !r.Valid() {
+		t.Fatalf("unknown nested fields must be tolerated, got: %v", r.Errors())
 	}
 }
 
