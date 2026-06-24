@@ -7,6 +7,7 @@ package hosomaki
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -84,7 +85,7 @@ hosomaki watch never modifies the system. It is read-only.`,
 
 				Sanitise: sanitiser.DefaultPerLine().Sanitise,
 				OnFlush:  makeFlushFunc(service, env, pipe),
-				OnLine: nil,
+				OnLine:   nil,
 			}
 
 			w, err := watcher.New(cfg)
@@ -106,6 +107,7 @@ hosomaki watch never modifies the system. It is read-only.`,
 			if ctx.Err() != nil {
 				return nil
 			}
+
 			return runErr
 		},
 	}
@@ -134,13 +136,11 @@ func makeFlushFunc(service string, env collector.Environment, pipe ai.StreamPipe
 
 		issueCount := 0
 		headerPrinted := false
-		wasRepaired := false
 		batchTime := time.Now()
 
-		result, err := pipe.Run(ctx, p, ai.StreamOptions{
+		_, err := pipe.Run(ctx, p, ai.StreamOptions{
 			OnFirstToken: func() { spin.SetLabel("responding…") },
 			OnRepairStart: func(n int) {
-				wasRepaired = true
 				spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n))
 			},
 			OnItem: func(key, raw string) {
@@ -166,20 +166,9 @@ func makeFlushFunc(service string, env collector.Environment, pipe ai.StreamPipe
 
 		spin.Stop()
 
-		if err != nil {
+		if err != nil && !errors.Is(err, ai.ErrIncomplete) {
 			_, _ = fmt.Fprintf(os.Stderr, "watch: analysis error: %v\n", err)
-			return nil
 		}
-
-		if wasRepaired && len(result.Issues) > 0 {
-			if !headerPrinted {
-				fmt.Print(ui.WatchBatchHeader(batchTime))
-			}
-			for i, entry := range result.Issues {
-				fmt.Print(ui.RenderExplainEntryLive(entry, i+1, len(result.Issues) > 1))
-			}
-		}
-
 		return nil
 	}
 }

@@ -7,8 +7,10 @@ package hosomaki
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/rivernova/hosomaki/internal/ai"
@@ -71,7 +73,8 @@ func portsPipeline() ai.StreamPipeline[prompt.PortsResult] {
 		ai.StructValidator[prompt.PortsResult]{
 			SemanticCheck: validatePortsResult,
 		},
-	)
+	).WithElementCheck("findings", ai.ElementCheck(validatePortsFinding)).
+		WithEnum("severity", portsSeverities...)
 }
 
 func validatePortsResult(r prompt.PortsResult) []string {
@@ -80,21 +83,31 @@ func validatePortsResult(r prompt.PortsResult) []string {
 		errs = append(errs, "summary must not be empty")
 	}
 	for i, f := range r.Findings {
-		sev := strings.TrimSpace(f.Severity)
-		if sev == "" {
-			errs = append(errs, fmt.Sprintf("findings[%d].severity must not be empty", i))
-		} else if sev != "warning" && sev != "info" {
-			errs = append(errs, fmt.Sprintf("findings[%d].severity must be 'warning' or 'info', got %q", i, sev))
+		for _, e := range validatePortsFinding(f) {
+			errs = append(errs, fmt.Sprintf("findings[%d].%s", i, e))
 		}
-		if strings.TrimSpace(f.Port) == "" {
-			errs = append(errs, fmt.Sprintf("findings[%d].port must not be empty", i))
-		}
-		if strings.TrimSpace(f.Title) == "" {
-			errs = append(errs, fmt.Sprintf("findings[%d].title must not be empty", i))
-		}
-		if strings.TrimSpace(f.Detail) == "" {
-			errs = append(errs, fmt.Sprintf("findings[%d].detail must not be empty", i))
-		}
+	}
+	return errs
+}
+
+var portsSeverities = []string{"warning", "info"}
+
+func validatePortsFinding(f prompt.PortsFinding) []string {
+	var errs []string
+	sev := strings.TrimSpace(f.Severity)
+	if sev == "" {
+		errs = append(errs, "severity must not be empty")
+	} else if !slices.Contains(portsSeverities, sev) {
+		errs = append(errs, fmt.Sprintf("severity must be 'warning' or 'info', got %q", sev))
+	}
+	if strings.TrimSpace(f.Port) == "" {
+		errs = append(errs, "port must not be empty")
+	}
+	if strings.TrimSpace(f.Title) == "" {
+		errs = append(errs, "title must not be empty")
+	}
+	if strings.TrimSpace(f.Detail) == "" {
+		errs = append(errs, "detail must not be empty")
 	}
 	return errs
 }
@@ -109,7 +122,6 @@ func runPorts(generationPrompt string, debug bool) error {
 
 	findingCount := 0
 	summaryPrinted := false
-	wasRepaired := false
 
 	result, err := pipe.Run(
 		context.Background(),
@@ -117,7 +129,6 @@ func runPorts(generationPrompt string, debug bool) error {
 		ai.StreamOptions{
 			OnFirstToken: func() { spin.SetLabel("responding…") },
 			OnRepairStart: func(n int) {
-				wasRepaired = true
 				spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n))
 			},
 			OnItem: func(key, raw string) {
@@ -157,23 +168,18 @@ func runPorts(generationPrompt string, debug bool) error {
 
 	spin.Stop()
 
-	if err != nil {
+	if err != nil && !errors.Is(err, ai.ErrIncomplete) {
 		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		if ferr != nil {
 			return ferr
 		}
 		return err
 	}
+	if errors.Is(err, ai.ErrIncomplete) {
+		_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+	}
 
-	if wasRepaired {
-		if !summaryPrinted {
-			fmt.Print(ui.AuditFindingsHeader())
-		}
-		fmt.Print(ui.RenderPortsSummaryLive(result.Summary))
-		for i, f := range result.Findings {
-			fmt.Print(ui.RenderPortsFindingLive(f, i+1))
-		}
-	} else if findingCount == 0 && !summaryPrinted {
+	if findingCount == 0 && !summaryPrinted {
 		fmt.Print(ui.AuditFindingsHeader())
 		fmt.Print(ui.RenderPortsSummaryLive(result.Summary))
 	}

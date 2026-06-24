@@ -7,8 +7,10 @@ package hosomaki
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/rivernova/hosomaki/internal/ai"
@@ -81,7 +83,8 @@ func cronsPipeline() ai.StreamPipeline[prompt.CronsResult] {
 		ai.StructValidator[prompt.CronsResult]{
 			SemanticCheck: validateCronsResult,
 		},
-	)
+	).WithElementCheck("jobs", ai.ElementCheck(validateCronJob)).
+		WithEnum("status", cronStatuses...)
 }
 
 func validateCronsResult(r prompt.CronsResult) []string {
@@ -90,24 +93,34 @@ func validateCronsResult(r prompt.CronsResult) []string {
 		errs = append(errs, "summary must not be empty")
 	}
 	for i, j := range r.Jobs {
-		if strings.TrimSpace(j.Source) == "" {
-			errs = append(errs, fmt.Sprintf("jobs[%d].source must not be empty", i))
+		for _, e := range validateCronJob(j) {
+			errs = append(errs, fmt.Sprintf("jobs[%d].%s", i, e))
 		}
-		if strings.TrimSpace(j.Command) == "" {
-			errs = append(errs, fmt.Sprintf("jobs[%d].command must not be empty", i))
-		}
-		if strings.TrimSpace(j.WhatItDoes) == "" {
-			errs = append(errs, fmt.Sprintf("jobs[%d].what_it_does must not be empty", i))
-		}
-		status := strings.TrimSpace(j.Status)
-		if status == "" {
-			errs = append(errs, fmt.Sprintf("jobs[%d].status must not be empty", i))
-		} else if status != "ok" && status != "warning" && status != "failed" {
-			errs = append(errs, fmt.Sprintf("jobs[%d].status must be 'ok', 'warning', or 'failed', got %q", i, status))
-		}
-		if strings.TrimSpace(j.LastRun) == "" {
-			errs = append(errs, fmt.Sprintf("jobs[%d].last_run must not be empty (use 'unknown' when unavailable)", i))
-		}
+	}
+	return errs
+}
+
+var cronStatuses = []string{"ok", "warning", "failed"}
+
+func validateCronJob(j prompt.CronJobEntry) []string {
+	var errs []string
+	if strings.TrimSpace(j.Source) == "" {
+		errs = append(errs, "source must not be empty")
+	}
+	if strings.TrimSpace(j.Command) == "" {
+		errs = append(errs, "command must not be empty")
+	}
+	if strings.TrimSpace(j.WhatItDoes) == "" {
+		errs = append(errs, "what_it_does must not be empty")
+	}
+	status := strings.TrimSpace(j.Status)
+	if status == "" {
+		errs = append(errs, "status must not be empty")
+	} else if !slices.Contains(cronStatuses, status) {
+		errs = append(errs, fmt.Sprintf("status must be 'ok', 'warning', or 'failed', got %q", status))
+	}
+	if strings.TrimSpace(j.LastRun) == "" {
+		errs = append(errs, "last_run must not be empty (use 'unknown' when unavailable)")
 	}
 	return errs
 }
@@ -122,7 +135,6 @@ func runCrons(generationPrompt string, collectedCount int, debug bool) error {
 
 	jobCount := 0
 	summaryPrinted := false
-	wasRepaired := false
 
 	result, err := pipe.Run(
 		context.Background(),
@@ -130,7 +142,6 @@ func runCrons(generationPrompt string, collectedCount int, debug bool) error {
 		ai.StreamOptions{
 			OnFirstToken: func() { spin.SetLabel("responding…") },
 			OnRepairStart: func(n int) {
-				wasRepaired = true
 				spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n))
 			},
 			OnItem: func(key, raw string) {
@@ -170,23 +181,18 @@ func runCrons(generationPrompt string, collectedCount int, debug bool) error {
 
 	spin.Stop()
 
-	if err != nil {
+	if err != nil && !errors.Is(err, ai.ErrIncomplete) {
 		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		if ferr != nil {
 			return ferr
 		}
 		return err
 	}
+	if errors.Is(err, ai.ErrIncomplete) {
+		_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+	}
 
-	if wasRepaired {
-		if !summaryPrinted {
-			fmt.Print(ui.CronsFindingsHeader())
-		}
-		fmt.Print(ui.RenderCronsSummaryLive(result.Summary))
-		for i, j := range result.Jobs {
-			fmt.Print(ui.RenderCronJobLive(j, i+1))
-		}
-	} else if jobCount == 0 && !summaryPrinted {
+	if jobCount == 0 && !summaryPrinted {
 		fmt.Print(ui.CronsFindingsHeader())
 		fmt.Print(ui.RenderCronsSummaryLive(result.Summary))
 	}

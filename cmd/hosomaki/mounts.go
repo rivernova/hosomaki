@@ -7,6 +7,7 @@ package hosomaki
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -90,7 +91,7 @@ func mountsPipeline() ai.StreamPipeline[prompt.MountsResult] {
 		ai.StructValidator[prompt.MountsResult]{
 			SemanticCheck: validateMountsResult,
 		},
-	)
+	).WithElementCheck("findings", ai.ElementCheck(validateMountsFinding))
 }
 
 func validateMountsResult(r prompt.MountsResult) []string {
@@ -99,23 +100,31 @@ func validateMountsResult(r prompt.MountsResult) []string {
 		errs = append(errs, "summary must not be empty")
 	}
 	for i, f := range r.Findings {
-		sev := strings.TrimSpace(f.Severity)
-		if sev == "" {
-			errs = append(errs, fmt.Sprintf("findings[%d].severity must not be empty", i))
-		} else if sev != "critical" && sev != "warning" && sev != "info" {
-			errs = append(errs, fmt.Sprintf(
-				"findings[%d].severity must be 'critical', 'warning', or 'info', got %q", i, sev,
-			))
+		for _, e := range validateMountsFinding(f) {
+			errs = append(errs, fmt.Sprintf("findings[%d].%s", i, e))
 		}
-		if strings.TrimSpace(f.MountPoint) == "" {
-			errs = append(errs, fmt.Sprintf("findings[%d].mount_point must not be empty", i))
-		}
-		if strings.TrimSpace(f.Title) == "" {
-			errs = append(errs, fmt.Sprintf("findings[%d].title must not be empty", i))
-		}
-		if strings.TrimSpace(f.Detail) == "" {
-			errs = append(errs, fmt.Sprintf("findings[%d].detail must not be empty", i))
-		}
+	}
+	return errs
+}
+
+func validateMountsFinding(f prompt.MountFinding) []string {
+	var errs []string
+	sev := strings.TrimSpace(f.Severity)
+	if sev == "" {
+		errs = append(errs, "severity must not be empty")
+	} else if sev != "critical" && sev != "warning" && sev != "info" {
+		errs = append(errs, fmt.Sprintf(
+			"severity must be 'critical', 'warning', or 'info', got %q", sev,
+		))
+	}
+	if strings.TrimSpace(f.MountPoint) == "" {
+		errs = append(errs, "mount_point must not be empty")
+	}
+	if strings.TrimSpace(f.Title) == "" {
+		errs = append(errs, "title must not be empty")
+	}
+	if strings.TrimSpace(f.Detail) == "" {
+		errs = append(errs, "detail must not be empty")
 	}
 	return errs
 }
@@ -176,20 +185,20 @@ func runMounts(generationPrompt string, debug bool) error {
 
 	spin.Stop()
 
-	if err != nil {
+	if err != nil && !errors.Is(err, ai.ErrIncomplete) {
 		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		if ferr != nil {
 			return ferr
 		}
 		return err
 	}
+	if errors.Is(err, ai.ErrIncomplete) {
+		_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+	}
 
 	if !summaryPrinted {
 		fmt.Print(ui.MountsFindingsHeader())
 		fmt.Print(ui.RenderMountsSummaryLive(result.Summary))
-		for i, f := range result.Findings {
-			fmt.Print(ui.RenderMountsFindingLive(f, i+1))
-		}
 	}
 
 	if len(result.Findings) == 0 {

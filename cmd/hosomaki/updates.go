@@ -7,6 +7,7 @@ package hosomaki
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -44,7 +45,7 @@ Examples:
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			env := collector.Env()
 
-			spin := spinner.Start("checking for pending updates\u2026")
+			spin := spinner.Start("checking for pending updates…")
 			pending, err := collector.Updates(env)
 			spin.Stop()
 			if err != nil {
@@ -92,7 +93,7 @@ Examples:
 				SecurityOnly: securityOnly,
 			})
 
-			spin = spinner.Start("thinking\u2026")
+			spin = spinner.Start("thinking…")
 			pipe := updatesStreamPipeline()
 			if debug {
 				pipe = pipe.WithDebug(os.Stderr)
@@ -104,9 +105,9 @@ Examples:
 				context.Background(),
 				p,
 				ai.StreamOptions{
-					OnFirstToken: func() { spin.SetLabel("responding\u2026") },
+					OnFirstToken: func() { spin.SetLabel("responding…") },
 					OnRepairStart: func(n int) {
-						spin.SetLabel(fmt.Sprintf("repairing (attempt %d)\u2026", n))
+						spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n))
 					},
 					OnItem: func(key, raw string) {
 						switch key {
@@ -144,20 +145,20 @@ Examples:
 
 			spin.Stop()
 
-			if err != nil {
+			if err != nil && !errors.Is(err, ai.ErrIncomplete) {
 				_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
 				if ferr != nil {
 					return ferr
 				}
 				return err
 			}
+			if errors.Is(err, ai.ErrIncomplete) {
+				_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+			}
 
 			if !summaryPrinted {
 				fmt.Print(ui.UpdatesFindingsHeader())
 				fmt.Print(ui.RenderUpdatesSummaryLive(result.Summary))
-				for _, u := range result.Updates {
-					fmt.Print(ui.RenderUpdatesFindingLive(u, 0))
-				}
 			}
 
 			if len(result.Updates) == 0 {
@@ -183,7 +184,7 @@ func updatesStreamPipeline() ai.StreamPipeline[prompt.UpdatesResult] {
 		ai.StructValidator[prompt.UpdatesResult]{
 			SemanticCheck: validateUpdatesResult,
 		},
-	)
+	).WithElementCheck("updates", ai.ElementCheck(validateUpdate))
 }
 
 func validateUpdatesResult(r prompt.UpdatesResult) []string {
@@ -192,16 +193,24 @@ func validateUpdatesResult(r prompt.UpdatesResult) []string {
 		errs = append(errs, "summary must not be empty")
 	}
 	for i, u := range r.Updates {
-		if strings.TrimSpace(u.Package) == "" {
-			errs = append(errs, fmt.Sprintf("updates[%d].package must not be empty", i))
+		for _, e := range validateUpdate(u) {
+			errs = append(errs, fmt.Sprintf("updates[%d].%s", i, e))
 		}
-		cat := u.Category
-		if cat != "security" && cat != "major" && cat != "minor" && cat != "unknown" {
-			errs = append(errs, fmt.Sprintf("updates[%d].category must be 'security'/'major'/'minor'/'unknown', got %q", i, cat))
-		}
-		if (cat == "security" || cat == "major") && strings.TrimSpace(u.Detail) == "" {
-			errs = append(errs, fmt.Sprintf("updates[%d].detail must not be empty when category is %q", i, cat))
-		}
+	}
+	return errs
+}
+
+func validateUpdate(u prompt.UpdateFinding) []string {
+	var errs []string
+	if strings.TrimSpace(u.Package) == "" {
+		errs = append(errs, "package must not be empty")
+	}
+	cat := u.Category
+	if cat != "security" && cat != "major" && cat != "minor" && cat != "unknown" {
+		errs = append(errs, fmt.Sprintf("category must be 'security'/'major'/'minor'/'unknown', got %q", cat))
+	}
+	if (cat == "security" || cat == "major") && strings.TrimSpace(u.Detail) == "" {
+		errs = append(errs, fmt.Sprintf("detail must not be empty when category is %q", cat))
 	}
 	return errs
 }

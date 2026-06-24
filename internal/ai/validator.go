@@ -48,7 +48,6 @@ type StructValidator[T any] struct {
 func (v StructValidator[T]) Validate(raw string) *ValidationResult {
 	result := &ValidationResult{}
 
-	// syntactic
 	var value T
 	if err := json.Unmarshal([]byte(raw), &value); err != nil {
 		result.structuralErrors = append(result.structuralErrors,
@@ -56,7 +55,6 @@ func (v StructValidator[T]) Validate(raw string) *ValidationResult {
 		return result
 	}
 
-	// structural
 	var rawMap map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(raw), &rawMap); err != nil {
 		result.structuralErrors = append(result.structuralErrors,
@@ -66,7 +64,6 @@ func (v StructValidator[T]) Validate(raw string) *ValidationResult {
 
 	validateStruct(reflect.TypeOf(value), rawMap, "", result)
 
-	// semantic
 	if result.StructurallyValid() && v.SemanticCheck != nil {
 		result.semanticErrors = append(result.semanticErrors, v.SemanticCheck(value)...)
 	}
@@ -90,8 +87,6 @@ func validateStruct(t reflect.Type, rawMap map[string]json.RawMessage, path stri
 		return
 	}
 
-	expected := make(map[string]struct{}, t.NumField())
-
 	for i := range t.NumField() {
 		field := t.Field(i)
 		if !field.IsExported() {
@@ -102,7 +97,6 @@ func validateStruct(t reflect.Type, rawMap map[string]json.RawMessage, path stri
 		if jsonName == "-" {
 			continue
 		}
-		expected[jsonName] = struct{}{}
 
 		fieldPath := jsonName
 		if path != "" {
@@ -125,17 +119,6 @@ func validateStruct(t reflect.Type, rawMap map[string]json.RawMessage, path stri
 		}
 
 		validateField(field.Type, rawVal, fieldPath, result)
-	}
-
-	for key := range rawMap {
-		if _, ok := expected[key]; !ok {
-			fieldPath := key
-			if path != "" {
-				fieldPath = path + "." + key
-			}
-			result.structuralErrors = append(result.structuralErrors,
-				fmt.Sprintf("unexpected field %q", fieldPath))
-		}
 	}
 }
 

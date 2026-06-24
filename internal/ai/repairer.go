@@ -13,6 +13,27 @@ import (
 
 type Repairer struct{}
 
+func (Repairer) BuildElementRepairPrompt(itemSchema Schema, invalidItem string, errors []string) string {
+	return fmt.Sprintf(
+		"One item in a list did not match its required schema. Correct that single item.\n"+
+			"\n"+
+			"Rules:\n"+
+			"  - Return ONLY the corrected item as one JSON object.\n"+
+			"  - No prose. No markdown fences. No surrounding array. No extra keys.\n"+
+			"  - Preserve every value that is already correct.\n"+
+			"  - Change only what the ERRORS require.\n"+
+			"\n"+
+			"REQUIRED ITEM SCHEMA:\n%s\n"+
+			"\n"+
+			"ITEM:\n%s\n"+
+			"\n"+
+			"ERRORS:\n  - %s",
+		itemSchema.String(),
+		invalidItem,
+		strings.Join(errors, "\n  - "),
+	)
+}
+
 func (Repairer) BuildStructuralRepairPrompt(schema Schema, invalidJSON string, errors []string) string {
 	return fmt.Sprintf(
 		"The JSON below is structurally invalid. Correct it to match the required schema.\n"+

@@ -7,6 +7,7 @@ package hosomaki
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -134,7 +135,7 @@ Examples:
 				FilterDesc:  filterDesc,
 			})
 
-			spin := spinner.Start("thinking\u2026")
+			spin := spinner.Start("thinking…")
 			pipe := historyStreamPipeline()
 			if debug {
 				pipe = pipe.WithDebug(os.Stderr)
@@ -146,9 +147,9 @@ Examples:
 				context.Background(),
 				p,
 				ai.StreamOptions{
-					OnFirstToken: func() { spin.SetLabel("responding\u2026") },
+					OnFirstToken: func() { spin.SetLabel("responding…") },
 					OnRepairStart: func(n int) {
-						spin.SetLabel(fmt.Sprintf("repairing (attempt %d)\u2026", n))
+						spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n))
 					},
 					OnItem: func(key, raw string) {
 						switch key {
@@ -186,20 +187,20 @@ Examples:
 
 			spin.Stop()
 
-			if err != nil {
+			if err != nil && !errors.Is(err, ai.ErrIncomplete) {
 				_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
 				if ferr != nil {
 					return ferr
 				}
 				return err
 			}
+			if errors.Is(err, ai.ErrIncomplete) {
+				_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+			}
 
 			if !summaryPrinted {
 				fmt.Print(ui.HistoryFindingsHeader())
 				fmt.Print(ui.RenderHistorySummaryLive(result.Summary))
-				for _, e := range result.Entries {
-					fmt.Print(ui.RenderHistoryEntryLive(e, 0))
-				}
 			}
 
 			if len(result.Entries) == 0 {
@@ -228,7 +229,7 @@ func historyStreamPipeline() ai.StreamPipeline[prompt.HistoryResult] {
 		ai.StructValidator[prompt.HistoryResult]{
 			SemanticCheck: validateHistoryResult,
 		},
-	)
+	).WithElementCheck("entries", ai.ElementCheck(validateHistoryEntry))
 }
 
 func validateHistoryResult(r prompt.HistoryResult) []string {
@@ -237,12 +238,20 @@ func validateHistoryResult(r prompt.HistoryResult) []string {
 		errs = append(errs, "summary must not be empty")
 	}
 	for i, e := range r.Entries {
-		if strings.TrimSpace(e.Timestamp) == "" {
-			errs = append(errs, fmt.Sprintf("entries[%d].timestamp must not be empty", i))
+		for _, msg := range validateHistoryEntry(e) {
+			errs = append(errs, fmt.Sprintf("entries[%d].%s", i, msg))
 		}
-		if strings.TrimSpace(e.Command) == "" {
-			errs = append(errs, fmt.Sprintf("entries[%d].command must not be empty", i))
-		}
+	}
+	return errs
+}
+
+func validateHistoryEntry(e prompt.HistoryEntry) []string {
+	var errs []string
+	if strings.TrimSpace(e.Timestamp) == "" {
+		errs = append(errs, "timestamp must not be empty")
+	}
+	if strings.TrimSpace(e.Command) == "" {
+		errs = append(errs, "command must not be empty")
 	}
 	return errs
 }

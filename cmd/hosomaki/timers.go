@@ -7,6 +7,7 @@ package hosomaki
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -82,7 +83,7 @@ func timersPipeline() ai.StreamPipeline[prompt.TimersResult] {
 		ai.StructValidator[prompt.TimersResult]{
 			SemanticCheck: validateTimersResult,
 		},
-	)
+	).WithElementCheck("timers", ai.ElementCheck(validateTimer))
 }
 
 func validateTimersResult(r prompt.TimersResult) []string {
@@ -91,21 +92,29 @@ func validateTimersResult(r prompt.TimersResult) []string {
 		errs = append(errs, "summary must not be empty")
 	}
 	for i, e := range r.Timers {
-		if strings.TrimSpace(e.Name) == "" {
-			errs = append(errs, fmt.Sprintf("timers[%d].name must not be empty", i))
+		for _, msg := range validateTimer(e) {
+			errs = append(errs, fmt.Sprintf("timers[%d].%s", i, msg))
 		}
-		status := strings.TrimSpace(e.Status)
-		if status == "" {
-			errs = append(errs, fmt.Sprintf("timers[%d].status must not be empty", i))
-		} else if status != "ok" && status != "warning" && status != "failed" {
-			errs = append(errs, fmt.Sprintf("timers[%d].status must be 'ok', 'warning', or 'failed', got %q", i, status))
-		}
-		if strings.TrimSpace(e.LastRun) == "" {
-			errs = append(errs, fmt.Sprintf("timers[%d].last_run must not be empty", i))
-		}
-		if strings.TrimSpace(e.NextRun) == "" {
-			errs = append(errs, fmt.Sprintf("timers[%d].next_run must not be empty", i))
-		}
+	}
+	return errs
+}
+
+func validateTimer(e prompt.TimerEntry) []string {
+	var errs []string
+	if strings.TrimSpace(e.Name) == "" {
+		errs = append(errs, "name must not be empty")
+	}
+	status := strings.TrimSpace(e.Status)
+	if status == "" {
+		errs = append(errs, "status must not be empty")
+	} else if status != "ok" && status != "warning" && status != "failed" {
+		errs = append(errs, fmt.Sprintf("status must be 'ok', 'warning', or 'failed', got %q", status))
+	}
+	if strings.TrimSpace(e.LastRun) == "" {
+		errs = append(errs, "last_run must not be empty")
+	}
+	if strings.TrimSpace(e.NextRun) == "" {
+		errs = append(errs, "next_run must not be empty")
 	}
 	return errs
 }
@@ -120,7 +129,6 @@ func runTimers(generationPrompt string, collectedCount int, debug bool) error {
 
 	timerCount := 0
 	summaryPrinted := false
-	wasRepaired := false
 
 	result, err := pipe.Run(
 		context.Background(),
@@ -128,7 +136,6 @@ func runTimers(generationPrompt string, collectedCount int, debug bool) error {
 		ai.StreamOptions{
 			OnFirstToken: func() { spin.SetLabel("responding…") },
 			OnRepairStart: func(n int) {
-				wasRepaired = true
 				spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n))
 			},
 			OnItem: func(key, raw string) {
@@ -168,23 +175,18 @@ func runTimers(generationPrompt string, collectedCount int, debug bool) error {
 
 	spin.Stop()
 
-	if err != nil {
+	if err != nil && !errors.Is(err, ai.ErrIncomplete) {
 		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		if ferr != nil {
 			return ferr
 		}
 		return err
 	}
+	if errors.Is(err, ai.ErrIncomplete) {
+		_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+	}
 
-	if wasRepaired {
-		if !summaryPrinted {
-			fmt.Print(ui.TimersFindingsHeader())
-		}
-		fmt.Print(ui.RenderTimersSummaryLive(result.Summary))
-		for i, e := range result.Timers {
-			fmt.Print(ui.RenderTimerLive(e, i+1))
-		}
-	} else if timerCount == 0 && !summaryPrinted {
+	if timerCount == 0 && !summaryPrinted {
 		fmt.Print(ui.TimersFindingsHeader())
 		fmt.Print(ui.RenderTimersSummaryLive(result.Summary))
 	}
