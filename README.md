@@ -153,7 +153,7 @@ docker run -d -p 11434:11434 --name ollama ollama/ollama
 ### Pull a model
 
 ```bash
-ollama pull gemma3:4b
+ollama pull llama3.2:3b
 ```
 
 Any model works. Larger models produce better results, smaller models are faster.
@@ -161,7 +161,7 @@ Any model works. Larger models produce better results, smaller models are faster
 If using Docker:
 
 ```bash
-docker exec -it ollama ollama pull gemma3:4b
+docker exec -it ollama ollama pull llama3.2:3b
 ```
 
 ### Install Hosomaki

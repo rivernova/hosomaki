@@ -4,7 +4,7 @@
 ai:
   provider: ollama                     # currently the only supported provider
   endpoint: http://localhost:11434     # Ollama default
-  model: gemma3:4b                     # any model you have pulled: llama3, mistral, qwen3…
+  model: llama3.2:3b                     # any model you have pulled: gemma3, mistral, qwen3…
   timeout: 120s                        # increase for slow hardware or large models
 
 output:

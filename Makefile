@@ -37,7 +37,7 @@ setup: install ## install hosomaki and print next steps for Ollama
 	@echo ""
 	@echo "Next: make sure Ollama is running and pull a model:"
 	@echo "  ollama serve"
-	@echo "  ollama pull gemma3:4b"
+	@echo "  ollama pull llama3.2:3b"
 	@echo ""
 	@echo "Then try:"
 	@echo "  hosomaki status"
