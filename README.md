@@ -184,6 +184,8 @@ Hosomaki works best with instruction-tuned local models for text generation, sum
 | `mistral:7b` | General-purpose | Strong instruction-following 7B model |
 | `qwen3:8b` | Higher-quality reasoning & summaries | Requires more RAM/VRAM |
 
+If a command feels slow, it's almost always Ollama or the model, not Hosomaki. See [Troubleshooting Slow Responses](https://rivernova.github.io/hosomaki/guide/troubleshooting).
+
 ---
 
 ### Configuration
