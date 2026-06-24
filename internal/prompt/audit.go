@@ -14,6 +14,8 @@ import (
 
 // prompt logic for the audit command
 
+const maxDiffItemsPerCategory = 20
+
 type AuditFinding struct {
 	Severity string `json:"severity"`
 	Category string `json:"category"`
@@ -47,8 +49,9 @@ func Audit(in AuditInput) string {
 
 %s
 TASK
-A baseline snapshot of this system was taken previously. The diff below shows every change
-detected since then. Analyse the changes and assess their security and operational significance.
+A baseline snapshot of this system was taken previously. The diff below shows the changes
+detected since then. Large categories are truncated; a note states how many were omitted.
+Analyse the changes and assess their security and operational significance.
 
 Return ONLY a JSON object — no prose, no markdown fences, no text outside the JSON.
 The JSON must use exactly these field names. Do not rename, abbreviate, or add fields.
@@ -60,6 +63,7 @@ FIELD RULES
 - "summary": one to three plain-prose sentences. State the overall risk posture of the changes.
   If nothing is concerning, say so clearly. Do not list individual findings here.
 - "findings": one entry per meaningful change or group of closely related changes.
+  Group routine bulk changes (e.g. many package upgrades) into a single finding.
 - "severity": MUST be exactly one of: "critical", "warning", "info".
   Use "critical" only for changes that pose an immediate security or availability risk
   (e.g. a new SUID binary, a root-owned file made world-writable, an unexpected new user,
@@ -89,77 +93,72 @@ func formatDiff(d *auditor.AuditDiff) string {
 		if len(items) == 0 {
 			return
 		}
-		_, err := fmt.Fprintf(&b, "=== %s ===\n", title)
-		if err != nil {
-			return
+		b.WriteString("=== " + title + " ===\n")
+		shown, extra := capDiffItems(items)
+		for _, item := range shown {
+			b.WriteString("  " + item + "\n")
 		}
-		for _, item := range items {
-			_, err := fmt.Fprintf(&b, "  %s\n", item)
-			if err != nil {
-				return
-			}
+		if extra > 0 {
+			b.WriteString(fmt.Sprintf("  … and %d more not shown\n", extra))
 		}
 		b.WriteByte('\n')
 	}
 
 	section("Services added", d.ServicesAdded)
 	section("Services removed", d.ServicesRemoved)
-
 	section("Files added", d.FilesAdded)
 	section("Files removed", d.FilesRemoved)
-
-	if len(d.FilesModified) > 0 {
-		b.WriteString("=== Files modified ===\n")
-		for _, fc := range d.FilesModified {
-			_, err := fmt.Fprintf(&b, "  %s  (size: %d → %d bytes, mtime changed: %v)\n",
-				fc.Path, fc.OldSize, fc.NewSize, fc.OldMtime != fc.NewMtime)
-			if err != nil {
-				return ""
-			}
-		}
-		b.WriteByte('\n')
-	}
-
-	if len(d.PermissionsChanged) > 0 {
-		b.WriteString("=== Permission changes ===\n")
-		for _, pc := range d.PermissionsChanged {
-			var parts []string
-			if pc.OldMode != pc.NewMode {
-				parts = append(parts, fmt.Sprintf("mode %s→%s", pc.OldMode, pc.NewMode))
-			}
-			if pc.OldOwner != pc.NewOwner {
-				parts = append(parts, fmt.Sprintf("owner %s→%s", pc.OldOwner, pc.NewOwner))
-			}
-			if pc.OldGroup != pc.NewGroup {
-				parts = append(parts, fmt.Sprintf("group %s→%s", pc.OldGroup, pc.NewGroup))
-			}
-			_, err := fmt.Fprintf(&b, "  %s  (%s)\n", pc.Path, strings.Join(parts, ", "))
-			if err != nil {
-				return ""
-			}
-		}
-		b.WriteByte('\n')
-	}
-
+	section("Files modified", filesModifiedLines(d.FilesModified))
+	section("Permission changes", permissionLines(d.PermissionsChanged))
 	section("Packages installed", d.PackagesAdded)
 	section("Packages removed", d.PackagesRemoved)
-
-	if len(d.PackagesUpdated) > 0 {
-		b.WriteString("=== Packages updated ===\n")
-		for _, pu := range d.PackagesUpdated {
-			_, err := fmt.Fprintf(&b, "  %s  (%s → %s)\n", pu.Name, pu.OldVersion, pu.NewVersion)
-			if err != nil {
-				return ""
-			}
-		}
-		b.WriteByte('\n')
-	}
-
+	section("Packages updated", packagesUpdatedLines(d.PackagesUpdated))
 	section("Ports now listening", d.PortsOpened)
 	section("Ports no longer listening", d.PortsClosed)
-
 	section("Users added", d.UsersAdded)
 	section("Users removed", d.UsersRemoved)
 
 	return strings.TrimSpace(b.String())
+}
+
+func capDiffItems(items []string) (shown []string, extra int) {
+	if len(items) <= maxDiffItemsPerCategory {
+		return items, 0
+	}
+	return items[:maxDiffItemsPerCategory], len(items) - maxDiffItemsPerCategory
+}
+
+func filesModifiedLines(changes []auditor.FileChange) []string {
+	out := make([]string, len(changes))
+	for i, fc := range changes {
+		out[i] = fmt.Sprintf("%s  (size: %d → %d bytes, mtime changed: %v)",
+			fc.Path, fc.OldSize, fc.NewSize, fc.OldMtime != fc.NewMtime)
+	}
+	return out
+}
+
+func permissionLines(changes []auditor.PermChange) []string {
+	out := make([]string, len(changes))
+	for i, pc := range changes {
+		var parts []string
+		if pc.OldMode != pc.NewMode {
+			parts = append(parts, fmt.Sprintf("mode %s→%s", pc.OldMode, pc.NewMode))
+		}
+		if pc.OldOwner != pc.NewOwner {
+			parts = append(parts, fmt.Sprintf("owner %s→%s", pc.OldOwner, pc.NewOwner))
+		}
+		if pc.OldGroup != pc.NewGroup {
+			parts = append(parts, fmt.Sprintf("group %s→%s", pc.OldGroup, pc.NewGroup))
+		}
+		out[i] = fmt.Sprintf("%s  (%s)", pc.Path, strings.Join(parts, ", "))
+	}
+	return out
+}
+
+func packagesUpdatedLines(changes []auditor.PackageChange) []string {
+	out := make([]string, len(changes))
+	for i, pu := range changes {
+		out[i] = fmt.Sprintf("%s  (%s → %s)", pu.Name, pu.OldVersion, pu.NewVersion)
+	}
+	return out
 }

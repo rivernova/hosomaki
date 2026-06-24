@@ -16,7 +16,7 @@ Hosomaki searches for a config file named `config.yaml` in:
 ai:
   provider: ollama
   endpoint: http://localhost:11434
-  model: gemma3:4b
+  model: llama3.2:3b
   timeout: 120s        # increase for slow hardware or large models
 output:
   color: true
@@ -27,7 +27,7 @@ output:
 |---|---|---|
 | `ai.provider` | `ollama` | AI backend (currently only `ollama` is supported) |
 | `ai.endpoint` | `http://localhost:11434` | Ollama API endpoint |
-| `ai.model` | `gemma3:4b` | Any model available via `ollama list` |
+| `ai.model` | `llama3.2:3b` | Any model available via `ollama list` |
 | `ai.timeout` | `120s` | Request timeout |
 | `output.color` | `true` | Colorized terminal output |
 | `output.language` | `en` | Language for AI responses |

@@ -7,6 +7,7 @@ package hosomaki
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
@@ -114,7 +115,6 @@ func runDoctorFull(data ui.SnapshotData, p string, debug bool) error {
 
 	issueCount := 0
 	actionCount := 0
-	wasRepaired := false
 
 	result, err := pipe.Run(
 		context.Background(),
@@ -122,7 +122,6 @@ func runDoctorFull(data ui.SnapshotData, p string, debug bool) error {
 		ai.StreamOptions{
 			OnFirstToken: func() { spin.SetLabel("responding…") },
 			OnRepairStart: func(n int) {
-				wasRepaired = true
 				spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n))
 			},
 			OnItem: func(key, raw string) {
@@ -157,46 +156,31 @@ func runDoctorFull(data ui.SnapshotData, p string, debug bool) error {
 
 	spin.Stop()
 
-	if err != nil {
+	if err != nil && !errors.Is(err, ai.ErrIncomplete) {
 		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		if ferr != nil {
 			return ferr
 		}
 		return err
 	}
+	if errors.Is(err, ai.ErrIncomplete) {
+		_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+	}
 
-	// if a repair happened, items may not match the validated
-	if wasRepaired {
+	if issueCount == 0 {
 		fmt.Print(ui.DoctorIssuesHeader())
-		if len(result.Issues) == 0 {
-			fmt.Print(ui.BulletOK("no issues detected"))
-		} else {
-			for i, iss := range result.Issues {
-				fmt.Print(ui.RenderDoctorIssueLive(iss, i+1))
-			}
-		}
+		fmt.Print(ui.BulletOK("no issues detected"))
+	}
+	if actionCount == 0 {
 		fmt.Print(ui.DoctorActionsHeader())
-		if len(result.Actions) == 0 {
-			fmt.Print(ui.BulletOK("no actions required"))
-		} else {
-			for i, act := range result.Actions {
-				fmt.Print(ui.RenderDoctorActionLive(act, i+1))
-			}
-		}
-	} else {
-		if issueCount == 0 {
-			fmt.Print(ui.DoctorIssuesHeader())
-			fmt.Print(ui.BulletOK("no issues detected"))
-		}
-		if actionCount == 0 {
-			fmt.Print(ui.DoctorActionsHeader())
-			fmt.Print(ui.BulletOK("no actions required"))
-		}
+		fmt.Print(ui.BulletOK("no actions required"))
 	}
 
 	fmt.Print(ui.RenderDoctorSummary(result))
-	if err := store.Record("doctor", result); err != nil && debug {
-		_, _ = fmt.Fprintf(os.Stderr, "history: record doctor: %v\n", err)
+	if err == nil {
+		if recErr := store.Record("doctor", result); recErr != nil && debug {
+			_, _ = fmt.Fprintf(os.Stderr, "history: record doctor: %v\n", recErr)
+		}
 	}
 	fmt.Print(ui.Done())
 	return nil
@@ -232,8 +216,10 @@ func runDoctorBrief(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	fmt.Print(ui.RenderDoctorBrief(result))
-	if err := store.Record("doctor", result); err != nil && debug {
-		_, _ = fmt.Fprintf(os.Stderr, "history: record doctor: %v\n", err)
+	if err == nil {
+		if recErr := store.Record("doctor", result); recErr != nil && debug {
+			_, _ = fmt.Fprintf(os.Stderr, "history: record doctor: %v\n", recErr)
+		}
 	}
 	fmt.Print(ui.Done())
 	return nil

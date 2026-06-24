@@ -226,12 +226,10 @@ func runAuditAI(ctx context.Context, diff *auditor.AuditDiff, age string, env co
 
 	findingCount := 0
 	summaryPrinted := false
-	wasRepaired := false
 
 	result, err := pipe.Run(ctx, p, ai.StreamOptions{
 		OnFirstToken: func() { spin.SetLabel("responding…") },
 		OnRepairStart: func(n int) {
-			wasRepaired = true
 			spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n))
 		},
 		OnItem: func(key, raw string) {
@@ -270,41 +268,45 @@ func runAuditAI(ctx context.Context, diff *auditor.AuditDiff, age string, env co
 
 	spin.Stop()
 
-	if err != nil {
+	if err != nil && !errors.Is(err, ai.ErrIncomplete) {
 		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		if ferr != nil {
 			return ferr
 		}
 		return err
 	}
+	if errors.Is(err, ai.ErrIncomplete) {
+		_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+	}
 
-	if wasRepaired {
-		if !summaryPrinted {
-			fmt.Print(ui.AuditFindingsHeader())
-		}
-		fmt.Print(ui.RenderAuditSummaryLive(result.Summary))
-		for i, f := range result.Findings {
-			fmt.Print(ui.RenderAuditFindingLive(f, i+1))
-		}
-	} else if findingCount == 0 && !summaryPrinted {
+	if findingCount == 0 && !summaryPrinted {
 		fmt.Print(ui.AuditFindingsHeader())
 		fmt.Print(ui.RenderAuditSummaryLive(result.Summary))
 	}
 
 	fmt.Print(ui.RenderAuditResultSummary(result))
-	if err := store.Record("audit", result); err != nil && debug {
-		_, _ = fmt.Fprintf(os.Stderr, "history: record audit: %v\n", err)
+	if err == nil {
+		if recErr := store.Record("audit", result); recErr != nil && debug {
+			_, _ = fmt.Fprintf(os.Stderr, "history: record audit: %v\n", recErr)
+		}
 	}
 	fmt.Print(ui.Done())
 	return nil
 }
+
+var (
+	auditSeverities = []string{"critical", "warning", "info"}
+	auditCategories = []string{"service", "file", "permission", "package", "network", "user"}
+)
 
 func auditStreamPipeline() ai.StreamPipeline[prompt.AuditResult] {
 	return ai.NewStreamPipeline(
 		provider,
 		ai.NewSchema(prompt.SchemaAudit),
 		ai.StructValidator[prompt.AuditResult]{},
-	)
+	).
+		WithEnum("severity", auditSeverities...).
+		WithEnum("category", auditCategories...)
 }
 
 func resolveBaselinePath(flagValue string) (string, error) {

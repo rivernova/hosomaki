@@ -383,8 +383,8 @@ const installSteps = [
     cmd: 'curl -fsSL https://ollama.com/install.sh | sh',
   },
   {
-    comment: '# pull a model (gemma3:4b is the default)',
-    cmd: 'ollama pull gemma3:4b',
+    comment: '# pull a model (llama3.2:3b is the default)',
+    cmd: 'ollama pull llama3.2:3b',
   },
   {
     comment: '# clone the repo',

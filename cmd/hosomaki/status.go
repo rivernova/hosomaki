@@ -7,6 +7,7 @@ package hosomaki
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -107,7 +108,6 @@ func runStatusFull(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	anomalyCount := 0
-	wasRepaired := false
 
 	result, err := pipe.Run(
 		context.Background(),
@@ -115,7 +115,6 @@ func runStatusFull(data ui.SnapshotData, p string, debug bool) error {
 		ai.StreamOptions{
 			OnFirstToken: func() { spin.SetLabel("responding…") },
 			OnRepairStart: func(n int) {
-				wasRepaired = true
 				spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n))
 			},
 			OnItem: func(key, raw string) {
@@ -151,36 +150,27 @@ func runStatusFull(data ui.SnapshotData, p string, debug bool) error {
 
 	spin.Stop()
 
-	if err != nil {
+	if err != nil && !errors.Is(err, ai.ErrIncomplete) {
 		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		if ferr != nil {
 			return ferr
 		}
 		return err
 	}
+	if errors.Is(err, ai.ErrIncomplete) {
+		_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+	}
 
-	// if a repair happened, items may not match the validated
-	if wasRepaired {
-		fmt.Print(ui.StatusOverviewHeader())
-		fmt.Print(ui.RenderStatusOverviewLive(result.Overview))
+	if anomalyCount == 0 {
 		fmt.Print(ui.StatusAnomaliesHeader())
-		if len(result.Anomalies) == 0 {
-			fmt.Print(ui.BulletOK("no anomalies detected"))
-		} else {
-			for i, a := range result.Anomalies {
-				fmt.Print(ui.RenderStatusAnomalyLive(a, i+1))
-			}
-		}
-	} else {
-		if anomalyCount == 0 {
-			fmt.Print(ui.StatusAnomaliesHeader())
-			fmt.Print(ui.BulletOK("no anomalies detected"))
-		}
+		fmt.Print(ui.BulletOK("no anomalies detected"))
 	}
 
 	fmt.Print(ui.RenderStatusSummary(result))
-	if err := store.Record("status", result); err != nil && debug {
-		_, _ = fmt.Fprintf(os.Stderr, "history: record status: %v\n", err)
+	if err == nil {
+		if recErr := store.Record("status", result); recErr != nil && debug {
+			_, _ = fmt.Fprintf(os.Stderr, "history: record status: %v\n", recErr)
+		}
 	}
 	fmt.Print(ui.Done())
 	return nil
@@ -216,8 +206,10 @@ func runStatusBrief(data ui.SnapshotData, p string, debug bool) error {
 	}
 
 	fmt.Print(ui.RenderStatusBrief(result))
-	if err := store.Record("status", result); err != nil && debug {
-		_, _ = fmt.Fprintf(os.Stderr, "history: record status: %v\n", err)
+	if err == nil {
+		if recErr := store.Record("status", result); recErr != nil && debug {
+			_, _ = fmt.Fprintf(os.Stderr, "history: record status: %v\n", recErr)
+		}
 	}
 	fmt.Print(ui.Done())
 	return nil
