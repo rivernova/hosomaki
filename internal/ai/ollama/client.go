@@ -34,7 +34,7 @@ func New(endpoint, model string, timeout time.Duration) *Client {
 	}
 }
 
-func (c *Client) Ping(ctx context.Context) error {
+func (c *Client) HealthCheck(ctx context.Context) error {
 	pingCtx, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 
@@ -53,6 +53,11 @@ func (c *Client) Ping(ctx context.Context) error {
 		return fmt.Errorf("ollama: endpoint %s returned unexpected status %d — is the endpoint correct?", c.endpoint, resp.StatusCode)
 	}
 	return nil
+}
+
+// Ping is kept for backward compatibility with existing callers.
+func (c *Client) Ping(ctx context.Context) error {
+	return c.HealthCheck(ctx)
 }
 
 func (c *Client) Generate(ctx context.Context, prompt string) (string, error) {

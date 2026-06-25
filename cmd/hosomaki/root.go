@@ -5,7 +5,6 @@
 package hosomaki
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"unicode"
@@ -67,10 +66,6 @@ func isNegativeInt(s string) bool {
 	return true
 }
 
-type healthChecker interface {
-	Ping(ctx context.Context) error
-}
-
 var rootCmd = &cobra.Command{
 	Use:          "hosomaki",
 	SilenceUsage: true,
@@ -88,10 +83,12 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("unknown AI provider %q — supported: ollama", cfg.AI.Provider)
 		}
 
-		if hc, ok := provider.(healthChecker); ok {
-			if err := hc.Ping(cmd.Context()); err != nil {
-				return err
-			}
+		providerName := cfg.AI.Provider
+		if providerName == "" {
+			providerName = "ollama"
+		}
+		if err := ai.CheckProviderHealth(cmd.Context(), provider, providerName); err != nil {
+			return err
 		}
 
 		return nil
@@ -105,6 +102,7 @@ func init() {
 		newExplainCmd(),
 		newStatusCmd(),
 		newDoctorCmd(),
+		newHealthCmd(),
 		newAuditCmd(),
 		newWatchCmd(),
 		newShellIntegrationCmd(),

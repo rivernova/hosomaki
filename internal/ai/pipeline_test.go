@@ -44,6 +44,8 @@ func (s *stubProvider) GenerateJSON(_ context.Context, _ string, onFirstToken fu
 	return s.next(), nil
 }
 
+func (s *stubProvider) HealthCheck(context.Context) error { return nil }
+
 func (s *stubProvider) next() string {
 	idx := s.callIdx
 	s.callIdx++
@@ -62,6 +64,7 @@ func (e *errProvider) GenerateStream(_ context.Context, _ string, _ func(), _ io
 func (e *errProvider) GenerateJSON(_ context.Context, _ string, _ func()) (string, error) {
 	return "", e.err
 }
+func (e *errProvider) HealthCheck(context.Context) error { return nil }
 
 type conditionalErrProvider struct {
 	firstResponse string
@@ -86,6 +89,8 @@ func (c *conditionalErrProvider) GenerateJSON(_ context.Context, _ string, onFir
 	return "", c.repairErr
 }
 
+func (c *conditionalErrProvider) HealthCheck(context.Context) error { return nil }
+
 type funcProvider struct {
 	fn func(prompt string) (string, error)
 }
@@ -97,6 +102,7 @@ func (f *funcProvider) GenerateStream(_ context.Context, _ string, _ func(), _ i
 func (f *funcProvider) GenerateJSON(_ context.Context, prompt string, _ func()) (string, error) {
 	return f.fn(prompt)
 }
+func (f *funcProvider) HealthCheck(context.Context) error { return nil }
 
 type pipelineItem struct {
 	Label  string `json:"label"`

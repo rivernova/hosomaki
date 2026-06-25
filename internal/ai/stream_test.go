@@ -109,6 +109,8 @@ func (s *scriptProvider) GenerateJSON(_ context.Context, prompt string, _ func()
 	return s.repair(prompt)
 }
 
+func (s *scriptProvider) HealthCheck(context.Context) error { return nil }
+
 func collect(raws *[]string) func(key, raw string) {
 	return func(_, raw string) { *raws = append(*raws, raw) }
 }

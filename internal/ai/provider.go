@@ -15,4 +15,5 @@ type Provider interface {
 	Generate(ctx context.Context, prompt string) (string, error)
 	GenerateJSON(ctx context.Context, prompt string, onFirstToken func()) (string, error)
 	GenerateStream(ctx context.Context, prompt string, onFirstToken func(), w io.Writer) (string, error)
+	HealthCheck(ctx context.Context) error
 }
