@@ -6,20 +6,20 @@ package collector
 
 // all external binary names used by collectors, referenced by name
 const (
-	binUptime     = "uptime"
-	binFree       = "free"
-	binSystemctl  = "systemctl"
-	binPs         = "ps"
-	binJournalctl = "journalctl"
-	binDmesg      = "dmesg"
-	binDf         = "df"
-	binTail       = "tail"
-	binSs         = "ss"
-	binCrontab    = "crontab"
+	binUptime      = "uptime"
+	binFree        = "free"
+	binSystemctl   = "systemctl"
+	binPs          = "ps"
+	binJournalctl  = "journalctl"
+	binDmesg       = "dmesg"
+	binDf          = "df"
+	binTail        = "tail"
+	binSs          = "ss"
+	binCrontab     = "crontab"
 	binFirewallCmd = "firewall-cmd"
-	binUfw        = "ufw"
-	binNft        = "nft"
-	binIptables   = "iptables"
+	binUfw         = "ufw"
+	binNft         = "nft"
+	binIptables    = "iptables"
 )
 
 var snapshot = struct {
