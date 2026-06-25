@@ -24,6 +24,15 @@ func TestUpdatesPrompt_ContainsSchema(t *testing.T) {
 	}
 }
 
+func TestUpdatesPrompt_RebootRequiredField(t *testing.T) {
+	if strings.Contains(SchemaUpdates, `"reboot_required":false`) {
+		t.Error("SchemaUpdates should use bool type annotation, not false literal")
+	}
+	if !strings.Contains(SchemaUpdates, `"reboot_required":bool`) {
+		t.Error("SchemaUpdates should declare reboot_required as bool")
+	}
+}
+
 func TestUpdatesPrompt_ContainsEnvironment(t *testing.T) {
 	in := UpdatesInput{
 		Environment: collector.Environment{DistroID: "testos"},
