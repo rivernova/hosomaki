@@ -22,6 +22,7 @@ var (
 	cfgFile      string
 	version      string
 	providerFlag string
+	modelFlag    string
 )
 
 var provider ai.Provider
@@ -85,6 +86,9 @@ var rootCmd = &cobra.Command{
 		if cmd.Flags().Changed("provider") {
 			applyAIProviderOverride(&cfg, providerFlag, true)
 		}
+		if cmd.Flags().Changed("model") {
+			applyAIModelOverride(&cfg, modelFlag, true)
+		}
 
 		switch cfg.AI.Provider {
 		case "ollama", "":
@@ -109,9 +113,16 @@ func applyAIProviderOverride(cfg *config.Config, override string, changed bool) 
 	}
 }
 
+func applyAIModelOverride(cfg *config.Config, override string, changed bool) {
+	if changed {
+		cfg.AI.Model = override
+	}
+}
+
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ~/.config/hosomaki/config.yaml)")
 	rootCmd.PersistentFlags().StringVar(&providerFlag, "provider", "", "override ai.provider from config at runtime")
+	rootCmd.PersistentFlags().StringVar(&modelFlag, "model", "", "override ai.model from config at runtime")
 
 	rootCmd.AddCommand(
 		newExplainCmd(),

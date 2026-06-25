@@ -65,3 +65,25 @@ func TestApplyAIProviderOverride(t *testing.T) {
 		t.Fatalf("expected config provider unchanged, got %q", cfg.AI.Provider)
 	}
 }
+
+func TestRootCmd_HasModelFlag(t *testing.T) {
+	f := rootCmd.PersistentFlags().Lookup("model")
+	if f == nil {
+		t.Fatal("expected --model persistent flag to be registered")
+	}
+}
+
+func TestApplyAIModelOverride(t *testing.T) {
+	cfg := config.Config{AI: config.AIConfig{Model: "llama3.2:3b"}}
+
+	applyAIModelOverride(&cfg, "qwen2.5:7b", true)
+	if cfg.AI.Model != "qwen2.5:7b" {
+		t.Fatalf("expected model override, got %q", cfg.AI.Model)
+	}
+
+	cfg = config.Config{AI: config.AIConfig{Model: "llama3.2:3b"}}
+	applyAIModelOverride(&cfg, "ignored", false)
+	if cfg.AI.Model != "llama3.2:3b" {
+		t.Fatalf("expected config model unchanged, got %q", cfg.AI.Model)
+	}
+}
