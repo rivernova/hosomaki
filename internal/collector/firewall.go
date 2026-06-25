@@ -144,27 +144,42 @@ func collectFirewalld() FirewallResult {
 	zoneName := ""
 	if err == nil {
 		zoneName = strings.TrimSpace(string(zoneOut))
-		if zoneName != "" {
-			result.Zones = append(result.Zones, zoneName)
-		}
 	} else {
 		result.Warning = fmt.Sprintf("firewall-cmd --get-default-zone: %v", err)
+		return result
 	}
 
+	// Read rules from default zone
 	if zoneName != "" {
 		out, err := runFirewallCmd(binFirewallCmd, "--zone="+zoneName, "--list-all")
 		if err == nil {
 			result.Rules = append(result.Rules, parseFirewalldOutput(zoneName, string(out))...)
-		} else if result.Warning == "" {
+		} else {
 			result.Warning = fmt.Sprintf("firewall-cmd --zone=%s --list-all: %v", zoneName, err)
+			return result
 		}
 	}
 
-	zonesOut, err := runFirewallCmd(binFirewallCmd, "--get-zones")
+	result.Zones = append(result.Zones, zoneName)
+
+	// Read rules from all active (interface-bound) zones
+	activeOut, err := runFirewallCmd(binFirewallCmd, "--get-active-zones")
 	if err == nil {
-		for _, z := range strings.Fields(string(zonesOut)) {
-			if z != zoneName {
-				result.Zones = append(result.Zones, z)
+		for _, line := range strings.Split(string(activeOut), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "interfaces:") {
+				continue
+			}
+			az := strings.Fields(line)[0]
+			if az == "" || az == zoneName {
+				continue
+			}
+			out, azErr := runFirewallCmd(binFirewallCmd, "--zone="+az, "--list-all")
+			if azErr == nil {
+				result.Rules = append(result.Rules, parseFirewalldOutput(az, string(out))...)
+				result.Zones = append(result.Zones, az)
+			} else if result.Warning == "" {
+				result.Warning = fmt.Sprintf("firewall-cmd --zone=%s --list-all: %v", az, azErr)
 			}
 		}
 	}
