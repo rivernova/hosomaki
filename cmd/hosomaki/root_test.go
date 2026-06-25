@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/rivernova/hosomaki/internal/config"
 )
 
 // unit testing for root command setup
@@ -36,5 +38,30 @@ func TestExecuteExposesVersionFlag(t *testing.T) {
 	}
 	if provider != nil {
 		t.Fatal("expected --version to skip provider initialization")
+	}
+}
+
+func TestRootCmd_HasProviderFlag(t *testing.T) {
+	f := rootCmd.PersistentFlags().Lookup("provider")
+	if f == nil {
+		t.Fatal("expected --provider persistent flag to be registered")
+	}
+	if f.Usage != "override ai.provider from config at runtime" {
+		t.Fatalf("unexpected --provider usage: %q", f.Usage)
+	}
+}
+
+func TestApplyAIProviderOverride(t *testing.T) {
+	cfg := config.Config{AI: config.AIConfig{Provider: "from-file"}}
+
+	applyAIProviderOverride(&cfg, "ollama", true)
+	if cfg.AI.Provider != "ollama" {
+		t.Fatalf("expected override to ollama, got %q", cfg.AI.Provider)
+	}
+
+	cfg = config.Config{AI: config.AIConfig{Provider: "from-file"}}
+	applyAIProviderOverride(&cfg, "ignored", false)
+	if cfg.AI.Provider != "from-file" {
+		t.Fatalf("expected config provider unchanged, got %q", cfg.AI.Provider)
 	}
 }

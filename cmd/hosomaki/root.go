@@ -19,8 +19,9 @@ import (
 // root command and global state
 
 var (
-	cfgFile string
-	version string
+	cfgFile      string
+	version      string
+	providerFlag string
 )
 
 var provider ai.Provider
@@ -81,6 +82,10 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("configuration error: %w", err)
 		}
 
+		if cmd.Flags().Changed("provider") {
+			applyAIProviderOverride(&cfg, providerFlag, true)
+		}
+
 		switch cfg.AI.Provider {
 		case "ollama", "":
 			provider = ollama.New(cfg.AI.Endpoint, cfg.AI.Model, cfg.AI.Timeout)
@@ -98,8 +103,15 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+func applyAIProviderOverride(cfg *config.Config, override string, changed bool) {
+	if changed {
+		cfg.AI.Provider = override
+	}
+}
+
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ~/.config/hosomaki/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&providerFlag, "provider", "", "override ai.provider from config at runtime")
 
 	rootCmd.AddCommand(
 		newExplainCmd(),
