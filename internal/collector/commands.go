@@ -16,6 +16,10 @@ const (
 	binTail       = "tail"
 	binSs         = "ss"
 	binCrontab    = "crontab"
+	binFirewallCmd = "firewall-cmd"
+	binUfw        = "ufw"
+	binNft        = "nft"
+	binIptables   = "iptables"
 )
 
 var snapshot = struct {

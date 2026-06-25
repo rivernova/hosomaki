@@ -429,3 +429,49 @@ func RenderHistoryEntryLive(e prompt.HistoryEntry, _ int) string {
 	return bullet + indentProse(sum)
 
 }
+
+func FirewallFindingsHeader() string { return sectionHeader("analysis") }
+
+func RenderFirewallSummaryLive(summary string) string {
+	t := strings.TrimSpace(summary)
+	if t == "" {
+		return ""
+	}
+	return t + "\n"
+}
+
+func RenderFirewallFindingLive(f prompt.FirewallFinding, _ int) string {
+	title := strings.TrimSpace(f.Title)
+	detail := strings.TrimSpace(f.Detail)
+	if title == "" && detail == "" {
+		return ""
+	}
+	label := title
+	if label == "" {
+		label = detail
+		detail = ""
+	}
+
+	var bullet string
+	switch f.Severity {
+	case "critical":
+		bullet = BulletTitleFail(label)
+	case "warning":
+		bullet = BulletTitleWarn(label)
+	default:
+		bullet = BulletOK(label)
+	}
+
+	var out strings.Builder
+	out.WriteString(bullet)
+	if f.Rule != "" {
+		out.WriteString(KeyValue("  rule", f.Rule))
+	}
+	if f.Port != "" {
+		out.WriteString(KeyValue("  port", f.Port))
+	}
+	if detail != "" {
+		out.WriteString(indentProse(detail))
+	}
+	return out.String()
+}

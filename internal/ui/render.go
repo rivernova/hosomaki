@@ -180,3 +180,24 @@ func RenderHistoryResultSummary(result prompt.HistoryResult) string {
 	b.WriteString(SummaryLine(plural(len(result.Entries), "entry", "entries")))
 	return SectionSummary(b.String())
 }
+
+func RenderFirewallResultSummary(result prompt.FirewallResult) string {
+	critical, warnings, info := 0, 0, 0
+	for _, f := range result.Findings {
+		switch f.Severity {
+		case "critical":
+			critical++
+		case "warning":
+			warnings++
+		default:
+			info++
+		}
+	}
+	var b strings.Builder
+	b.WriteString(SummaryLine(plural(critical, "critical finding", "critical findings")))
+	b.WriteString(SummaryLine(plural(warnings, "warning", "warnings")))
+	if info > 0 {
+		b.WriteString(SummaryLine(plural(info, "informational finding", "informational findings")))
+	}
+	return SectionSummary(b.String())
+}

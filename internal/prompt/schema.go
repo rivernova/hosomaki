@@ -33,3 +33,5 @@ const SchemaMounts = `{"summary":"string","findings":[{"severity":"string","moun
 const SchemaUpdates = `{"summary":"string","updates":[{"package":"string","installed":"string","available":"string","category":"string","reboot_required":false,"detail":"string"}]}`
 
 const SchemaHistory = `{"summary":"string","entries":[{"timestamp":"string","command":"string","summary":"string"}]}`
+
+const SchemaFirewall = `{"summary":"string","findings":[{"severity":"string","rule":"string","port":"string","title":"string","detail":"string"}]}`

@@ -546,3 +546,39 @@ func HistoryCleared() string {
 func HistoryCleanResult() string {
 	return Section("result", BulletOK("no issues found in diagnostic history"))
 }
+
+func FirewallHeader() string { return Title("firewall") }
+
+func FirewallCollectedSection(backend string, ruleCount int, zones []string, warning, readStatus string) string {
+	var b strings.Builder
+	b.WriteString(KeyValue("backend", backend))
+	b.WriteString(KeyValue("read_status", readStatus))
+	b.WriteString(KeyValue("rules", fmt.Sprintf("%d", ruleCount)))
+	if len(zones) > 0 {
+		b.WriteString(KeyValue("zones", strings.Join(zones, ", ")))
+	}
+	if warning != "" {
+		b.WriteString(BulletWarn(warning))
+	}
+	return Section("collected", b.String())
+}
+
+func FirewallCleanResult() string {
+	return Section("result", BulletOK("all firewall rules are reasonable"))
+}
+
+func FirewallNoRules() string {
+	return Section("result", "No firewall rules found.\n")
+}
+
+func FirewallReadFailed(warning string) string {
+	msg := "Firewall rules could not be read completely."
+	if warning != "" {
+		msg += " " + warning
+	}
+	return Section("result", msg+"\n")
+}
+
+func FirewallNoBackend() string {
+	return Section("result", "No firewall backend detected (tried firewalld, ufw, nftables, iptables).\n")
+}
