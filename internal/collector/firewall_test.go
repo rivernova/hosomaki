@@ -36,11 +36,67 @@ func TestParseNftOutput_ChainContext(t *testing.T) {
 	}
 }
 
+func TestParseNftOutput_SetSyntax(t *testing.T) {
+	output := "chain INPUT {\n  tcp dport { 80, 443 } accept\n}"
+	rules := parseNftOutput(output)
+	if len(rules) != 1 {
+		t.Fatalf("expected 1 rule, got %d", len(rules))
+	}
+	if rules[0].Port != "80,443" {
+		t.Fatalf("expected ports \"80,443\", got %q", rules[0].Port)
+	}
+	if rules[0].Action != "ACCEPT" {
+		t.Fatalf("expected ACCEPT, got %q", rules[0].Action)
+	}
+}
+
+func TestParseNftOutput_SetSyntaxWithRange(t *testing.T) {
+	output := "chain INPUT {\n  tcp dport { 80-90 } accept\n}"
+	rules := parseNftOutput(output)
+	if len(rules) != 1 {
+		t.Fatalf("expected 1 rule, got %d", len(rules))
+	}
+	if rules[0].Port != "80-90" {
+		t.Fatalf("expected port range \"80-90\", got %q", rules[0].Port)
+	}
+	if rules[0].Action != "ACCEPT" {
+		t.Fatalf("expected ACCEPT, got %q", rules[0].Action)
+	}
+}
+
+func TestParseNftOutput_EmptySet(t *testing.T) {
+	output := "chain INPUT {\n  tcp dport { } accept\n}"
+	rules := parseNftOutput(output)
+	if len(rules) != 1 {
+		t.Fatalf("expected 1 rule, got %d", len(rules))
+	}
+	if rules[0].Port != "" {
+		t.Fatalf("expected empty port for empty set, got %q", rules[0].Port)
+	}
+}
+
 func TestParseIptablesOutput_DefaultPolicy(t *testing.T) {
 	output := "Chain INPUT (policy DROP)\ntarget     prot opt source               destination"
 	rules := parseIptablesOutput(output)
 	if len(rules) != 1 || rules[0].Action != "DROP" {
 		t.Fatalf("expected default policy DROP, got %+v", rules)
+	}
+}
+
+func TestParseIptablesOutput_RealRuleRow(t *testing.T) {
+	output := "Chain INPUT (policy DROP)\ntarget     prot opt source               destination\nACCEPT     all  --  0.0.0.0/0            0.0.0.0/0           \nACCEPT     tcp  --  0.0.0.0/0            0.0.0.0/0            tcp dpt:22"
+	rules := parseIptablesOutput(output)
+	if len(rules) != 3 {
+		t.Fatalf("expected 3 rules (1 policy + 2 real), got %d", len(rules))
+	}
+	if rules[0].Action != "DROP" || rules[0].Comment != "default policy" {
+		t.Fatalf("rule[0] expected DROP policy, got %+v", rules[0])
+	}
+	if rules[1].Protocol != "all" || rules[1].Action != "ACCEPT" {
+		t.Fatalf("rule[1] expected all/ACCEPT, got %+v", rules[1])
+	}
+	if rules[2].Port != "22" || rules[2].Protocol != "tcp" {
+		t.Fatalf("rule[2] expected port 22/tcp, got %+v", rules[2])
 	}
 }
 

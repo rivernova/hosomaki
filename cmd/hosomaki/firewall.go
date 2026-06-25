@@ -84,7 +84,7 @@ func runFirewall(crossCheck, debug bool) error {
 		spin = spinner.Start("reading listening ports…")
 		ports, portWarns := collector.Ports()
 		spin.Stop()
-		crossCheckData = collector.FormatPortsForPrompt(ports)
+		crossCheckData = san.Sanitise(collector.FormatPortsForPrompt(ports))
 		for _, w := range portWarns {
 			_, _ = fmt.Fprintf(os.Stderr, "warning: %s\n", w)
 		}

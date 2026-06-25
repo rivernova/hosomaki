@@ -74,10 +74,7 @@ func DetectFirewallBackend() FirewallBackend {
 		return BackendFirewalld
 	}
 
-	active, installed := ufwState()
-	if active {
-		return BackendUfw
-	}
+	_, installed := ufwState()
 	if installed {
 		return BackendUfw
 	}
@@ -323,7 +320,18 @@ func parseNftOutput(output string) []FirewallRule {
 		}
 		for i, f := range fields {
 			if f == "dport" && i+1 < len(fields) {
-				rule.Port = fields[i+1]
+				if fields[i+1] == "{" {
+					var ports []string
+					for j := i + 2; j < len(fields); j++ {
+						if fields[j] == "}" {
+							break
+						}
+						ports = append(ports, strings.TrimRight(fields[j], ","))
+					}
+					rule.Port = strings.Join(ports, ",")
+				} else {
+					rule.Port = fields[i+1]
+				}
 			}
 		}
 		switch {
@@ -341,9 +349,9 @@ func parseNftOutput(output string) []FirewallRule {
 
 func collectIptables() FirewallResult {
 	result := FirewallResult{Backend: BackendIptables}
-	out, err := runFirewallCmd(binIptables, "-L", "-n", "-v")
+	out, err := runFirewallCmd(binIptables, "-L", "-n")
 	if err != nil {
-		result.Warning = fmt.Sprintf("iptables -L -n -v: %v", err)
+		result.Warning = fmt.Sprintf("iptables -L -n: %v", err)
 		return result
 	}
 	result.Rules = parseIptablesOutput(string(out))
