@@ -12,21 +12,22 @@ It uses a local model via [Ollama](https://ollama.com) and never sends anything 
 
 ## Commands
 
-| Command | What it does |
-|---|---|
-| `explain` | Explain errors from a service, boot, log file, pipe, inline text, or a running process |
-| `status` | Quick summary of current system health |
-| `doctor` | Full diagnosis with concrete suggested actions |
-| `audit` | Surface changes since a baseline snapshot |
-| `watch` | Tail a service journal and explain errors in real time |
-| `why` | Given an exit code and service, reconstruct the full failure chain |
-| `ports` | List listening ports and flag anything unexpected |
-| `timers` | Inspect all systemd timers and flag failures or overdue schedules |
-| `crons` | Read all crontabs and explain what each job does |
-| `mounts` | Inspect active mounts, detect stale NFS, and flag disks approaching capacity |
-| `updates` | Explain pending package updates before applying them |
-| `history` | Review past diagnostic results |
-| `shell-integration` | Install a shell wrapper that explains failed commands automatically |
+| Command             | What it does                                                                           |
+|---------------------|----------------------------------------------------------------------------------------|
+| `explain`           | Explain errors from a service, boot, log file, pipe, inline text, or a running process |
+| `status`            | Quick summary of current system health                                                 |
+| `doctor`            | Full diagnosis with concrete suggested actions                                         |
+| `audit`             | Surface changes since a baseline snapshot                                              |
+| `watch`             | Tail a service journal and explain errors in real time                                 |
+| `why`               | Given an exit code and service, reconstruct the full failure chain                     |
+| `ports`             | List listening ports and flag anything unexpected                                      |
+| `timers`            | Inspect all systemd timers and flag failures or overdue schedules                      |
+| `crons`             | Read all crontabs and explain what each job does                                       |
+| `mounts`            | Inspect active mounts, detect stale NFS, and flag disks approaching capacity           |
+| `updates`           | Explain pending package updates before applying them                                   |
+| `history`           | Review past diagnostic results                                                         |
+| `firewall`          | Explain active firewall rules                                                          |
+| `shell-integration` | Install a shell wrapper that explains failed commands automatically                    |
 
 Run `hosomaki <command> --help` for flags and usage details.
 
@@ -89,7 +90,11 @@ hosomaki updates --security-only                  # only security-related update
 hosomaki history
 hosomaki history --command explain                # filter by source command
 hosomaki history --since 7d                       # only entries from the last week
-hosomaki history --clear                          # wipe the log                          
+hosomaki history --clear                          # wipe the log  
+
+# firewall rules
+hosomaki firewall
+hosomaki firewall --cross-check                   # checks rules against currently listening ports  
 
 # Auto-explain failed commands
 hosomaki shell-integration --shell bash >> ~/.bashrc && source ~/.bashrc

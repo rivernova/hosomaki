@@ -55,6 +55,7 @@ export default defineConfig({
                     { text: 'mounts', link: '/reference/mounts' },
                     { text: 'updates', link: '/reference/updates' },
                     { text: 'history', link: '/reference/history' },
+                    { text: 'firewall', link: '/reference/firewall'},
                     { text: 'shell-integration', link: '/reference/shell-integration' },
                 ],
             },
