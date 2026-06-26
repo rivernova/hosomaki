@@ -110,6 +110,7 @@ func init() {
 		newShellIntegrationCmd(),
 		newWhyCmd(),
 		newPortsCmd(),
+		newFirewallCmd(),
 		newCronsCmd(),
 		newTimersCmd(),
 		newMountsCmd(),
