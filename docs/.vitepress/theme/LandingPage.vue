@@ -312,6 +312,12 @@ const commands = [
     desc: 'Revisit and summarise past results from explain, why, audit, status, and doctor without re-collecting system state.',
   },
   {
+      slug: 'firewall',
+      name: 'hosomaki firewall',
+      title: 'Firewall rules',
+      desc: 'Explain active firewall rules, with cross-checking against listening ports to flag rule mismatches or missing listeners safely.',
+   },
+  {
     slug: 'shell-integration',
     name: 'shell-integration',
     title: 'Auto-explain failures',
