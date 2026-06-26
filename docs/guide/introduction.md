@@ -18,21 +18,22 @@ The sanitisation step is non-negotiable.
 
 ## Core commands
 
-| Command | What it does |
-|---|---|
-| `explain` | Explain errors from a service, boot, log file, pipe, or running process |
-| `status` | Quick summary of current system health |
-| `doctor` | Full diagnosis with concrete suggested actions |
-| `audit` | Surface changes since a baseline snapshot |
-| `watch` | Tail a service and explain errors in real time |
-| `why` | Reconstruct the failure chain for a given exit code and service |
-| `ports` | List listening ports and flag anything unexpected |
-| `timers` | Inspect systemd timers and flag failures or overdue schedules |
-| `crons` | Read all crontabs and explain what each job does |
-| `mounts` | Inspect active mounts, detect stale NFS, and flag disks nearing capacity |
-| `updates` | Explain pending package updates before applying them |
-| `history` | Review past diagnostic results |
-| `shell-integration` | Install a shell wrapper that explains failed commands automatically |
+| Command             | What it does                                                             |
+|---------------------|--------------------------------------------------------------------------|
+| `explain`           | Explain errors from a service, boot, log file, pipe, or running process  |
+| `status`            | Quick summary of current system health                                   |
+| `doctor`            | Full diagnosis with concrete suggested actions                           |
+| `audit`             | Surface changes since a baseline snapshot                                |
+| `watch`             | Tail a service and explain errors in real time                           |
+| `why`               | Reconstruct the failure chain for a given exit code and service          |
+| `ports`             | List listening ports and flag anything unexpected                        |
+| `timers`            | Inspect systemd timers and flag failures or overdue schedules            |
+| `crons`             | Read all crontabs and explain what each job does                         |
+| `mounts`            | Inspect active mounts, detect stale NFS, and flag disks nearing capacity |
+| `updates`           | Explain pending package updates before applying them                     |
+| `history`           | Review past diagnostic results                                           |
+| `firewall`          | Explain active firewall rules                                            |
+| `shell-integration` | Install a shell wrapper that explains failed commands automatically      |
 
 ## Design principles
 
