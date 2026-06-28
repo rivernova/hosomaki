@@ -99,7 +99,7 @@ func formatDiff(d *auditor.AuditDiff) string {
 			b.WriteString("  " + item + "\n")
 		}
 		if extra > 0 {
-			b.WriteString(fmt.Sprintf("  … and %d more not shown\n", extra))
+			_, _ = fmt.Fprintf(&b, "  … and %d more not shown\n", extra)
 		}
 		b.WriteByte('\n')
 	}
