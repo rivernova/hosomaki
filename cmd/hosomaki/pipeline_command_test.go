@@ -16,11 +16,12 @@ import (
 	"github.com/rivernova/hosomaki/internal/ai"
 	"github.com/rivernova/hosomaki/internal/auditor"
 	"github.com/rivernova/hosomaki/internal/collector"
+	"github.com/rivernova/hosomaki/internal/store"
 	"github.com/rivernova/hosomaki/internal/ui"
 )
 
-// each llm stream command runs start to finish against
-// a fake LLM through four cases — a good answer, one needing repair, a cut-off one,
+// each LLM stream command runs start to finish against
+// a fake LLM through four cases: a good answer, one needing repair, a cut-off one,
 // and a multi-element streamed one
 
 type commandCase struct {
@@ -174,6 +175,46 @@ func commandCases() []commandCase {
 			repairStream:   `{"summary":"s","findings":[{"severity":"warning","rule":"r","port":"22","title":"MARKER_A"}]}`,
 			repairResponse: `{"severity":"warning","rule":"r","port":"22","title":"MARKER_A","detail":"d"}`,
 			streamedStream: `{"summary":"s","findings":[{"severity":"warning","rule":"r","port":"22","title":"MARKER_A","detail":"d"},{"severity":"info","rule":"r2","port":"80","title":"MARKER_B","detail":"d"}]}`,
+			markerOne:      "MARKER_A",
+			markerTwo:      "MARKER_B",
+			toleratesCut:   true,
+		},
+		{
+			name: "watch",
+			run: func(_ string) error {
+				pipe := watchStreamPipeline()
+				return makeFlushFunc("nginx", collector.Environment{}, pipe)(context.Background(), "log batch")
+			},
+			goodStream:     `{"issues":[{"what":"MARKER_A","why":"cause"}]}`,
+			repairStream:   `{"issues":[{"what":"MARKER_A"}]}`,
+			repairResponse: `{"what":"MARKER_A","why":"cause"}`,
+			streamedStream: `{"issues":[{"what":"MARKER_A","why":"a"},{"what":"MARKER_B","why":"b"}]}`,
+			markerOne:      "MARKER_A",
+			markerTwo:      "MARKER_B",
+			toleratesCut:   true,
+		},
+		{
+			name: "updates",
+			run: func(_ string) error {
+				return runUpdatesLlm([]collector.Update{{Package: "nginx"}}, collector.Environment{}, false, false)
+			},
+			goodStream:     `{"summary":"s","updates":[{"package":"MARKER_A","installed":"1.0","available":"1.1","category":"security","reboot_required":false,"detail":"d"}]}`,
+			repairStream:   `{"summary":"s","updates":[{"package":"MARKER_A","installed":"1.0","available":"1.1","category":"security","reboot_required":false}]}`,
+			repairResponse: `{"package":"MARKER_A","installed":"1.0","available":"1.1","category":"security","reboot_required":false,"detail":"d"}`,
+			streamedStream: `{"summary":"s","updates":[{"package":"MARKER_A","installed":"1.0","available":"1.1","category":"security","reboot_required":false,"detail":"d"},{"package":"MARKER_B","installed":"2.0","available":"2.1","category":"minor","reboot_required":false,"detail":"d"}]}`,
+			markerOne:      "MARKER_A",
+			markerTwo:      "MARKER_B",
+			toleratesCut:   true,
+		},
+		{
+			name: "history",
+			run: func(_ string) error {
+				return runHistoryLlm([]store.HistoryEntry{}, collector.Environment{}, "all", false)
+			},
+			goodStream:     `{"summary":"s","entries":[{"timestamp":"t","command":"MARKER_A","summary":"sum"}]}`,
+			repairStream:   `{"summary":"s","entries":[{"timestamp":"t","summary":"sum"}]}`,
+			repairResponse: `{"timestamp":"t","command":"MARKER_A","summary":"sum"}`,
+			streamedStream: `{"summary":"s","entries":[{"timestamp":"t","command":"MARKER_A","summary":"sum"},{"timestamp":"t2","command":"MARKER_B","summary":"sum"}]}`,
 			markerOne:      "MARKER_A",
 			markerTwo:      "MARKER_B",
 			toleratesCut:   true,

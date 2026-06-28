@@ -84,90 +84,7 @@ Examples:
 
 			fmt.Print(ui.UpdatesPendingList(filtered, securityOnly))
 
-			san := sanitiser.Default()
-			sanitisedText := san.Sanitise(collector.FormatUpdatesForPrompt(filtered))
-
-			p := prompt.Updates(prompt.UpdatesInput{
-				Environment:  env,
-				Updates:      sanitisedText,
-				SecurityOnly: securityOnly,
-			})
-
-			spin = spinner.Start("thinking…")
-			pipe := updatesStreamPipeline()
-			if debug {
-				pipe = pipe.WithDebug(os.Stderr)
-			}
-
-			summaryPrinted := false
-
-			result, err := pipe.Run(
-				context.Background(),
-				p,
-				ai.StreamOptions{
-					OnFirstToken: func() { spin.SetLabel("responding…") },
-					OnRepairStart: func(n int) {
-						spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n))
-					},
-					OnItem: func(key, raw string) {
-						switch key {
-						case "summary":
-							var s string
-							if jsonErr := json.Unmarshal([]byte(raw), &s); jsonErr != nil {
-								return
-							}
-							s = strings.TrimSpace(s)
-							if s == "" {
-								return
-							}
-							spin.ClearLine()
-							if !summaryPrinted {
-								fmt.Print(ui.UpdatesFindingsHeader())
-								summaryPrinted = true
-							}
-							fmt.Print(ui.RenderUpdatesSummaryLive(s))
-
-						case "updates":
-							var u prompt.UpdateFinding
-							if jsonErr := json.Unmarshal([]byte(raw), &u); jsonErr != nil {
-								return
-							}
-							spin.ClearLine()
-							if !summaryPrinted {
-								fmt.Print(ui.UpdatesFindingsHeader())
-								summaryPrinted = true
-							}
-							fmt.Print(ui.RenderUpdatesFindingLive(u, 0))
-						}
-					},
-				},
-			)
-
-			spin.Stop()
-
-			if err != nil && !errors.Is(err, ai.ErrIncomplete) {
-				_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
-				if ferr != nil {
-					return ferr
-				}
-				return err
-			}
-			if errors.Is(err, ai.ErrIncomplete) {
-				_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
-			}
-
-			if !summaryPrinted {
-				fmt.Print(ui.UpdatesFindingsHeader())
-				fmt.Print(ui.RenderUpdatesSummaryLive(result.Summary))
-			}
-
-			if len(result.Updates) == 0 {
-				fmt.Print(ui.UpdatesCleanResult())
-			} else {
-				fmt.Print(ui.RenderUpdatesResultSummary(result))
-			}
-			fmt.Print(ui.Done())
-			return nil
+			return runUpdatesLlm(filtered, env, securityOnly, debug)
 		},
 	}
 
@@ -213,4 +130,91 @@ func validateUpdate(u prompt.UpdateFinding) []string {
 		errs = append(errs, fmt.Sprintf("detail must not be empty when category is %q", cat))
 	}
 	return errs
+}
+
+func runUpdatesLlm(filtered []collector.Update, env collector.Environment, securityOnly, debug bool) error {
+	san := sanitiser.Default()
+	sanitisedText := san.Sanitise(collector.FormatUpdatesForPrompt(filtered))
+
+	p := prompt.Updates(prompt.UpdatesInput{
+		Environment:  env,
+		Updates:      sanitisedText,
+		SecurityOnly: securityOnly,
+	})
+
+	spin := spinner.Start("thinking…")
+	pipe := updatesStreamPipeline()
+	if debug {
+		pipe = pipe.WithDebug(os.Stderr)
+	}
+
+	summaryPrinted := false
+
+	result, err := pipe.Run(
+		context.Background(),
+		p,
+		ai.StreamOptions{
+			OnFirstToken: func() { spin.SetLabel("responding…") },
+			OnRepairStart: func(n int) {
+				spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n))
+			},
+			OnItem: func(key, raw string) {
+				switch key {
+				case "summary":
+					var s string
+					if jsonErr := json.Unmarshal([]byte(raw), &s); jsonErr != nil {
+						return
+					}
+					s = strings.TrimSpace(s)
+					if s == "" {
+						return
+					}
+					spin.ClearLine()
+					if !summaryPrinted {
+						fmt.Print(ui.UpdatesFindingsHeader())
+						summaryPrinted = true
+					}
+					fmt.Print(ui.RenderUpdatesSummaryLive(s))
+
+				case "updates":
+					var u prompt.UpdateFinding
+					if jsonErr := json.Unmarshal([]byte(raw), &u); jsonErr != nil {
+						return
+					}
+					spin.ClearLine()
+					if !summaryPrinted {
+						fmt.Print(ui.UpdatesFindingsHeader())
+						summaryPrinted = true
+					}
+					fmt.Print(ui.RenderUpdatesFindingLive(u, 0))
+				}
+			},
+		},
+	)
+
+	spin.Stop()
+
+	if err != nil && !errors.Is(err, ai.ErrIncomplete) {
+		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		if ferr != nil {
+			return ferr
+		}
+		return err
+	}
+	if errors.Is(err, ai.ErrIncomplete) {
+		_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+	}
+
+	if !summaryPrinted {
+		fmt.Print(ui.UpdatesFindingsHeader())
+		fmt.Print(ui.RenderUpdatesSummaryLive(result.Summary))
+	}
+
+	if len(result.Updates) == 0 {
+		fmt.Print(ui.UpdatesCleanResult())
+	} else {
+		fmt.Print(ui.RenderUpdatesResultSummary(result))
+	}
+	fmt.Print(ui.Done())
+	return nil
 }
