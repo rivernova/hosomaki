@@ -4,6 +4,11 @@
 
 package collector
 
+import (
+	"errors"
+	"os/exec"
+)
+
 // all external binary names used by collectors, referenced by name
 const (
 	binUptime      = "uptime"
@@ -48,3 +53,7 @@ var journalctl = struct {
 }
 
 const dmesgShell = "dmesg --level=err,warn --notime 2>/dev/null | tail -n %d"
+
+func isMissingBinary(err error) bool {
+	return errors.Is(err, exec.ErrNotFound)
+}

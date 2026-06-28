@@ -501,3 +501,27 @@ func TestCollapseRepeats_OnBatchAfterPerLineSanitise(t *testing.T) {
 		t.Errorf("collapsed batch must contain exactly 1 <ERROR> line, got:\n%s", collapsed)
 	}
 }
+
+func TestDefault_CombinedSecretClassesAllScrubbed(t *testing.T) {
+	const blob = "Jun  2 20:08:18 webhost01 sshd[1234]: Accepted publickey for admin\n" +
+		"connection from 203.0.113.45 to 2001:db8:abcd:0012:0000:0000:0000:0001\n" +
+		"interface fw0 link/ether de:ad:be:ef:ca:fe\n" +
+		"loaded credentials from /home/alice/.ssh/id_ed25519\n" +
+		"notified operator admin@example.com of the event"
+
+	secrets := map[string]string{
+		"IPv4 address":  "203.0.113.45",
+		"IPv6 address":  "2001:db8:abcd:0012:0000:0000:0000:0001",
+		"MAC address":   "de:ad:be:ef:ca:fe",
+		"syslog host":   "webhost01",
+		"home path":     "/home/alice/.ssh/id_ed25519",
+		"email address": "admin@example.com",
+	}
+
+	got := Default().Sanitise(blob)
+	for class, token := range secrets {
+		if strings.Contains(got, token) {
+			t.Errorf("%s leaked through sanitiser: %q still present in:\n%s", class, token, got)
+		}
+	}
+}

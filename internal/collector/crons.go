@@ -90,11 +90,23 @@ func collectUserCrontabs() ([]CronJob, []string) {
 		warnings = append(warnings, warn)
 	}
 
+	jobs, readWarnings := readUserCrontabs(users)
+	warnings = append(warnings, readWarnings...)
+
+	return jobs, warnings
+}
+
+func readUserCrontabs(users []string) ([]CronJob, []string) {
 	var jobs []CronJob
+	var warnings []string
 
 	for _, user := range users {
 		out, err := exec.Command(binCrontab, "-l", "-u", user).Output()
 		if err != nil {
+			if isMissingBinary(err) {
+				warnings = append(warnings, fmt.Sprintf("cannot read user crontabs: %q is not installed", binCrontab))
+				break
+			}
 			continue
 		}
 		source := "user:" + user

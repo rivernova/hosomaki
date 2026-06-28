@@ -90,6 +90,9 @@ func ServiceLogs(service string, opts LogOptions) (string, error) {
 	args = append(args, journalctl.format...)
 	out, err = exec.Command(binJournalctl, args...).Output()
 	if err != nil || !isJournalContent(string(out)) {
+		if isMissingBinary(err) {
+			return "", fmt.Errorf("cannot read service logs: %q is not installed", binJournalctl)
+		}
 		return "", fmt.Errorf("no logs found for service %q — is the service name correct and has it run recently?", service)
 	}
 	return strings.TrimSpace(string(out)), nil
@@ -112,6 +115,9 @@ func BootLogs(bootIndex int, opts LogOptions) (string, error) {
 	args = append(args, journalctl.format...)
 	out, err = exec.Command(binJournalctl, args...).Output()
 	if err != nil || !isJournalContent(string(out)) {
+		if isMissingBinary(err) {
+			return "", fmt.Errorf("cannot read boot logs: %q is not installed", binJournalctl)
+		}
 		return "", fmt.Errorf("no logs found for boot %d — the boot index may be out of range", bootIndex)
 	}
 	return strings.TrimSpace(string(out)), nil
@@ -156,7 +162,13 @@ func FileLogs(path string, opts LogOptions) (string, error) {
 	}
 
 	out, err := exec.Command(binTail, "-n", strconv.Itoa(n), path).Output()
-	if err != nil || strings.TrimSpace(string(out)) == "" {
+	if err != nil {
+		if isMissingBinary(err) {
+			return "", fmt.Errorf("cannot read log file %q: %q is not installed", path, binTail)
+		}
+		return "", fmt.Errorf("log file %q is empty or unreadable", path)
+	}
+	if strings.TrimSpace(string(out)) == "" {
 		return "", fmt.Errorf("log file %q is empty or unreadable", path)
 	}
 
