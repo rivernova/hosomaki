@@ -128,78 +128,26 @@ See the [Roadmap](https://github.com/rivernova/hosomaki/wiki) for the full plan.
 ## Requirements
 
 - Linux (systemd-based distro recommended)
-- Go 1.23+
 - [Ollama](https://ollama.com) running locally with a model pulled
+- Go 1.23+ *(only to build from source. This is not needed for the `.deb`/`.rpm` packages)*
 
 ---
 
 ## Installation
 
-### Install Ollama
+Hosomaki needs [Ollama](https://ollama.com) running locally with a model pulled, then installs from a release package (`.deb`/`.rpm`, no Go required) or from source.
 
-**Native (recommended):**
-
-```bash
-curl -fsSL https://ollama.com/install.sh | sh
-```
-
-On most distros this registers a systemd service that starts automatically. If it isn't running yet:
-
-```bash
-ollama serve
-```
-
-**Docker:**
-
-```bash
-docker run -d -p 11434:11434 --name ollama ollama/ollama
-```
-
-### Pull a model
-
-```bash
-ollama pull llama3.2:3b
-```
-
-Any model works. Larger models produce better results, smaller models are faster.
-
-If using Docker:
-
-```bash
-docker exec -it ollama ollama pull llama3.2:3b
-```
-
-### Install Hosomaki
-
-```bash
-git clone https://github.com/rivernova/hosomaki.git
-cd hosomaki
-make build
-sudo make install
-```
-
-### Recommended Ollama Models
-
-Hosomaki works best with instruction-tuned local models for text generation, summarisation, and log parsing. Model choice depends on your hardware and desired trade-off between speed and quality.
-
-| Model | Best for | Notes |
-|---|---|---|
-| `llama3.2:3b` | Fast responses, low resource | Lightweight summarisation and log tasks |
-| `gemma3:4b` | Balanced | Large context window, multilingual support |
-| `mistral:7b` | General-purpose | Strong instruction-following 7B model |
-| `qwen3:8b` | Higher-quality reasoning & summaries | Requires more RAM/VRAM |
-
-If a command feels slow, it's almost always Ollama or the model, not Hosomaki. See [Troubleshooting Slow Responses](https://rivernova.github.io/hosomaki/guide/troubleshooting).
+→ **[Installation guide](https://rivernova.github.io/hosomaki/guide/installation)** — Ollama setup (native and Docker/GPU), packages, building from source, and recommended models.
 
 ---
 
-### Configuration
+## Configuration
 
-```bash
-mkdir -p ~/.config/hosomaki && cp config.example.yml ~/.config/hosomaki/config.yaml
-```
+Hosomaki is zero-configuration by default.
 
-See the [configuration guide](https://rivernova.github.io/hosomaki/guide/configuration) for the full schema and environment variable overrides.
+→ **[Configuration guide](https://rivernova.github.io/hosomaki/guide/configuration)** — full schema and environment-variable overrides.
+
+---
 
 ## Development
 

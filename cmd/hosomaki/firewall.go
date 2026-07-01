@@ -76,12 +76,16 @@ func runFirewall(crossCheck, debug bool) error {
 		return nil
 	}
 
+	return runFirewallLlm(result, crossCheck, debug)
+}
+
+func runFirewallLlm(result collector.FirewallResult, crossCheck, debug bool) error {
 	san := sanitiser.Default()
 	sanitisedRules := san.Sanitise(collector.FormatFirewallForPrompt(result))
 
 	var crossCheckData string
 	if crossCheck {
-		spin = spinner.Start("reading listening ports…")
+		spin := spinner.Start("reading listening ports…")
 		ports, portWarns := collector.Ports()
 		spin.Stop()
 		crossCheckData = san.Sanitise(collector.FormatPortsForPrompt(ports))
@@ -96,7 +100,7 @@ func runFirewall(crossCheck, debug bool) error {
 		CrossCheck:  crossCheckData,
 	})
 
-	spin = spinner.Start("thinking…")
+	spin := spinner.Start("thinking…")
 	pipe := firewallStreamPipeline()
 	if debug {
 		pipe = pipe.WithDebug(os.Stderr)

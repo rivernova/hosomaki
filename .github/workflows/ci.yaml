@@ -40,7 +40,19 @@ jobs:
         run: go mod download
 
       - name: Test
-        run: go test ./... -v -race -coverprofile=coverage.txt
+        run: go test ./... -race -coverpkg=./... -coverprofile=coverage.txt
+
+      - name: Coverage report
+        run: go tool cover -func=coverage.txt | tail -1
+
+      - name: Core coverage gate
+        run: |
+          head -1 coverage.txt > core.cov
+          grep -E 'hosomaki/internal/(collector|ai|sanitiser|prompt)/' coverage.txt >> core.cov
+          core=$(go tool cover -func=core.cov | awk '/^total:/ {print substr($NF, 1, length($NF)-1)}')
+          echo "core coverage: ${core}% (floor 70%)"
+          awk -v c="$core" 'BEGIN { exit (c+0 < 70) ? 1 : 0 }' \
+            || { echo "::error::core coverage ${core}% is below the 70% floor"; exit 1; }
 
       - name: Build
         run: go build ./...

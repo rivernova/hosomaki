@@ -1,0 +1,31 @@
+# Optional Ollama runtime for Hosomaki.
+#
+# This is a convenience template — Hosomaki does NOT require Docker and never
+# starts this stack automatically. Bring it up explicitly with `make ollama-up`
+# (or `docker compose -f deploy/docker-compose.yml up -d`) only if you prefer
+# running Ollama in a container instead of natively.
+#
+# GPU note: the `deploy.resources` block below requests an NVIDIA GPU and needs
+# the NVIDIA Container Toolkit installed on the host
+# (https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+# Remove that block to run on CPU only.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: hosomaki-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  ollama-models:

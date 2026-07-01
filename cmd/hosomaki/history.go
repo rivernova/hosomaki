@@ -126,90 +126,7 @@ Examples:
 
 			filterDesc := buildFilterDesc(filterCmd, since, limit)
 
-			san := sanitiser.Default()
-			sanitised := san.Sanitise(formatHistoryForPrompt(entries))
-
-			p := prompt.History(prompt.HistoryInput{
-				Environment: env,
-				History:     sanitised,
-				FilterDesc:  filterDesc,
-			})
-
-			spin := spinner.Start("thinking…")
-			pipe := historyStreamPipeline()
-			if debug {
-				pipe = pipe.WithDebug(os.Stderr)
-			}
-
-			summaryPrinted := false
-
-			result, err := pipe.Run(
-				context.Background(),
-				p,
-				ai.StreamOptions{
-					OnFirstToken: func() { spin.SetLabel("responding…") },
-					OnRepairStart: func(n int) {
-						spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n))
-					},
-					OnItem: func(key, raw string) {
-						switch key {
-						case "summary":
-							var s string
-							if jsonErr := json.Unmarshal([]byte(raw), &s); jsonErr != nil {
-								return
-							}
-							s = strings.TrimSpace(s)
-							if s == "" {
-								return
-							}
-							spin.ClearLine()
-							if !summaryPrinted {
-								fmt.Print(ui.HistoryFindingsHeader())
-								summaryPrinted = true
-							}
-							fmt.Print(ui.RenderHistorySummaryLive(s))
-
-						case "entries":
-							var e prompt.HistoryEntry
-							if jsonErr := json.Unmarshal([]byte(raw), &e); jsonErr != nil {
-								return
-							}
-							spin.ClearLine()
-							if !summaryPrinted {
-								fmt.Print(ui.HistoryFindingsHeader())
-								summaryPrinted = true
-							}
-							fmt.Print(ui.RenderHistoryEntryLive(e, 0))
-						}
-					},
-				},
-			)
-
-			spin.Stop()
-
-			if err != nil && !errors.Is(err, ai.ErrIncomplete) {
-				_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
-				if ferr != nil {
-					return ferr
-				}
-				return err
-			}
-			if errors.Is(err, ai.ErrIncomplete) {
-				_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
-			}
-
-			if !summaryPrinted {
-				fmt.Print(ui.HistoryFindingsHeader())
-				fmt.Print(ui.RenderHistorySummaryLive(result.Summary))
-			}
-
-			if len(result.Entries) == 0 {
-				fmt.Print(ui.HistoryCleanResult())
-			} else {
-				fmt.Print(ui.RenderHistoryResultSummary(result))
-			}
-			fmt.Print(ui.Done())
-			return nil
+			return runHistoryLlm(entries, env, filterDesc, debug)
 		},
 	}
 
@@ -354,4 +271,91 @@ func buildFilterDesc(cmd, since string, limit int) string {
 		parts = append(parts, "from last "+since)
 	}
 	return strings.Join(parts, " ")
+}
+
+func runHistoryLlm(entries []store.HistoryEntry, env collector.Environment, filterDesc string, debug bool) error {
+	san := sanitiser.Default()
+	sanitised := san.Sanitise(formatHistoryForPrompt(entries))
+
+	p := prompt.History(prompt.HistoryInput{
+		Environment: env,
+		History:     sanitised,
+		FilterDesc:  filterDesc,
+	})
+
+	spin := spinner.Start("thinking…")
+	pipe := historyStreamPipeline()
+	if debug {
+		pipe = pipe.WithDebug(os.Stderr)
+	}
+
+	summaryPrinted := false
+
+	result, err := pipe.Run(
+		context.Background(),
+		p,
+		ai.StreamOptions{
+			OnFirstToken: func() { spin.SetLabel("responding…") },
+			OnRepairStart: func(n int) {
+				spin.SetLabel(fmt.Sprintf("repairing (attempt %d)…", n))
+			},
+			OnItem: func(key, raw string) {
+				switch key {
+				case "summary":
+					var s string
+					if jsonErr := json.Unmarshal([]byte(raw), &s); jsonErr != nil {
+						return
+					}
+					s = strings.TrimSpace(s)
+					if s == "" {
+						return
+					}
+					spin.ClearLine()
+					if !summaryPrinted {
+						fmt.Print(ui.HistoryFindingsHeader())
+						summaryPrinted = true
+					}
+					fmt.Print(ui.RenderHistorySummaryLive(s))
+
+				case "entries":
+					var e prompt.HistoryEntry
+					if jsonErr := json.Unmarshal([]byte(raw), &e); jsonErr != nil {
+						return
+					}
+					spin.ClearLine()
+					if !summaryPrinted {
+						fmt.Print(ui.HistoryFindingsHeader())
+						summaryPrinted = true
+					}
+					fmt.Print(ui.RenderHistoryEntryLive(e, 0))
+				}
+			},
+		},
+	)
+
+	spin.Stop()
+
+	if err != nil && !errors.Is(err, ai.ErrIncomplete) {
+		_, ferr := fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		if ferr != nil {
+			return ferr
+		}
+		return err
+	}
+	if errors.Is(err, ai.ErrIncomplete) {
+		_, _ = fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+	}
+
+	if !summaryPrinted {
+		fmt.Print(ui.HistoryFindingsHeader())
+		fmt.Print(ui.RenderHistorySummaryLive(result.Summary))
+	}
+
+	if len(result.Entries) == 0 {
+		fmt.Print(ui.HistoryCleanResult())
+	} else {
+		fmt.Print(ui.RenderHistoryResultSummary(result))
+	}
+	fmt.Print(ui.Done())
+	return nil
 }

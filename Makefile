@@ -5,6 +5,8 @@ BUILD_DIR := ./bin
 VERSION   := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS   := -ldflags "-X main.version=$(VERSION)"
 OLLAMA_URL := http://localhost:11434
+GO_MIN    := 1.23
+OLLAMA_COMPOSE := deploy/docker-compose.yml
 
 # default
 .DEFAULT_GOAL := help
@@ -16,8 +18,23 @@ help: ## show this help
 
 # build
 
+.PHONY: check-go
+check-go: ## verify a recent enough Go toolchain is installed
+	@command -v go >/dev/null 2>&1 || { \
+		echo "✗ Go is not installed."; \
+		echo "  Hosomaki needs Go $(GO_MIN)+ to build from source."; \
+		echo "  Install it from https://go.dev/doc/install (Debian's apt package is too old)."; \
+		exit 1; }
+	@have=$$(GOTOOLCHAIN=local go env GOVERSION 2>/dev/null | sed 's/^go//'); \
+	 if [ -z "$$have" ] || [ "$$(printf '%s\n%s\n' "$(GO_MIN)" "$$have" | sort -V | head -1)" != "$(GO_MIN)" ]; then \
+		echo "✗ Go $$have is too old — Hosomaki needs $(GO_MIN)+."; \
+		echo "  Update from https://go.dev/doc/install"; \
+		exit 1; \
+	 fi; \
+	 echo "✓ Go $$have"
+
 .PHONY: build
-build: ## build binary to ./bin/hosomaki
+build: check-go ## build binary to ./bin/hosomaki
 	@mkdir -p $(BUILD_DIR)
 	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) $(CMD_DIR)
 	@echo "✓ Built $(BUILD_DIR)/$(BINARY) ($(VERSION))"
@@ -81,6 +98,16 @@ ollama-status: ## show Ollama status and loaded models
 	@curl -sf $(OLLAMA_URL) > /dev/null 2>&1 && \
 		(echo "✓ Ollama running at $(OLLAMA_URL)"; ollama list) || \
 		echo "✗ Ollama not running"
+
+.PHONY: ollama-up
+ollama-up: ## start Ollama via docker compose (uses GPU if available); never run by install
+	docker compose -f $(OLLAMA_COMPOSE) up -d
+	@echo "✓ Ollama container up. Pull a model with: docker compose -f $(OLLAMA_COMPOSE) exec ollama ollama pull llama3.2:3b"
+
+.PHONY: ollama-down
+ollama-down: ## stop the docker compose Ollama stack
+	docker compose -f $(OLLAMA_COMPOSE) down
+	@echo "✓ Ollama container stopped"
 
 # test and quality
 
