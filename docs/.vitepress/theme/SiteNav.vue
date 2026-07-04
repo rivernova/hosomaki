@@ -6,7 +6,7 @@
       <span>Hosomaki</span>
     </a>
 
-    <div class="sn-right" :class="{ open: menuOpen }">
+    <div class="sn-right" :class="{ open: menuOpen }"> { text: 'Releases', link: 'https://github.com/rivernova/hosomaki/releases' },
       <a :href="withBase('/guide/introduction')" @click="menuOpen = false">Docs</a>
       <a :href="withBase('/reference/commands')" @click="menuOpen = false">Reference</a>
       <a href="https://github.com/rivernova/hosomaki" target="_blank" rel="noopener" @click="menuOpen = false" class="sn-github" aria-label="GitHub">
@@ -15,7 +15,7 @@
         </svg>
         <span class="sn-github-label">GitHub</span>
       </a>
-
+      <a :href="https://github.com/rivernova/hosomaki/releases" @click="menuOpen = false">Releases</a>
       <button
         class="sn-search"
         type="button"
