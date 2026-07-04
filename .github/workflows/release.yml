@@ -48,21 +48,27 @@ jobs:
           name: packages
           path: dist/*
 
+      - name: Compose release body
+        run: |
+          cp RELEASE_NOTES.md release_body.md
+          {
+            echo ""
+            echo "📖 Docs: https://rivernova.github.io/hosomaki/"
+            echo ""
+            echo "🔏 Artifacts are checksummed and signed with [cosign](https://docs.sigstore.dev/cosign/overview/) (keyless, via this workflow's GitHub Actions identity). Verify with:"
+            echo '```'
+            echo "cosign verify-blob \\"
+            echo "  --certificate-identity \"https://github.com/rivernova/hosomaki/.github/workflows/release.yml@${GITHUB_REF}\" \\"
+            echo '  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \'
+            echo "  --bundle checksums.txt.sigstore.json \\"
+            echo "  checksums.txt"
+            echo "sha256sum --ignore-missing -c checksums.txt"
+            echo '```'
+          } >> release_body.md
+
       - name: Attach packages to release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
           fail_on_unmatched_files: true
-          generate_release_notes: true
-          body: |
-            📖 Docs: https://rivernova.github.io/hosomaki/
-
-            🔏 Artifacts are checksummed and signed with [cosign](https://docs.sigstore.dev/cosign/overview/) (keyless, via this workflow's GitHub Actions identity). Verify with:
-            ```
-            cosign verify-blob \
-              --certificate-identity "https://github.com/rivernova/hosomaki/.github/workflows/release.yml@${{ github.ref }}" \
-              --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-              --bundle checksums.txt.sigstore.json \
-              checksums.txt
-            sha256sum --ignore-missing -c checksums.txt
-            ```
+          body_path: release_body.md
