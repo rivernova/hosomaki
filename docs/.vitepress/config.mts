@@ -25,6 +25,7 @@ export default defineConfig({
         nav: [
             { text: 'Docs', link: '/guide/introduction', activeMatch: '/guide/' },
             { text: 'Reference', link: '/reference/commands', activeMatch: '/reference/' },
+            { text: 'Releases', link: 'https://github.com/rivernova/hosomaki/releases' },
         ],
 
         sidebar: [
@@ -64,7 +65,7 @@ export default defineConfig({
                 collapsed: false,
                 items: [
                     { text: 'Overview', link: '/guide/architecture' },
-                    { text: 'AI Pipeline', link: '/guide/pipeline' },
+                    { text: 'LLM Pipeline', link: '/guide/pipeline' },
                     { text: 'Sanitisation', link: '/guide/sanitisation' },
                     { text: 'Data Privacy', link: '/guide/privacy' },
                 ],

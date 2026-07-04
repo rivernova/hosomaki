@@ -164,7 +164,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 ## Status
 
-Early development. The core commands (`explain`, `status`, `doctor`, `shell-integration`) are stable. Everything else is in progress.
+`v0.5.0` is out. The full command set is available (`doctor`, `explain`, `why`, `ports`, `timers`, `crons`, `mounts`, `updates`, `firewall`, `history`, `audit`, `watch`). This is a pre-1.0.0 release: it's usable day-to-day, but flags and config aren't frozen yet and may still change before 1.0.0.
 
 ## License
 
