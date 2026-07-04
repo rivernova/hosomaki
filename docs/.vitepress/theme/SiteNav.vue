@@ -15,7 +15,7 @@
         </svg>
         <span class="sn-github-label">GitHub</span>
       </a>
-      <a :href="https://github.com/rivernova/hosomaki/releases" @click="menuOpen = false">Releases</a>
+      <a href="https://github.com/rivernova/hosomaki/releases" @click="menuOpen = false">Releases</a>
       <button
         class="sn-search"
         type="button"
