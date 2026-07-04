@@ -6,7 +6,7 @@
       <span>Hosomaki</span>
     </a>
 
-    <div class="sn-right" :class="{ open: menuOpen }"> { text: 'Releases', link: 'https://github.com/rivernova/hosomaki/releases' },
+    <div class="sn-right" :class="{ open: menuOpen }">
       <a :href="withBase('/guide/introduction')" @click="menuOpen = false">Docs</a>
       <a :href="withBase('/reference/commands')" @click="menuOpen = false">Reference</a>
       <a href="https://github.com/rivernova/hosomaki" target="_blank" rel="noopener" @click="menuOpen = false" class="sn-github" aria-label="GitHub">
